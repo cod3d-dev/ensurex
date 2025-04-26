@@ -2,7 +2,13 @@
 
 namespace App\Providers;
 
+use Carbon\Carbon;
+use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentColor;
 use Illuminate\Support\ServiceProvider;
+use Filament\Support\Assets\Css;
+use Filament\Support\Facades\FilamentAsset;
+use Filament\Forms\Components\TextInput;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +25,26 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Set Spanish as the default locale for Carbon
+        Carbon::setLocale('es');
+        
+        FilamentColor::register([
+            'danger' => Color::Red,
+            'gray' => Color::Zinc,
+            'info' => Color::Blue,
+            'primary' => Color::Amber,
+            'success' => Color::Green,
+            'warning' => Color::Amber,
+            'violet' => Color::Violet,
+            'pending' => Color::Yellow,
+        ]);
+
+        TextInput::configureUsing(function (TextInput $component): void {
+            $component->telRegex('/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/');
+        });
+
+        FilamentAsset::register([
+            Css::make('custom-stylesheet2', __DIR__ . '/../../resources/css/custom.css'),
+        ]);
     }
 }
