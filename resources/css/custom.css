@@ -1,3 +1,17 @@
 .custom-input-color-red {
     background-color: #ffcccc !important;
 }
+
+/* primary: colors.amber,
+                danger: colors.red,
+                success: colors.green,
+                warning: colors.amber,
+                info: colors.blue,
+                violet: colors.violet,
+                pending: colors.yellow,
+                gray: colors.zinc, */
+
+/* Class .text-color-danger with color red */
+.text-color-danger {
+    color: #ff0000 !important;
+}

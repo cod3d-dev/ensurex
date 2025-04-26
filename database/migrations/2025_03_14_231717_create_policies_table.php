@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('code')->index()->unique()->nullable();
             $table->foreignId('contact_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('insurance_company_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('insurance_company_id')->default(1)->nullable()->constrained()->nullOnDelete();
             $table->string('policy_type')->nullable();
             $table->foreignId('quote_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('agent_id')->nullable()->constrained()->nullOnDelete();

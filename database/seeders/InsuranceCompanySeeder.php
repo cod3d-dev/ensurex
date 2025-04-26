@@ -15,6 +15,11 @@ class InsuranceCompanySeeder extends Seeder
     {
         $companies = [
             [
+                'name' => 'No Asignada',
+                'code' => 'NA',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Aetna',
                 'code' => 'AET',
                 'is_active' => true,

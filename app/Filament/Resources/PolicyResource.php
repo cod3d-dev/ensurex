@@ -8,6 +8,7 @@ use App\Enums\MaritialStatus;
 use App\Enums\PolicyType;
 use App\Filament\Resources\PolicyResource\Pages;
 use App\Filament\Resources\PolicyResource\RelationManagers;
+use App\Tables\Columns\StatusColumn;
 use Faker\Provider\Text;
 use Filament\Forms\Components\Actions;
 use Filament\Actions\EditAction;
@@ -299,30 +300,8 @@ class PolicyResource extends Resource
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
                     ->searchable()
-                    // ->searchable(query: function (Builder $query, string $search): Builder {
-                    //     return $query->where(function (Builder $query) use ($search): Builder {
-                    //         // Search in contact fields
-                    //         $query->whereHas('contact', function (Builder $query) use ($search): Builder {
-                    //             return $query->where('first_name', 'like', "%{$search}%")
-                    //                 ->orWhere('middle_name', 'like', "%{$search}%")
-                    //                 ->orWhere('last_name', 'like', "%{$search}%")
-                    //                 ->orWhere('second_last_name', 'like', "%{$search}%");
-                    //         });
-
-                    //         // Search in additional applicants JSON field
-                    //         $query->orWhereRaw("JSON_SEARCH(LOWER(additional_applicants), 'one', LOWER(?)) IS NOT NULL", ["%{$search}%"]);
-
-                    //         return $query;
-                    //     });
-                    // })
-                    ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query
-                            ->join('contacts', 'policies.contact_id', '=', 'contacts.id')
-                            ->orderBy('contacts.last_name', $direction)
-                            ->orderBy('contacts.first_name', $direction)
-                            ->select('policies.*');
-                    })
                     ->html()
+                    ->wrap()
                     ->tooltip(function(string $state, Policy $record): string {
                         $spanishMonths = [
                             'January' => 'Enero', 'February' => 'Febrero', 'March' => 'Marzo', 'April' => 'Abril',
@@ -359,6 +338,11 @@ class PolicyResource extends Resource
                     ->label('Empresa')
                     ->sortable()
                     ->badge()
+                    ->default('NA')
+                    ->color(fn (string $state): string => match ($state) {
+                        'NA' => 'danger',
+                        default => 'success',
+                    })
                     ->tooltip(function ($record) {
                         if (!$record || !$record->insuranceCompany) {
                             return '';
@@ -372,7 +356,7 @@ class PolicyResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d-m-Y')
-                    ->label('Creada')
+                    ->label('Fecha')
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('user.name')
@@ -391,44 +375,11 @@ class PolicyResource extends Resource
                         'Raul Medrano' => 'purple',
                     })
                     ->toggleable(),
-                Tables\Columns\ColumnGroup::make('Estatus', [
-                    Tables\Columns\IconColumn::make('client_notified')
-                        ->boolean()
-                        ->label('Informado')
-                        ->sortable(),
-                    Tables\Columns\IconColumn::make('autopay')
-                        ->boolean()
-                        ->label('Autopay')
-                        ->sortable(),
-                    Tables\Columns\IconColumn::make('initial_paid')
-                        ->boolean()
-                        ->label('Inicial')
-                        ->sortable(),
-                    Tables\Columns\IconColumn::make('aca')
-                       ->boolean()
-//                        ->formatStateUsing(fn(Policy $record): bool => ($record->policy_us_state === 'KY' && $record->aca) ? true : false)
-//                        ->sortable(),
-                        ->label('ACA'),
-                    Tables\Columns\IconColumn::make('meetsKynectFPLRequirement')
-                        ->boolean()
-                        ->label('FPL'),
-                    Tables\Columns\TextColumn::make('document_status')
-                        ->label('Documentos')
-                        ->sortable()
-                        ->badge()
-                        ->action(
-                            Tables\Actions\Action::make('viewPendingDocuments')
-                                ->label('Ver Documentos Pendientes')
-                                ->icon('heroicon-m-document-text')
-                                ->modalHeading('Documentos Pendientes')
-                                ->modalDescription(fn (Policy $record): string => "Documentos pendientes para la póliza #{$record->id}")
-                                ->modalContent(fn (Policy $record): View => view(
-                                    'filament.resources.policy-resource.pending-documents',
-                                    ['documents' => $record->documents()->where('status', DocumentStatus::Pending)->get()]
-                                ))
-                                ->modalWidth(MaxWidth::Medium)
-                        ),
-                ]),
+                StatusColumn::make('document_status')
+                    ->label('Estatus'),
+                Tables\Columns\IconColumn::make('meetsKynectFPLRequirement')
+                    ->boolean()
+                    ->label('FPL'),
                 Tables\Columns\TextColumn::make('effective_date')
                     ->label('Fecha de inicio')
                     ->date('d/m/Y')
