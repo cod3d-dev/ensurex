@@ -1,0 +1,260 @@
+<?php
+
+namespace App\Models;
+
+use App\Casts\ApplicantCast;
+use App\Casts\ApplicantCollectionCast;
+use App\Enums\DocumentStatus;
+use App\Enums\PolicyStatus;
+use App\Enums\PolicyType;
+use App\Enums\RenewalStatus;
+use App\Enums\UsState;
+use App\Models\KynectFPL;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Policy extends Model
+{
+    use HasFactory;
+
+    protected $guarded = [];
+
+    // protected $hidden = [
+    //     'payment_card_number',
+    //     'payment_card_cvv',
+    //     'payment_bank_account_number',
+    // ];
+
+    protected $casts = [
+        'main_applicant' => ApplicantCast::class,
+        'additional_applicants' => ApplicantCollectionCast::class,
+        // 'family_members' => 'array',
+        'prescription_drugs' => 'array',
+        'life_insurance' => 'json',
+        'contact_information' => 'array',
+        'premium_amount' => 'decimal:2',
+        'coverage_amount' => 'decimal:2',
+        'estimated_household_income' => 'decimal:2',
+        'policy_total_cost' => 'decimal:2',
+        'policy_total_subsidy' => 'decimal:2',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'valid_until' => 'date',
+        'next_document_expiration_date' => 'date',
+        'total_family_members' => 'integer',
+        'total_applicants' => 'integer',
+        'recurring_payment' => 'boolean',
+        'initial_paid' => 'boolean',
+        'autopay' => 'boolean',
+        'aca' => 'boolean',
+        'life_offered' => 'boolean',
+        'client_notified' => 'boolean',
+        'document_status' => DocumentStatus::class,
+        'policy_status' => PolicyStatus::class,
+        'renewal_status' => RenewalStatus::class,
+        'policy_type' => PolicyType::class,
+        'state' => UsState::class,
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'payment_card_number' => 'encrypted',
+            'payment_card_cvv' => 'encrypted',
+            'payment_card_holder' => 'encrypted',
+            'payment_bank_account_number' => 'encrypted',
+            'payment_bank_account_holder' => 'encrypted',
+            'billing_address_1' => 'encrypted',
+            'billing_address_2' => 'encrypted',
+            'payment_card_exp_month' => 'encrypted',
+            'payment_card_exp_year' => 'encrypted',
+        ];
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($policy) {
+            Log::info('Saving policy...', [
+                'id' => $policy->id,
+                'attributes' => $policy->getDirty(),
+            ]);
+        });
+
+        static::saved(function ($policy) {
+            Log::info('Policy saved successfully', [
+                'id' => $policy->id,
+                'changes' => $policy->getChanges(),
+            ]);
+        });
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(PolicyDocument::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
+    public function applicants(): BelongsToMany
+    {
+        return $this->belongsToMany(Contact::class, 'policy_applicants')
+            ->withPivot([
+                'sort_order',
+                'relationship_with_policy_owner',
+                'is_covered_by_policy',
+                'medicaid_client',
+                'employer_1_name',
+                'employer_1_role',
+                'employer_1_phone',
+                'employer_1_address',
+                'income_per_hour',
+                'hours_per_week',
+                'income_per_extra_hour',
+                'extra_hours_per_week',
+                'weeks_per_year',
+                'yearly_income',
+                'is_self_employed',
+                'self_employed_profession',
+                'self_employed_yearly_income'
+            ])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get additional applicants for this policy (excluding the owner)
+     */
+    public function additionalApplicants()
+    {
+        return $this->applicants()
+            ->wherePivot('contact_id', '!=', $this->contact_id)
+            ->orderBy('policy_applicants.sort_order')
+            ->get();
+    }
+
+    public function isOwnerAnApplicant(): bool
+    {
+        return $this->applicants()
+            ->wherePivot('contact_id', $this->contact_id)
+            ->exists();
+    }
+
+    public function policyApplicants(): HasMany
+    {
+        return $this->hasMany(PolicyApplicant::class);
+    }
+
+    public function insuranceCompany(): BelongsTo
+    {
+        return $this->belongsTo(InsuranceCompany::class);
+    }
+
+    public function initialVerificationPerformedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'initial_verification_performed_by');
+    }
+
+    public function previousYearPolicyUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'previous_year_policy_user_id');
+    }
+
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
+    }
+
+    public function issues(): HasMany
+    {
+        return $this->hasMany(Issue::class);
+    }
+
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class);
+    }
+
+    // Renewal relationships
+    public function renewedFromPolicy(): BelongsTo
+    {
+        return $this->belongsTo(Policy::class, 'renewed_from_policy_id');
+    }
+
+    public function renewedToPolicy(): BelongsTo
+    {
+        return $this->belongsTo(Policy::class, 'renewed_to_policy_id');
+    }
+
+    public function renewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'renewed_by');
+    }
+
+    // Helper methods for renewal
+    public function isRenewable(): bool
+    {
+        return !$this->renewed_to_policy_id &&
+            $this->end_date &&
+            $this->end_date->isFuture() &&
+            $this->end_date->subMonths(3)->isPast();
+    }
+
+    public function getRenewalPeriod(): array
+    {
+        $startDate = $this->end_date?->addDay();
+        return [
+            'start_date' => $startDate,
+            'end_date' => $startDate?->addYear()->subDay(),
+        ];
+    }
+
+    /**
+     * Check if this policy meets the KynectFPL requirement
+     *
+     * @return bool Whether the policy meets the KynectFPL requirement
+     */
+    public function getMeetsKynectFPLRequirementAttribute(): bool
+    {
+        // Get monthly income from main applicant
+        $annualIncome = null;
+
+        if (isset($this->estimated_household_income)) {
+            // Convert estimated_household_income to float
+            $annualIncome = (float) $this->estimated_household_income;
+        } else {
+            // Can't determine income
+            return false;
+        }
+        // Get the household size
+        $householdSize = $this->total_family_members;
+
+        // Get the threshold for this household size
+        $threshold = KynectFPL::getCurrentThreshold($householdSize);
+
+        if ($threshold === null) {
+            return false;
+        }
+
+        // Check if the monthly income is less than or equal to the threshold
+        return $annualIncome >= $threshold*12;
+    }
+
+    public function getTotalMembersAttribute(): int
+    {
+        return $this->total_family_members;
+    }
+}
