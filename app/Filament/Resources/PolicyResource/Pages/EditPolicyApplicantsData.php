@@ -36,6 +36,7 @@ class EditPolicyApplicantsData extends EditRecord
                 }
             }
             $data['total_applicants_with_medicaid'] = $medicaidCount;
+            $data['total_applicants'] = count($data['additional_applicants']);
         }
 
         return $data;
@@ -84,16 +85,15 @@ class EditPolicyApplicantsData extends EditRecord
                                                     ->collapsible()
                                                     ->relationship('contact')
                                                     ->schema([
-                                                        Forms\Components\TextInput::make('full_name')
-                                                            ->label('Nombre Completo')
-                                                            ->columnSpan(3),
                                                         Forms\Components\Select::make('gender')
                                                             ->label('Género')
+                                                            ->columnSpan(2)
                                                             ->options(Gender::class)
                                                             ->required(),
                                                         Forms\Components\DatePicker::make('date_of_birth')
                                                             ->label('Fecha de Nacimiento')
                                                             ->required()
+                                                            ->columnSpan(2)
                                                             ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
                                                                 if ($state) {
                                                                     $age = Carbon::parse($state)->age;
@@ -106,7 +106,8 @@ class EditPolicyApplicantsData extends EditRecord
                                                             ->disabled(true)
                                                             ->dehydrated(false),
                                                         Forms\Components\TextInput::make('country_of_birth')
-                                                            ->label('País de Nacimiento'),
+                                                            ->label('País de Nacimiento')
+                                                            ->columnSpan(2),
                                                         Forms\Components\Select::make('marital_status')
                                                             ->label('Estado Civil')
                                                             ->options([
@@ -115,15 +116,18 @@ class EditPolicyApplicantsData extends EditRecord
                                                                 'divorced' => 'Divorciado',
                                                                 'widowed' => 'Viudo',
                                                                 'separated' => 'Separado',
-                                                            ]),
+                                                            ])
+                                                            ->columnSpan(2),
                                                         Forms\Components\TextInput::make('phone')
                                                             ->label('Teléfono')
-                                                            ->tel(),
+                                                            ->tel()
+                                                            ->columnSpan(2),
                                                         Forms\Components\TextInput::make('phone2')
                                                             ->label('Teléfono 2')
-                                                            ->tel(),
+                                                            ->tel()
+                                                            ->columnSpan(2),
                                                         Forms\Components\TextInput::make('email_address')
-                                                            ->columnSpan(2)
+                                                            ->columnSpan(3)
                                                             ->label('Email')
                                                             ->email(),
                                                         Forms\Components\Toggle::make('is_tobacco_user')
@@ -137,36 +141,46 @@ class EditPolicyApplicantsData extends EditRecord
                                                             ->schema([
                                                                 Forms\Components\Select::make('immigration_status')
                                                                     ->label('Estatus migratorio')
-                                                                    ->columnSpan(2)
+                                                                    ->columnSpan(3)
                                                                     ->options(ImmigrationStatus::class)
                                                                     ->live(),
                                                                 Forms\Components\TextInput::make('immigration_status_category')
                                                                     ->label('Descripción')
-                                                                    ->columnSpan(2)
-                                                                    ->disabled(fn (Get $get) => $get('immigration_status') != ImmigrationStatus::Other->value)
-                                                                    ->columnSpan(2),
+                                                                    ->columnSpan(4)
+                                                                    ->disabled(fn (Get $get) => $get('immigration_status') != ImmigrationStatus::Other->value),
                                                                 Forms\Components\TextInput::make('ssn')
-                                                                    ->label('SSN #'),
+                                                                    ->label('SSN #')
+                                                                    ->columnSpan(2),
                                                                 Forms\Components\TextInput::make('passport_number')
-                                                                    ->label('Núm. Pasaporte'),
+                                                                    ->label('Núm. Pasaporte')
+                                                                    ->columnSpan(3),
                                                                 Forms\Components\TextInput::make('alien_number')
-                                                                    ->label('Núm. Alien'),
+                                                                    ->label('Núm. Alien')
+                                                                    ->columnSpan(2),
                                                                 Forms\Components\TextInput::make('work_permit_number')
                                                                     ->columnSpan(2)
                                                                     ->label('Num. Permiso Trabajo'),
                                                                 Forms\Components\DatePicker::make('work_permit_emissions_date')
-                                                                    ->label('Emisión'),
+                                                                    ->label('Emisión')
+                                                                    ->columnSpan(2)
+                                                                    ->columnStart(4),
                                                                 Forms\Components\DatePicker::make('work_permit_expiration_date')
-                                                                    ->label('Vencimiento'),
+                                                                    ->label('Vencimiento')
+                                                                    ->columnSpan(2),
                                                                 Forms\Components\TextInput::make('driver_license_number')
-                                                                    ->label('Licencia de conducir'),
+                                                                    ->label('Licencia de conducir')
+                                                                    ->columnSpan(2),
                                                                 Forms\Components\DatePicker::make('driver_license_emission_date')
-                                                                    ->label('Emisión'),
+                                                                    ->label('Emisión')
+                                                                    ->columnSpan(2)
+                                                                    ->columnStart(4),
                                                                 Forms\Components\Select::make('driver_license_emissions_state')
                                                                     ->options(UsState::class)
-                                                                    ->label('Estado Emisión'),
+                                                                    ->label('Estado Emisión')
+                                                                    ->columnSpan(2),
+                                                                    
                                                             ])->columns(7),
-                                                    ])->columns(7),
+                                                    ])->columns(9),
 
 //                                                Forms\Components\Select::make('immigration_status')
 //                                                    ->columnSpan(2)

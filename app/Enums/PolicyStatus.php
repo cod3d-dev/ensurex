@@ -11,6 +11,7 @@ use Filament\Support\Contracts\HasColor;
 
 enum PolicyStatus: string implements HasLabel, HasColor
 {
+    case ToVerify = 'to_verify';
     case Draft = 'draft';
     case Pending = 'pending';
     case Rejected = 'rejected';
@@ -22,6 +23,7 @@ enum PolicyStatus: string implements HasLabel, HasColor
     public function getLabel(): string
     {
         return match ($this) {
+            self::ToVerify => 'Por Verificar',
             self::Draft => 'Borrador',
             self::Pending => 'En Proceso',
             self::Rejected => 'Rechazada',
@@ -35,6 +37,7 @@ enum PolicyStatus: string implements HasLabel, HasColor
     public function getColor(): string
     {
         return match ($this) {
+            self::ToVerify => 'danger',
             self::Draft => 'info',
             self::Pending => 'warning',
             self::Rejected => 'danger',

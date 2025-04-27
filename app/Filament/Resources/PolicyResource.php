@@ -49,6 +49,8 @@ use App\Enums\FamilyRelationship;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables\Enums\FiltersLayout;
 use App\Enums\UsState;
+use Filament\Support\Enums\ActionSize;
+use Filament\Tables\Columns\TextColumn;
 
 
 
@@ -301,7 +303,17 @@ class PolicyResource extends Resource
                     ->label('Cliente')
                     ->searchable()
                     ->html()
-                    ->wrap()
+                    ->grow(false)
+                    ->size(TextColumn\TextColumnSize::Small)
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query
+                            ->whereHas('contact', function (Builder $query) use ($search) {
+                                $query->where('full_name', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('applicants', function (Builder $query) use ($search) {
+                                $query->where('full_name', 'like', "%{$search}%");
+                            });
+                    })
                     ->tooltip(function(string $state, Policy $record): string {
                         $spanishMonths = [
                             'January' => 'Enero', 'February' => 'Febrero', 'March' => 'Marzo', 'April' => 'Abril',
@@ -497,8 +509,11 @@ class PolicyResource extends Resource
                     Tables\Actions\Action::make('view')
                         ->label('Ver')
                         ->icon('heroicon-o-eye')
-                        ->url(fn (Policy $record): string => PolicyResource::getUrl('view-compact', ['record' => $record])),
-                        // ->url(fn (Policy $record): string => route(PolicyResource::getUrl('view-compact', [ 'record' => $record]))),
+                        ->url(fn (Policy $record): string => PolicyResource::getUrl('view', ['record' => $record])),
+                    // Tables\Actions\Action::make('view')
+                    //     ->label('Ver')
+                    //     ->icon('heroicon-o-eye')
+                    //     ->url(fn (Policy $record): string => PolicyResource::getUrl('view-compact', ['record' => $record])),
                     Tables\Actions\EditAction::make(),
                     // Tables\Actions\Action::make('quickedit')
                     //     ->label('Edición Rápida')
@@ -554,8 +569,7 @@ class PolicyResource extends Resource
                                 ->success()
                                 ->send();
                         }),
-                ]),
-                Tables\Actions\Action::make('renew')
+                        Tables\Actions\Action::make('renew')
                     ->label('Renovar')
                     ->icon('heroicon-o-arrow-path')
                     ->form([
@@ -615,6 +629,13 @@ class PolicyResource extends Resource
                             ->send();
                     })
                     ->requiresConfirmation()
+                ])
+                ->label('Acciones')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->size(ActionSize::Small)
+                ->color('primary')
+                ->button(),
+                
             ])
             ->defaultSort('created_at', 'desc');
     }

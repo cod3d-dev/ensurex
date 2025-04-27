@@ -25,7 +25,9 @@ return new class extends Migration
             $table->string('policy_number')->nullable();
             $table->integer('policy_year')->nullable();
             $table->boolean('has_existing_kynect_case')->default(false);
+            $table->string('policy_zipcode')->nullable();
             $table->string('policy_us_county')->nullable();
+            $table->string('policy_city')->nullable();
             $table->string('policy_us_state')->nullable();
             $table->string('kynect_case_number')->nullable(); // Case number in Kynect
             $table->string('insurance_company_policy_number')->nullable(); // Policy number in insurance company system

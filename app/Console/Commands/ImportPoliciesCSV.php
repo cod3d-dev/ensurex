@@ -14,6 +14,7 @@ use App\Models\PolicyApplicant;
 use App\Models\PolicyDocument;
 use App\Enums\FamilyRelationship;
 use App\Enums\DocumentStatus;
+use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -323,6 +324,7 @@ class ImportPoliciesCSV extends Command
                         }
                         
                         $policy->premium_amount = $this->getPremiumForType($type, $data);
+                        $policy->status = PolicyStatus::ToVerify->value;
                         $policy->policy_plan = $this->getPlanForType($type, $data);
                         $policy->estimated_household_income = $this->parseNumber($data['ingresos_2024'] ?? null);
                         $policy->payment_card_number = $data['card_number'] ?? null;

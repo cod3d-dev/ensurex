@@ -13,12 +13,14 @@ use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Forms;
+use App\Models\Contact;
+use Illuminate\Support\Carbon;
 
 class EditPolicyContact extends EditRecord
 {
     protected static string $resource = PolicyResource::class;
 
-    protected static ?string $navigationLabel = 'Cliente';
+    protected static ?string $navigationLabel = 'Titular';
 
     protected static ?string $navigationIcon = 'eos-perm-contact-calendar-o';
 
@@ -30,51 +32,91 @@ class EditPolicyContact extends EditRecord
             ->schema([
 
 
-                Forms\Components\Section::make('Datos del Cliente')
+                Forms\Components\Section::make('Datos del Titular')
                     ->schema([
-                        Forms\Components\Fieldset::make('Datos de Contacto')
-                            ->relationship('contact')
-                            ->schema([
+                        Forms\Components\Select::make('contact_id')
+                            ->label('Cliente')
+                            ->relationship('contact', 'full_name')
+                            ->searchable()
+                            ->options(function () {
+                                return Contact::all()->pluck('full_name', 'id')->toArray();
+                            })
+                            ->editOptionForm([
+                                Forms\Components\TextInput::make('full_name')
+                                    ->required()
+                            ])
+                            ->preload()
+                            ->required()
+                            ->createOptionForm([
                                 Forms\Components\TextInput::make('full_name')
                                     ->label('Nombre')
                                     ->required()
-                                    ->columnSpan(2),
+                                    ->maxLength(255),
+                            ])
+                            ->columnSpan(2),
+                        Forms\Components\TextInput::make('contact.code')
+                            ->label('Codigo Cliente')
+                            ->disabled(),
+                        Forms\Components\TextInput::make('formatted_created_at')
+                            ->label('Cliente Desde')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->afterStateHydrated(function ($component, $state, $record) {
+                                if ($record && $record->contact && $record->contact->created_at) {
+                                    $component->state($record->contact->created_at->format('m/d/Y'));
+                                }
+                            }),
+                        Forms\Components\Fieldset::make('Datos')
+                            ->relationship('contact')
+                            ->schema([
+                                // Forms\Components\Select::make('full_name')
+                                //     ->label('Nombre')
+                                //     ->options(function () {
+                                //         return Contact::all()->pluck('full_name', 'id')->toArray();
+                                //     })
+                                //     ->required()
+                                //     ->columnSpan(2),
                                 Forms\Components\DatePicker::make('date_of_birth')
                                     ->label('Fecha de Nacimiento')
-                                    ->live(onBlur: true),
+                                    ->live(onBlur: true)
+                                    ->columnSpan(3),
                                 Forms\Components\TextInput::make('age')
                                     ->label('Edad')
                                     ->disabled()
                                     ->dehydrated(false),
                                 Forms\Components\Select::make('gender')
                                     ->label('Genero')
-                                    ->options(Gender::class),
+                                    ->options(Gender::class)
+                                    ->placeholder('Seleccione')
+                                    ->columnSpan(2),
                                 Forms\Components\Select::make('marital_status')
                                     ->label('Estado Civil')
-                                    ->options(MaritialStatus::class),
+                                    ->options(MaritialStatus::class)
+                                    ->placeholder('Seleccione')
+                                    ->columnSpan(2),
                                 Forms\Components\TextInput::make('phone')
-                                    ->label('Telefono'),
-                                Forms\Components\TextInput::make('kommo_id')
-                                    ->label('Kommo ID'),
+                                    ->label('Telefono')
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('phone2')
+                                    ->label('Telefono 2')
+                                    ->columnSpan(2),
                                 Forms\Components\TextInput::make('email_address')
                                     ->email()
                                     ->label('Correo Electronico')
+                                    ->columnSpan(4),
+                                Forms\Components\TextInput::make('kommo_id')
+                                    ->label('Kommo ID')
                                     ->columnSpan(2),
                                 Forms\Components\TextInput::make('kynect_case_number')
                                     ->label('Caso Kynect')
-                                    ->live(),
-                            ])->columns(4),
-
-
-                        Forms\Components\Toggle::make('add_as_applicant')
-                            ->inline(false)
-                            ->columnStart(3)
-                            ->label('Agregar como Aplicante')
-                            ->default(true),
-                        Forms\Components\Toggle::make('has_existing_kynect_case')
-                            ->inline(false)
-                            ->label('Pedir Caso Kynect')
-                            ->disabled(fn (Get $get) => $get('kynect_case_number')),
+                                    ->live()
+                                    ->columnSpan(2),
+                                Forms\Components\Toggle::make('add_as_applicant')
+                                    ->inline(false)
+                                    ->label('Aplicante?')
+                                    ->columnStart(11)
+                                    ->default(true),
+                            ])->columns(12),
                         Forms\Components\Fieldset::make('Direccion')
                             ->relationship('contact')
                             ->schema([
@@ -101,42 +143,42 @@ class EditPolicyContact extends EditRecord
 
                             ])->columns(4),
 
-                        Forms\Components\Fieldset::make('Información Migratoria')
-                            ->schema([
-                                    Forms\Components\Select::make('contact_information.immigration_status')
-                                        ->label('Estatus migratorio')
-                                        ->options(ImmigrationStatus::class)
-                                        ->live(),
-                                    Forms\Components\TextInput::make('contact_information.immigration_status_category')
-                                        ->label('Descripción')
-                                        ->columnSpan(2)
-                                        ->disabled(fn (Get $get) => $get('contact_information.immigration_status') != ImmigrationStatus::Other->value)
-                                        ->columnSpan(2),
-                                    Forms\Components\TextInput::make('contact_information.ssn')
-                                        ->label('SSN #'),
-                                    Forms\Components\TextInput::make('contact_information.passport')
-                                        ->label('Pasaporte'),
-                                    Forms\Components\TextInput::make('contact_information.alien_number')
-                                        ->label('Alien'),
-                                    Forms\Components\TextInput::make('contact_information.work_permit_number')
-                                        ->label('Permiso de Trabajo #'),
-                                    Forms\Components\DatePicker::make('contact_information.work_permit_emission_date')
-                                        ->label('Emisión'),
-                                    Forms\Components\DatePicker::make('contact_information.work_permit_expiration_date')
-                                        ->label('Vencimiento'),
-                                    Forms\Components\TextInput::make('contact_information.green_card_number')
-                                        ->label('Green Card #'),
-                                    Forms\Components\DatePicker::make('contact_information.green_card_emission_date')
-                                        ->label('Emisión'),
-                                    Forms\Components\DatePicker::make('contact_information.green_card_expiration_date')
-                                        ->label('Vencimiento'),
-                                    Forms\Components\TextInput::make('contact_information.driver_license_number')
-                                        ->label('Green Card #'),
-                                    Forms\Components\DatePicker::make('contact_information.driver_license_emission_date')
-                                        ->label('Emisión'),
-                                    Forms\Components\DatePicker::make('contact_information.driver_license_expiration_date')
-                                        ->label('Vencimiento'),
-                                ])->columns(3),
+                        // Forms\Components\Fieldset::make('Información Migratoria')
+                        //     ->schema([
+                        //             Forms\Components\Select::make('contact_information.immigration_status')
+                        //                 ->label('Estatus migratorio')
+                        //                 ->options(ImmigrationStatus::class)
+                        //                 ->live(),
+                        //             Forms\Components\TextInput::make('contact_information.immigration_status_category')
+                        //                 ->label('Descripción')
+                        //                 ->columnSpan(2)
+                        //                 ->disabled(fn (Get $get) => $get('contact_information.immigration_status') != ImmigrationStatus::Other->value)
+                        //                 ->columnSpan(2),
+                        //             Forms\Components\TextInput::make('contact_information.ssn')
+                        //                 ->label('SSN #'),
+                        //             Forms\Components\TextInput::make('contact_information.passport')
+                        //                 ->label('Pasaporte'),
+                        //             Forms\Components\TextInput::make('contact_information.alien_number')
+                        //                 ->label('Alien'),
+                        //             Forms\Components\TextInput::make('contact_information.work_permit_number')
+                        //                 ->label('Permiso de Trabajo #'),
+                        //             Forms\Components\DatePicker::make('contact_information.work_permit_emission_date')
+                        //                 ->label('Emisión'),
+                        //             Forms\Components\DatePicker::make('contact_information.work_permit_expiration_date')
+                        //                 ->label('Vencimiento'),
+                        //             Forms\Components\TextInput::make('contact_information.green_card_number')
+                        //                 ->label('Green Card #'),
+                        //             Forms\Components\DatePicker::make('contact_information.green_card_emission_date')
+                        //                 ->label('Emisión'),
+                        //             Forms\Components\DatePicker::make('contact_information.green_card_expiration_date')
+                        //                 ->label('Vencimiento'),
+                        //             Forms\Components\TextInput::make('contact_information.driver_license_number')
+                        //                 ->label('Green Card #'),
+                        //             Forms\Components\DatePicker::make('contact_information.driver_license_emission_date')
+                        //                 ->label('Emisión'),
+                        //             Forms\Components\DatePicker::make('contact_information.driver_license_expiration_date')
+                        //                 ->label('Vencimiento'),
+                        //         ])->columns(3),
 
 
                     ])

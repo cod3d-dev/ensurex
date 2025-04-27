@@ -11,6 +11,9 @@ use Filament\Forms\Form;
 use Filament\Forms;
 use App\Models\Policy;
 use App\Enums\PolicyType;
+use Illuminate\Support\HtmlString;
+use Filament\Support\Enums\Alignment;
+use App\Models\Contact;
 
 class EditPolicyLife extends EditRecord
 {
@@ -28,7 +31,6 @@ class EditPolicyLife extends EditRecord
                 Forms\Components\Section::make()
                     ->visible(fn (Policy $record) => $record->policy_type == PolicyType::Life)
                     ->schema([
-
                         Forms\Components\Fieldset::make()
                             ->schema([
                                 Forms\Components\TextInput::make('life_insurance.applicant.height_cm')
@@ -781,10 +783,68 @@ class EditPolicyLife extends EditRecord
                 Forms\Components\Section::make()
                     ->visible(fn (Policy $record) => $record->policy_type != PolicyType::Life)
                     ->schema([
-                        Forms\Components\Placeholder::make('¡No es una poliza de vida!')
+                        Forms\Components\Placeholder::make('not_life_policy')
+                            ->hiddenLabel()
                             ->columnSpanFull()
                             ->dehydrated(true)
-                            ->disabled()
+                            ->content(new HtmlString('
+                                <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+                                    <h2 style="color: #4b5563; margin-bottom: 15px; font-weight: 600;">Esta no es una póliza de vida</h2>
+                                    <p style="color: #6b7280; font-size: 16px; margin-bottom: 15px;">
+                                        Esta póliza actualmente no está configurada como una póliza de vida.
+                                    </p>
+                                    <p style="color: #6b7280; font-size: 16px;">
+                                        Si deseas crear una póliza de vida con los datos actuales, utiliza el botón <strong>"Crear Póliza de Vida"</strong> arriba.
+                                    </p>
+                                </div>
+                            ')),
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('create_life_policy')
+                                ->label('Crear Poliza de Vida')
+                                ->icon('heroicon-m-plus')
+                                ->color('success')
+                                ->requiresConfirmation()
+                                ->action(function (CreateLifePolicy $createLifePolicy) {
+                                    $createLifePolicy();
+                                }),
+                        Forms\Components\Actions\Action::make('duplicate_policy')
+                        ->label('Duplicar')
+                        ->icon('heroicon-o-document-duplicate')
+                        ->form([
+                            Forms\Components\Select::make('life_contact_id')
+                                ->columnSpan(4)
+                                ->label('Cliente')
+                                ->live()
+                                ->options(function (Policy $record) {
+                                    return Policy::find($record->id)->applicants()->pluck('full_name', 'contact_id');
+                                })
+                                ->default(function (Policy $record) {
+                                    return (int) $record->contact_id;
+                                })
+                                ->live(),
+                            Forms\Components\DatePicker::make('start_date')
+                                ->label('Fecha de inicio')
+                                ->required()
+                                ->default(now()),
+                            Forms\Components\DatePicker::make('end_date')
+                                ->label('Fecha de fin')
+                                ->default(now()->addYear()->subDay()),
+                            Forms\Components\Textarea::make('notes')
+                                ->label('Notas')
+                                ->rows(3),
+                        ])
+                        ->modalHeading('Crear Póliza de Vida')
+                        ->modalDescription('Se creará una nueva póliza de vida con los datos del aplicante seleccionado. Por favor, seleccione el aplicante y especifique las nuevas fechas.')
+                        ->modalSubmitActionLabel('Crear Poliza de Vida')
+                        ->action(function (array $data, Policy $record) {
+                            // dd($data['life_contact_id'], $record->id);
+                            // Create a new policy that is a copy of the current policy but the policy stype is life
+                            $new_policy = $record->replicate();
+                            $new_policy->policy_type = PolicyType::Life;
+                            $new_policy->save();
+                            // return 123;
+                        })
+                        ])->alignment(Alignment::Center),
                     ]),
 
 
