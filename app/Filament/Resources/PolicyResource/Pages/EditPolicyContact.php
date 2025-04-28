@@ -38,6 +38,7 @@ class EditPolicyContact extends EditRecord
                             ->label('Cliente')
                             ->relationship('contact', 'full_name')
                             ->searchable()
+                            ->live()
                             ->options(function () {
                                 return Contact::all()->pluck('full_name', 'id')->toArray();
                             })

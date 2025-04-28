@@ -132,6 +132,7 @@ class PolicyResource extends Resource
                             ->searchable()
                             ->preload()
                             ->required()
+                            ->live()
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('full_name')
                                     ->label('Nombre')

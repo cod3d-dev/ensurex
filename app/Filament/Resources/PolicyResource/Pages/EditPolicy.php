@@ -51,8 +51,32 @@ class EditPolicy extends EditRecord
             $data['requires_aca'] = true;
         }
         return $data;
-
-
     }
 
+    protected function afterSave(): void
+    {
+        $policy = $this->record;
+        
+        // Check if the contact_id has changed
+        if ($policy->isDirty('contact_id') || $policy->wasChanged('contact_id')) {
+            $contactId = $policy->contact_id;
+            
+            // Find the existing 'self' applicant
+            $selfApplicant = $policy->policyApplicants()
+                ->where('relationship_with_policy_owner', 'self')
+                ->first();
+            
+            if ($selfApplicant) {
+                // Update the existing 'self' applicant with the new contact_id
+                $selfApplicant->update(['contact_id' => $contactId]);
+            } else {
+                // Create a new 'self' applicant if none exists
+                $policy->policyApplicants()->create([
+                    'contact_id' => $contactId,
+                    'relationship_with_policy_owner' => 'self',
+                    'is_covered_by_policy' => true,
+                ]);
+            }
+        }
+    }
 }

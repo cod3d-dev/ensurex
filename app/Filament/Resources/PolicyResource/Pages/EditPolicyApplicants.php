@@ -15,6 +15,9 @@ use Filament\Forms\Set;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Carbon;
 use App\Models\PolicyApplicant;
+use Filament\Forms\Components\Actions\Action;
+use Filament\Forms\Components\Repeater;
+use Filament\Notifications\Notification;
 
 class EditPolicyApplicants extends EditRecord
 {
@@ -55,6 +58,43 @@ class EditPolicyApplicants extends EditRecord
                                 }
                                 return null;
                             })
+                            ->deleteAction(
+                                fn (Action $action) => $action->requiresConfirmation(),
+                            )
+                            ->extraItemActions([
+                                Action::make('deleteApplicant')
+                                    ->icon('heroicon-m-trash')
+                                    ->action(function (array $arguments, Repeater $component): void {
+                                        $selectedApplicant = $component->getItemState($arguments['item']);
+                                        
+                                        if ($selectedApplicant['relationship_with_policy_owner'] === 'self') {
+                                            Notification::make()
+                                                ->title('No se puede eliminar')
+                                                ->body('No se puede eliminar al titular de la póliza.')
+                                                ->danger()
+                                                ->send();
+                                        } else {
+                                            // Get the current state of the repeater
+                                            $state = $component->getState();
+                                            
+                                            // Remove the item with the specified key
+                                            unset($state[$arguments['item']]);
+                                            
+                                            // Update the repeater state
+                                            $component->state($state);
+                                            
+                                            Notification::make()
+                                                ->title('Aplicante eliminado')
+                                                ->body('El aplicante ha sido eliminado de la póliza. Los cambios no serán efectivos hasta que se guarde el formulario.')
+                                                ->success()
+                                                ->send();
+                                        }
+                                    })
+                                    // ->modalHeading('¿Eliminar aplicante?')
+                                    // ->modalDescription('¿Está seguro que desea eliminar este aplicante?')
+                                    // ->modalSubmitActionLabel('Sí, eliminar')
+                                    // ->modalCancelActionLabel('No, cancelar'),
+                            ])
                             ->label('Aplicantes Adicionales')
                             ->relationship()
                             ->columnSpanFull()
@@ -117,6 +157,11 @@ class EditPolicyApplicants extends EditRecord
                                                     ->columnSpan(4)
                                                     ->label('¿Relación con el cliente principal?')
                                                     ->options(FamilyRelationship::class)
+                                                    ->disableOptionWhen(fn ($state, $value): bool => 
+                                                        ($state === null && $value === 'self') || 
+                                                        ($state !== null && $value === 'self') || 
+                                                        $state === 'self'
+                                                    )
                                                     ->required(),
                                                 Forms\Components\TextInput::make('kynect_case_number')
                                                     ->label('Caso Kynect')
