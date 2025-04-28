@@ -43,6 +43,33 @@ class Contact extends Model
         'annual_income_3' => 'decimal:2',
     ];
 
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Contact $contact) {
+            // Only generate a code if one isn't already set or is null
+            if (empty($contact->code) || is_null($contact->code)) {
+                // Find the highest contact number
+                $highestContact = self::orderByRaw('CAST(SUBSTRING(code, 2) AS UNSIGNED) DESC')
+                    ->where('code', 'like', 'C%')
+                    ->first();
+                
+                $nextNumber = 1;
+                if ($highestContact) {
+                    // Extract the number part and increment
+                    $currentNumber = (int) substr($highestContact->code, 1);
+                    $nextNumber = $currentNumber + 1;
+                }
+                
+                // Format the contact number with leading zeros (5 digits)
+                $contactNumber = str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+                $contact->code = 'C' . $contactNumber;
+            }
+        });
+    }
+
     public function fullName(): Attribute
     {
         return Attribute::make(

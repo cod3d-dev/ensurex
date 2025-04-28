@@ -15,6 +15,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Forms;
 use App\Models\Contact;
 use Illuminate\Support\Carbon;
+use Filament\Notifications\Notification;
 
 class EditPolicyContact extends EditRecord
 {
@@ -42,10 +43,6 @@ class EditPolicyContact extends EditRecord
                             ->options(function () {
                                 return Contact::all()->pluck('full_name', 'id')->toArray();
                             })
-                            ->editOptionForm([
-                                Forms\Components\TextInput::make('full_name')
-                                    ->required()
-                            ])
                             ->preload()
                             ->required()
                             ->createOptionForm([
@@ -54,6 +51,101 @@ class EditPolicyContact extends EditRecord
                                     ->required()
                                     ->maxLength(255),
                             ])
+                            ->createOptionUsing(function (array $data) {
+                                // Create the new contact
+                                $contact = Contact::create($data);
+                                
+                                // Update the policy with the new contact
+                                $policy = $this->record;
+                                $policy->update(['contact_id' => $contact->id]);
+                                
+                                // Update the policy applicant with relationship 'self'
+                                $selfApplicant = $policy->policyApplicants()
+                                    ->where('relationship_with_policy_owner', 'self')
+                                    ->first();
+                                
+                                if ($selfApplicant) {
+                                    // Update the existing 'self' applicant with the new contact_id
+                                    $selfApplicant->update([
+                                        'contact_id' => $contact->id, 
+                                        'is_covered_by_policy' => $policy->contact_is_applicant
+                                    ]);
+                                } else {
+                                    // Create a new 'self' applicant if none exists
+                                    $policy->policyApplicants()->create([
+                                        'contact_id' => $contact->id,
+                                        'relationship_with_policy_owner' => 'self',
+                                        'is_covered_by_policy' => $policy->contact_is_applicant,
+                                    ]);
+                                }
+                                
+                                // Show a success notification
+                                Notification::make()
+                                    ->title('Contacto creado')
+                                    ->body('El nuevo contacto ha sido creado y asignado a la póliza.')
+                                    ->success()
+                                    ->send();
+                                
+                                // Return the contact ID without redirecting
+                                // The Filament form will handle the update automatically
+                                $this->fillForm();
+                                return $contact->id;
+                            })
+                            ->suffixAction(
+                                Forms\Components\Actions\Action::make('changeContact')
+                                    ->icon('heroicon-m-user-plus')
+                                    ->label('Cambiar contacto')
+                                    ->action(function (Forms\Get $get, Forms\Set $set, array $data) {
+                                        // Get the current policy record
+                                        $policy = $this->record;
+                                        $newContactId = $data['new_contact_id'];
+                                        
+                                        // Update the contact_id directly in the database
+                                        $policy->update(['contact_id' => $newContactId]);
+                                        
+                                        // Update the policy applicant with relationship 'self'
+                                        $selfApplicant = $policy->policyApplicants()
+                                            ->where('relationship_with_policy_owner', 'self')
+                                            ->first();
+                                        
+                                        if ($selfApplicant) {
+                                            // Update the existing 'self' applicant with the new contact_id
+                                            $selfApplicant->update(['contact_id' => $newContactId, 'is_covered_by_policy' => $policy->contact_is_applicant]);
+                                        } else {
+                                            // Create a new 'self' applicant if none exists
+                                            $policy->policyApplicants()->create([
+                                                'contact_id' => $newContactId,
+                                                'relationship_with_policy_owner' => 'self',
+                                                'is_covered_by_policy' => $policy->contact_is_applicant,
+                                            ]);
+                                        }
+                                        
+                                        // Show a success notification
+                                        Notification::make()
+                                            ->title('Contacto actualizado')
+                                            ->body('El contacto ha sido actualizado y se ha actualizado el aplicante principal.')
+                                            ->success()
+                                            ->send();
+                                        
+                                        // Refresh the form data
+                                        $this->fillForm();
+                                    })
+                                    ->form([
+                                        Forms\Components\Select::make('new_contact_id')
+                                            ->label('Seleccionar nuevo contacto')
+                                            ->options(function () {
+                                                return Contact::all()->pluck('full_name', 'id')->toArray();
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->required(),
+                                    ])
+                                    ->modalHeading('Cambiar contacto')
+                                    ->modalDescription('Seleccione un nuevo contacto para esta póliza. El contacto anterior será reemplazado.')
+                                    ->modalSubmitActionLabel('Cambiar')
+                                    ->modalCancelActionLabel('Cancelar')
+                                    ->modalWidth('md')
+                            )
                             ->columnSpan(2),
                         Forms\Components\TextInput::make('contact.code')
                             ->label('Codigo Cliente')
@@ -67,6 +159,10 @@ class EditPolicyContact extends EditRecord
                                     $component->state($record->contact->created_at->format('m/d/Y'));
                                 }
                             }),
+                        Forms\Components\Toggle::make('contact_is_applicant')
+                            ->inline(false)
+                            ->label('Aplicante?')
+                            ->default(true),
                         Forms\Components\Fieldset::make('Datos')
                             ->relationship('contact')
                             ->schema([
@@ -112,11 +208,6 @@ class EditPolicyContact extends EditRecord
                                     ->label('Caso Kynect')
                                     ->live()
                                     ->columnSpan(2),
-                                Forms\Components\Toggle::make('add_as_applicant')
-                                    ->inline(false)
-                                    ->label('Aplicante?')
-                                    ->columnStart(11)
-                                    ->default(true),
                             ])->columns(12),
                         Forms\Components\Fieldset::make('Direccion')
                             ->relationship('contact')
@@ -183,17 +274,36 @@ class EditPolicyContact extends EditRecord
 
 
                     ])
-                    ->columns(4),
+                    ->columns(5),
             ]);
 
     }
+
+    // protected function afterSave(): void
+    // {
+    //     $policy = $this->record;
+        
+    //     // Check if the contact_id has changed
+    //     if ($policy->contact_is_applicant) {
+    //         $contactId = $policy->contact_id;
+            
+    //         // Find the existing 'self' applicant
+    //         $selfApplicant = $policy->policyApplicants()
+    //             ->where('relationship_with_policy_owner', 'self')
+    //             ->first();
+            
+    //         if ($selfApplicant) {
+    //             // Update the existing 'self' applicant with the new contact_id
+    //             $selfApplicant->update(['is_covered_by_policy' => true]);
+    //         }
+    //     }
+    // }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Handle the add_as_applicant toggle
             $policy = $this->record;
             $contact = $policy->contact;
-//            dd($contact);
 
             // Add the contact as an applicant if not already added
             $existingApplicant = $policy->policyApplicants()
@@ -205,12 +315,14 @@ class EditPolicyContact extends EditRecord
                 $policy->policyApplicants()->create([
                     'contact_id' => $contact->id,
                     'relationship_with_policy_owner' => 'self',
-                    'sort_order' => 0
+                    'sort_order' => 0,
+                    'is_covered_by_policy' => $data['contact_is_applicant']
                 ]);
+            } else {
+                $existingApplicant->update(['is_covered_by_policy' => $data['contact_is_applicant']]);
             }
 
         // Remove the field from the data as it's not a database field
-        unset($data['add_as_applicant']);
 
         return $data;
     }

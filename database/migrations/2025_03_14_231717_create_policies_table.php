@@ -54,6 +54,7 @@ return new class extends Migration
             $table->boolean('life_offered')->default(false);
 
             // Family Information
+            $table->boolean('contact_is_applicant')->default(false);
             $table->json('main_applicant')->nullable();
             $table->json('additional_applicants')->nullable();
             $table->integer('total_family_members')->default(1)->nullable();
