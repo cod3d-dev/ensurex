@@ -80,6 +80,41 @@ class Policy extends Model
     {
         parent::boot();
 
+        static::creating(function ($policy) {
+            // Only generate a code if one isn't already set or is null
+            if (empty($policy->code) || is_null($policy->code)) {
+                // Get the policy type prefix
+                $typePrefix = match($policy->policy_type?->value) {
+                    'health' => 'H',
+                    'vision' => 'V',
+                    'dental' => 'D',
+                    'life' => 'L',
+                    default => 'H'
+                };
+                
+                // Find the highest policy number with this prefix
+                $highestPolicy = self::where('code', 'like', $typePrefix . '%')
+                    ->orderByRaw('CAST(SUBSTRING(code, 2) AS UNSIGNED) DESC')
+                    ->first();
+                
+                $nextNumber = 1;
+                if ($highestPolicy) {
+                    // Extract the number part and increment
+                    $currentNumber = (int) substr($highestPolicy->code, 1);
+                    $nextNumber = $currentNumber + 1;
+                }
+                
+                // Format the policy number with leading zeros (5 digits)
+                $policyNumber = str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+                $policy->code = $typePrefix . $policyNumber;
+                
+                Log::info('Generated policy code', [
+                    'policy_type' => $policy->policy_type?->value,
+                    'code' => $policy->code,
+                ]);
+            }
+        });
+
         static::saving(function ($policy) {
             Log::info('Saving policy...', [
                 'id' => $policy->id,
