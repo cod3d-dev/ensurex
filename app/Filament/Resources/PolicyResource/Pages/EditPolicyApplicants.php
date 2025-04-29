@@ -7,17 +7,18 @@ use App\Enums\Gender;
 use App\Enums\ImmigrationStatus;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Contact;
+use App\Models\PolicyApplicant;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
-use App\Models\PolicyApplicant;
+
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Repeater;
-use Filament\Notifications\Notification;
 
 class EditPolicyApplicants extends EditRecord
 {
@@ -127,6 +128,26 @@ class EditPolicyApplicants extends EditRecord
                                                         Forms\Components\TextInput::make('full_name')
                                                             ->required(),
                                                     ])
+                                                    ->createOptionUsing(function (array $data, Get $get) {
+                                                        // If this is the 'self' relationship, prevent creation
+                                                        if ($get('relationship_with_policy_owner') === 'self') {
+                                                            // Show an error notification
+                                                            Notification::make()
+                                                                ->title('No se puede crear un nuevo contacto')
+                                                                ->body('No se puede crear un nuevo contacto para el titular de la póliza. Por favor, seleccione un contacto existente.')
+                                                                ->danger()
+                                                                ->persistent()
+                                                                ->send();
+                                                            
+                                                            // Redirect to reload the page
+                                                            $this->redirect(PolicyResource::getUrl('edit-applicants', ['record' => $this->record]));
+                                                            
+                                                            return null;
+                                                        }
+                                                        
+                                                        // For other relationships, create the contact normally
+                                                        return Contact::create($data)->getKey();
+                                                    })
                                                     ->afterStateUpdated(function ($state, $set) {
                                                         if ($state) {
                                                             $contact = Contact::find($state);

@@ -756,7 +756,12 @@ class ImportPoliciesCSV extends Command
         $policyToDebug = $this->option('policy');
         
         // if the policy type is not health, skip
-        if ($policy->policy_type !== 'health') return;
+        if ($policy->policy_type !== PolicyType::Health) {
+            if ($debug) {
+                $this->info("Skipping document processing for non-health policy {$policy->code} (type: {$policy->policy_type})");
+            }
+            return;
+        }
         
         $shouldDebug = $debug || 
                       ($rowNum && in_array($rowNum, $rowsToDebug)) || 
@@ -791,6 +796,32 @@ class ImportPoliciesCSV extends Command
             $this->info("Checking document columns for policy {$policy->id}:");
             foreach ($this->docColumns as $docCol) {
                 $this->info("Column $docCol: " . (isset($data[$docCol]) ? "'" . $data[$docCol] . "'" : 'not set'));
+            }
+        }
+        
+        // Add more detailed debug output for document columns
+        if ($debug) {
+            $this->info("DOCUMENT COLUMNS ANALYSIS FOR POLICY {$policy->code}:");
+            $this->info("Total document columns to check: " . count($this->docColumns));
+            $foundColumns = 0;
+            $validColumns = 0;
+            
+            foreach ($this->docColumns as $col) {
+                $isSet = isset($data[$col]);
+                $value = $isSet ? $data[$col] : 'not set';
+                $isValid = $isSet && ($data[$col] === '1' || $this->parseBool($data[$col]));
+                
+                if ($isSet) $foundColumns++;
+                if ($isValid) $validColumns++;
+                
+                $this->info("  - $col: " . ($isSet ? "'$value'" : 'not set') . 
+                           " | Valid for document creation: " . ($isValid ? 'YES' : 'NO'));
+            }
+            
+            $this->info("SUMMARY: Found $foundColumns columns, $validColumns are valid for document creation");
+            
+            if ($validColumns == 0) {
+                $this->warn("NO VALID DOCUMENT COLUMNS FOUND - No documents will be created");
             }
         }
         
@@ -906,6 +937,15 @@ class ImportPoliciesCSV extends Command
                 }
             }
         }
+        
+        // Add summary at the end
+        if ($debug) {
+            if ($documentsCreated) {
+                $this->info("✅ Successfully created documents for policy {$policy->code}");
+            } else {
+                $this->warn("⚠️ No documents were created for policy {$policy->code}");
+            }
+        }
     }
 
     protected function parseRowsToDebug($rows)
@@ -984,7 +1024,7 @@ class ImportPoliciesCSV extends Command
                 }
             }
             
-            // // Find the policy this applicant belongs to
+            // Find the policy this applicant belongs to
             $policyCode = $data['policy'] ?? null;
             if (!$policyCode) {
                 if ($isDebugRow) {

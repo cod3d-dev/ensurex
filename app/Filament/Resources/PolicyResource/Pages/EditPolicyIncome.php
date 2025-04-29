@@ -49,8 +49,8 @@ class EditPolicyIncome extends EditRecord
                     ->label('Ingreso Familiar Estimado')
                     ->prefix('$')
                     ->readOnly()
-                    ->extraInputAttributes(function (Forms\Get $get) {
-                        $income = floatval(str_replace(',', '', $get('estimated_household_income') ?? 0));
+                    ->extraInputAttributes(function (Forms\Get $get, $state) {
+                        $income = floatval(str_replace(',', '', $state ?? 0));
                         $threshold = floatval(str_replace(',', '', $get('kynect_fpl_threshold') ?? 0));
 
                         $classes = 'text-end';
@@ -179,12 +179,12 @@ class EditPolicyIncome extends EditRecord
                             ->inline(false)
                             ->live()
                             ->columnStart(4)
-                            ->afterStateHydrated(fn(
-                                $state,
-                                Forms\Set $set,
-                                Forms\Get $get
-                            ) => static::calculateYearlyIncome('applicant', $state, $set,
-                                $get))
+                            // ->afterStateHydrated(fn(
+                            //     $state,
+                            //     Forms\Set $set,
+                            //     Forms\Get $get
+                            // ) => static::calculateYearlyIncome('applicant', $state, $set,
+                            //     $get))
                             ->afterStateUpdated(function (
                                 $state,
                                 Forms\Set $set,
