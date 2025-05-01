@@ -17,6 +17,7 @@
         "koenhendriks/laravel-str-acronym": "@dev",
         "laravel/framework": "^11.31",
         "laravel/tinker": "^2.9",
+        "postare/blade-mdi": "^1.1",
         "saade/blade-iconsax": "^1.2"
     },
     "require-dev": {

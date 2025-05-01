@@ -1,7 +1,7 @@
 <div class="py-4 px-4">
 {{--    {{ $getState() }}--}}
     <p class="text-sm">
-        Estatus: <span class="text-color-{{ $getState()->getColor() }}">{{ $getState()->getLabel() }}</span>
+        Estatus: <span class="text-color-{{ $getRecord()->status->getColor() }}">{{ $getRecord()->status->getLabel() }}</span>
     </p>
     <p class="text-sm mt-2">
         Documentos: <span class="text-color-{{ $getRecord()->document_status->getColor() }}">{{ $getRecord()->document_status->getLabel() }}</span> 
@@ -41,15 +41,51 @@
             </span>
             @if ($getRecord()->requires_aca)
                 <span class="flex items-center gap-1">
+                    ACA
                     @if ($getRecord()->aca)
                         <x-iconoir-check-circle class="text-color-success h-5 w-5"/>
                     @else
                         <x-iconoir-xmark-circle class="text-color-danger h-5 w-5"/>
                     @endif
                 </span>
+            {{-- @else
+                <span class="flex items-center gap-1">
+                    <mdi-circle-off-outline class="text-color-danger h-5 w-5"/>
+                </span> --}}
             @endif
             <span class="flex items-center gap-1">
-                Ingresos <x-iconoir-check-circle class="text-color-success h-5 w-5"/>
+                Ingresos 
+                @php
+                    // Get the latest KynectFPL record
+                    $latestFPL = \App\Models\KynectFPL::latest()->first();
+                    $meetsFPL = false;
+                    
+                    if ($latestFPL) {
+                        $policy = $getRecord();
+                        $householdSize = $policy->total_family_members;
+                        $annualIncome = (float) $policy->estimated_household_income;
+                        
+                        // Calculate threshold based on household size
+                        $threshold = null;
+                        if ($householdSize <= 8) {
+                            $memberField = "members_{$householdSize}";
+                            $threshold = $latestFPL->{$memberField} * 12;
+                        } else {
+                            $baseAmount = $latestFPL->members_8;
+                            $extraMembers = $householdSize - 8;
+                            $threshold = ($baseAmount + ($latestFPL->additional_member * $extraMembers)) * 12;
+                        }
+                        
+                        // Check if meets requirement
+                        $meetsFPL = $annualIncome >= $threshold;
+                    }
+                @endphp
+                
+                @if ($meetsFPL)
+                    <x-iconoir-check-circle class="text-color-success h-5 w-5"/>
+                @else
+                    <x-iconoir-xmark-circle class="text-color-danger h-5 w-5"/>
+                @endif
             </span>
         </div>
     </div>

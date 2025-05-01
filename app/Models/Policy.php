@@ -55,7 +55,7 @@ class Policy extends Model
         'life_offered' => 'boolean',
         'client_notified' => 'boolean',
         'document_status' => DocumentStatus::class,
-        'policy_status' => PolicyStatus::class,
+        'status' => PolicyStatus::class,
         'renewal_status' => RenewalStatus::class,
         'policy_type' => PolicyType::class,
         'state' => UsState::class,

@@ -161,16 +161,33 @@ class ViewPolicy extends ViewRecord
                                     ->columnSpan(2),
                                 Forms\Components\Toggle::make('has_existing_kynect_case')
                                     ->inline(false)
-                                    ->columnSpan(2)
+                                    ->columnSpan(1)
                                     ->label('Pedir Caso Kynect'),
-                                Forms\Components\TextInput::make('total_applicants')
-                                    ->label('Aplicantes')
-                                    ->columnSpan(1),
                                 Forms\Components\TextInput::make('total_family_members')
                                     ->label('Familiares')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
                                     ->columnSpan(1),
+                                Forms\Components\TextInput::make('total_applicants')
+                                    ->label('Aplicantes')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
+                                    ->columnSpan(1),
+                                Forms\Components\TextInput::make('total_applicants_with_medicaid')
+                                    ->label('Medicaid')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
+                                    ->columnSpan(1),
+                                
                                 Forms\Components\TextInput::make('estimated_household_income')
                                     ->label('Ingresos Estimados')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
+                                    ->formatStateUsing(fn ($state) => number_format($state, 2))
                                     ->columnSpan(2),
                                 ])->columns(['sm' => 4, 'md' => 8, 'lg' => 8, 'xl' => 8])->columnSpanFull(),
 
@@ -238,6 +255,38 @@ class ViewPolicy extends ViewRecord
 
                                             // Refresh the notes field with the updated value
                                             $set('notes', $record->notes);
+                                        }),
+                                    Forms\Components\Actions\Action::make('verification')
+                                        ->label('Marcar como Verificada')
+                                        ->color('success')
+                                        ->modalHeading('Verificación')
+                                        ->visible(fn (?Policy $record) => $record && $record->exists && $record->status === PolicyStatus::ToVerify)
+                                        ->form([
+                                            Forms\Components\Select::make('status')
+                                                ->options(PolicyStatus::class)
+                                                ->disableOptionWhen(fn (string $value): bool => 
+                                                        ($value === PolicyStatus::ToVerify->value)
+                                                    )
+                                                ->required(),
+                                            Forms\Components\Textarea::make('note')
+                                                ->required()
+                                                ->rows(3)
+                                                ->label('Nota'),
+                                        ])
+                                        ->modalSubmitActionLabel('Verificación')
+                                        ->action(function (Policy $record, array $data, Set $set): void {
+                                            $note = 'Verificada el ' . Carbon::now()->toDateTimeString() . 'por ' . auth()->user()->name;
+                                            $note = $note . ":\n" . $data['note'] . "\n\n" ;
+                                            $record->notes = $record->notes . $note;
+                                            $record->status = $data['status'];
+                                            $record->is_initial_verification_complete = true;
+                                            $record->initial_verification_performed_by = auth()->user()->id;
+                                            $record->initial_verification_date = Carbon::now();
+                                            $record->save();
+
+                                            // Refresh the notes field with the updated value
+                                            $set('notes', $record->notes);
+                                            $this->fillForm();
                                         }),
                                     ])
                                     ->alignEnd()

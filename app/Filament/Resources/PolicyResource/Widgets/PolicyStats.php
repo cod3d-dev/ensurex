@@ -23,7 +23,7 @@ class PolicyStats extends BaseWidget
     {
         return [
             Stat::make('Total Polizas', $this->getPageTableQuery()->count()),
-            Stat::make('Total Aplicantes', $this->getPageTableQuery()->sum('total_applicants') - $this->getPageTableQuery()->sum('total_applicants_with_medicaid')),
+            Stat::make('Total Aplicantes', $this->getPageTableQuery()->sum('total_applicants')),
             Stat::make('Aplicantes con Medicaid', $this->getPageTableQuery()->sum('total_applicants_with_medicaid')),
         ];
     }

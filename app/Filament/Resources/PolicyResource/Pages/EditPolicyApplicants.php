@@ -30,19 +30,33 @@ class EditPolicyApplicants extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if (isset($data['additional_applicants']) && is_array($data['additional_applicants'])) {
-            // Count applicants where medicaid_client is true
-            $medicaidCount = 0;
-            foreach ($data['additional_applicants'] as $applicant) {
-                if (isset($applicant['medicaid_client']) && $applicant['medicaid_client'] === true) {
-                    $medicaidCount++;
-                }
-            }
-            $data['total_applicants_with_medicaid'] = $medicaidCount;
-            $data['total_applicants'] = count($data['additional_applicants']);
-        }
-
         return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        // Get the policy model
+        $policy = $this->record;
+        
+        // Count the total family members (all applicants in the pivot table)
+        $totalFamilyMembers = $policy->policyApplicants()->count();
+        
+        // Count applicants where is_covered_by_policy is true
+        $totalCoveredApplicants = $policy->policyApplicants()
+            ->where('is_covered_by_policy', true)
+            ->count();
+        
+        // Count applicants where medicaid_client is true
+        $totalMedicaidApplicants = $policy->policyApplicants()
+            ->where('medicaid_client', true)
+            ->count();
+        
+        // Update the policy with the new counts
+        $policy->update([
+            'total_family_members' => $totalFamilyMembers,
+            'total_applicants' => $totalCoveredApplicants,
+            'total_applicants_with_medicaid' => $totalMedicaidApplicants,
+        ]);
     }
 
     public  function form(Form $form): Form

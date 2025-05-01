@@ -31,42 +31,43 @@ class ImportPoliciesCSV extends Command
 
     // Column mapping for case-insensitive and flexible matching
     protected $columnMap = [
-        'row' => ['RowNumber'],
-        'policy' => ['policy', 'Policy', 'POLICY', 'policy_number', 'N°'],
-        'contact_code' => ['contact_code', 'Contact_Code', 'contact code', 'code'],
-        'applicant_type' => ['applicant_type', 'Applicant_Type', 'applicant type'],
-        'current_user' => ['current_user', 'Current_User', 'current user'],
-        'user_2024' => ['user_2024', 'User_2024', 'user 2024'],
-        'client_informed' => ['client_informed', 'Client_Informed', 'client informed'],
-        'initial_paid' => ['initial_paid', 'Initial_Paid', 'initial paid'],
-        'autopay' => ['autopay', 'Autopay', 'AUTOPAY'],
-        'in_aca' => ['in_aca', 'In_ACA', 'in aca'],
-        'life_offered' => ['life_offered', 'Life_Offered', 'life offered'],
-        'docs_status' => ['docs_status', 'Docs_Status', 'docs status'],
-        'doc_exp_date' => ['doc_exp_date', 'Doc_Exp_Date', 'doc exp date'],
-        'premium' => ['premium', 'Premium', 'PREMIUM', 'prima', 'Prima Salud 2024'],
-        'insurance_company' => ['insurance_company', 'Insurance_Company', 'insurance company'],
-        'policy_type' => ['policy_type', 'Policy_Type', 'policy type'],
-        'plan_de_salud_2025' => ['plan_de_salud_2025', 'Plan_De_Salud_2025', 'plan de salud 2025', 'Plan de SAlud 2025'],
-        'plan_dental' => ['plan_dental', 'Plan_Dental', 'plan dental', 'PLAN DENTAL'],
+        'row' => ['row_number'],
+        'policy' => ['policy_number'],
+        'contact_code' => ['contact_code'],
+        'applicant_type' => ['applicant_type'],
+        'current_user' => ['current_user'],
+        'user_2024' => ['user_2024'],
+        'client_informed' => ['client_informed'],
+        'initial_paid' => ['initial_paid'],
+        'autopay' => ['autopay_activated'],
+        'in_aca' => ['in_aca'],
+        'life_offered' => ['life_offered'],
+        'docs_status' => ['docs_status'],
+        'doc_exp_date' => ['doc_exp_date'],
+        'premium' => ['premium_amount'],
+        'insurance_company' => ['insurance_company_code'],
+        'policy_type' => ['policy_type'],
+        'plan_de_salud_2025' => ['health_plan_name'],
+        'plan_dental' => ['dental_plan_name'],
         'dental_premium' => ['dental_premium', 'Dental_Premium', 'dental premium'],
-        'dental_insurance_co' => ['dental_insurance_co', 'Dental_Insurance_Co', 'dental insurance co'],
-        'plan_de_vision' => ['plan_de_vision', 'Plan_De_Vision', 'plan de vision', 'PLAN DE VISION 2022'],
-        'vision_insurance_co' => ['vision_insurance_co', 'Vision_Insurance_Co', 'vision insurance co'],
-        'ingresos_2024' => ['ingresos_2024', 'Ingresos_2024', 'ingresos 2024', 'Ingresos 2024 Estimados Declaracion'],
-        'empleador' => ['empleador', 'Empleador', 'EMPLEADOR', 'Empleador'],
-        'work_role' => ['work_role', 'Work_Role', 'work role', 'work_role'],
-        'telefono_empleador' => ['Telefono Empleador', 'telefono empleador', 'employer phone', 'Telefono Empleador'],
-        'card_number' => ['card_number', 'Card_Number', 'card number', 'Card Number'],
-        'card_type' => ['card_type', 'Card_Type', 'card type'],
-        'card_expiration' => ['card_expiration', 'Card_Expiration', 'card exp', 'card_expedition', 'Exp date'],
-        'bank' => ['bank', 'Bank', 'BANK'],
-        'account_number' => ['account_number', 'Account_Number', 'account number'],
-        'route_number' => ['route_number', 'Route_Number', 'routing number'],
-        'cuenta_nombre' => ['Cuenta a Nombre de', 'cuenta a nombre de', 'account holder'],
-        'emergency_contact' => ['Contacto de Emergencia', 'contacto de emergencia', 'emergency contact'],
-        'emergency_phone' => ['Telefono Contacto Emergencia', 'telefono contacto emergencia', 'emergency phone'],
-        'emergency_relationship' => ['Relacion contacto de Emergencia', 'relacion contacto de emergencia', 'emergency relationship'],
+        'dental_insurance_company_code' => ['dental_insurance_company_code'],
+        'plan_de_vision' => ['vision_plan_name'],
+        'vision_insurance_company_code' => ['vision_insurance_company_code'],
+        'ingresos_2024' => ['total_estimated_income'],
+        'empleador' => ['employeer_name'],
+        'work_role' => ['work_role'],
+        'telefono_empleador' => ['employer_phone'],
+        'card_number' => ['card_number'],
+        'card_type' => ['card_type'],
+        'card_expiration' => ['card_expiration'],
+        'card_csc' => ['card_csv'],
+        'bank' => ['bank_name'],
+        'account_number' => ['account_number'],
+        'route_number' => ['route_number'],
+        'cuenta_nombre' => ['account_holder'],
+        'emergency_contact' => ['emergency_contact'],
+        'emergency_phone' => ['emergency_phone'],
+        'emergency_relationship' => ['emergency_relationship'],
         // Document requirement columns
         'ssn_required' => ['ssn_required'],
         'lawful_required' => ['lawful_required'],
@@ -83,6 +84,10 @@ class ImportPoliciesCSV extends Command
         'driver_license_required' => ['driver_license_required'],
         'address_required' => ['address_required'],
         'passport_required' => ['passport_required'],
+        'state_code' => ['state_code'],
+        'zip_code' => ['zip_code'],
+        'us_county' => ['us_county'],
+        'city_name' => ['city_name'],
         // Enrollment date
         'enroll_date' => ['enroll_date']
     ];
@@ -172,20 +177,20 @@ class ImportPoliciesCSV extends Command
         foreach ($this->rows as $rowNum => $data) {
             // Add detailed row info when debugging specific rows
             
-            // Special debugging for row 10 to see all data
-            if ($data['_rowNum'] == 10) {
-                $this->info("SPECIAL DEBUG - Row 10 Complete Data:");
-                foreach ($data as $key => $value) {
-                    $this->info("  $key: " . ($value ?? 'null'));
-                }
+            // // Special debugging for row 10 to see all data
+            // if ($data['_rowNum'] == 10) {
+            //     $this->info("SPECIAL DEBUG - Row 10 Complete Data:");
+            //     foreach ($data as $key => $value) {
+            //         $this->info("  $key: " . ($value ?? 'null'));
+            //     }
                 
-                // Check specific insurance company fields
-                $this->info("Insurance company fields:");
-                $this->info("  insurance_company: " . ($data['insurance_company'] ?? 'null'));
-                $this->info("  dental_insurance_co: " . ($data['dental_insurance_co'] ?? 'null'));
-                $this->info("  dentalvision_insurance_co: " . ($data['dentalvision_insurance_co'] ?? 'null'));
-                $this->info("  vision_insurance_co: " . ($data['vision_insurance_co'] ?? 'null'));
-            }
+            //     // Check specific insurance company fields
+            //     $this->info("Insurance company fields:");
+            //     $this->info("  insurance_company: " . ($data['insurance_company'] ?? 'null'));
+            //     $this->info("  dental_insurance_co: " . ($data['dental_insurance_co'] ?? 'null'));
+            //     $this->info("  dentalvision_insurance_co: " . ($data['dentalvision_insurance_co'] ?? 'null'));
+            //     $this->info("  vision_insurance_co: " . ($data['vision_insurance_co'] ?? 'null'));
+            // }
 
             $isDebugRow = in_array($data['row'], $rowsToDebug) || ($contactToDebug && $data['contact_code'] === $contactToDebug);
             
@@ -251,23 +256,31 @@ class ImportPoliciesCSV extends Command
                     if ($type === 'health') {
                         $rawCode = $data['insurance_company'] ?? '';
                         $insuranceCompanyCode = trim($rawCode);
-                        $this->info("Health policy raw insurance company code: '{$rawCode}'");
-                        $this->info("Health policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        if ($this->option('debug') || $isDebugRow) {
+                            $this->info("Health policy raw insurance company code: '{$rawCode}'");
+                            $this->info("Health policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        }
                     } elseif ($type === 'vision') {
                         $rawCode = $data['vision_insurance_co'] ?? $data['dentalvision_insurance_co'] ?? $data['insurance_company'] ?? '';
                         $insuranceCompanyCode = trim($rawCode);
-                        $this->info("Vision policy raw insurance company code: '{$rawCode}'");
-                        $this->info("Vision policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        if ($this->option('debug') || $isDebugRow) {
+                            $this->info("Vision policy raw insurance company code: '{$rawCode}'");
+                            $this->info("Vision policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        }
                     } elseif ($type === 'dental') {
                         $rawCode = $data['dental_insurance_co'] ?? $data['dentalvision_insurance_co'] ?? $data['insurance_company'] ?? '';
                         $insuranceCompanyCode = trim($rawCode);
-                        $this->info("Dental policy raw insurance company code: '{$rawCode}'");
-                        $this->info("Dental policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        if ($this->option('debug') || $isDebugRow) {
+                            $this->info("Dental policy raw insurance company code: '{$rawCode}'");
+                            $this->info("Dental policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        }
                     } elseif ($type === 'life') {
                         $rawCode = $data['insurance_company'] ?? '';
                         $insuranceCompanyCode = trim($rawCode);
-                        $this->info("Life policy raw insurance company code: '{$rawCode}'");
-                        $this->info("Life policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        if ($this->option('debug') || $isDebugRow) {
+                            $this->info("Life policy raw insurance company code: '{$rawCode}'");
+                            $this->info("Life policy trimmed insurance company code: '{$insuranceCompanyCode}'");
+                        }
                     }
                     
                     $policyNumber = str_pad($data['policy'], 5, '0', STR_PAD_LEFT);
@@ -288,6 +301,10 @@ class ImportPoliciesCSV extends Command
                         $policy->user_id = $this->findUserId($data['current_user']) ?? 1;
                         $policy->policy_year = 2025;
                         $policy->agent_id = $agent;
+                        $policy->policy_zipcode = $data['zip_code'] ?? null;
+                        $policy->policy_us_county = $data['us_county'] ?? null;
+                        $policy->policy_city = $data['city_name'] ?? null;
+                        $policy->policy_us_state = $data['state_code'] ?? null;
                         $policy->previous_year_policy_user_id = $this->findUserId($data['user_2024']);
                         $policy->client_notified = $this->parseBool($data['client_informed'] ?? null);
                         $policy->initial_paid = $this->parseBool($data['initial_paid'] ?? null);
@@ -324,11 +341,13 @@ class ImportPoliciesCSV extends Command
                         }
                         
                         $policy->premium_amount = $this->getPremiumForType($type, $data);
-                        $policy->status = PolicyStatus::ToVerify->value;
+                        $policy->user_id = $this->findUserId($data['current_user']) ?? 1;
+                        $policy->status = PolicyStatus::ToVerify;
                         $policy->policy_plan = $this->getPlanForType($type, $data);
                         $policy->estimated_household_income = $this->parseNumber($data['ingresos_2024'] ?? null);
                         $policy->payment_card_number = $data['card_number'] ?? null;
                         $policy->payment_card_type = $data['card_type'] ?? null;
+                        $policy->payment_card_cvv = $data['card_csc'] ?? null;
                         $this->mapCardExpiration($policy, $data['card_expiration'] ?? null);
                         $policy->payment_bank_account_bank = $data['bank'] ?? null;
                         $policy->payment_bank_account_number = $data['account_number'] ?? null;
@@ -339,10 +358,14 @@ class ImportPoliciesCSV extends Command
                         $policy->emergency_contact_relationship = $data['emergency_relationship'] ?? null;
                         
                         // Debug insurance company lookup
-                        $this->info("Setting insurance company for policy {$policy->code}");
-                        $this->info("Insurance company code: '{$insuranceCompanyCode}'");
                         $insuranceCompanyId = $this->findInsuranceCompanyId($type, $insuranceCompanyCode, $isDebugRow);
-                        $this->info("Found insurance company ID: " . ($insuranceCompanyId ?? 'null'));
+                        if ($this->option('debug') || $isDebugRow) {
+                            $this->info("Setting insurance company for policy {$policy->code}");
+                            $this->info("Insurance company code: '{$insuranceCompanyCode}'");
+                            
+                            $this->info("Found insurance company ID: " . ($insuranceCompanyId ?? 'null'));
+                        }
+                        
                         $policy->insurance_company_id = $insuranceCompanyId;
                         
                         $policy->policy_type = $type;
@@ -387,10 +410,9 @@ class ImportPoliciesCSV extends Command
                         $applicant->contact_id = $contact->id;
                         $applicant->relationship_with_policy_owner = FamilyRelationship::Self->value;
                         $applicant->is_covered_by_policy = in_array($applicantType, ['1', '5']); // True for 1 or 5, false for 4
-                        $applicant->medicaid_client = false;
-                        $applicant->employer_1_name = $data['empleador'] ?? null;
-                        $applicant->employer_1_role = $data['work_role'] ?? null;
-                        $applicant->employer_1_phone = $data['telefono_empleador'] ?? null;
+                        if ($applicantType === 3) {
+                            $applicant->medicaid_client = true;
+                        }
                         $applicant->save();
                         
                         if ($debug || $isDebugRow) {
@@ -425,6 +447,8 @@ class ImportPoliciesCSV extends Command
                 $this->error("  - $error");
             }
         }
+        
+        $this->updatePolicyCounts();
         
         return 0;
     }
@@ -595,24 +619,24 @@ class ImportPoliciesCSV extends Command
         return $types;
     }
 
-    protected function findUserId($initials)
+    protected function findUserId($code)
     {
-        if (!$initials) return null;
+        if (!$code) return null;
         
-        // Since the 'initials' column doesn't exist, we'll use a different approach
-        // Map common initials to user IDs
-        $initialsMap = [
-            'GS' => 1,  // Ghercy Segovia
-            'RS' => 1,  // Default to Ghercy for now
-            'RM' => 1,  // Default to Ghercy for now
-            'FS' => 1,  // Default to Ghercy for now
-            'CR' => 1,  // Default to Ghercy for now
-            'CH' => 1,  // Default to Ghercy for now
-            'MC' => 1,  // Default to Ghercy for now
-            'OO' => 1   // Default to Ghercy for now
-        ];
+        // Trim and standardize the code
+        $code = strtoupper(trim($code));
         
-        return $initialsMap[strtoupper(trim($initials))] ?? 1; // Default to user ID 1 if not found
+        // Find user by code
+        $user = User::where('code', $code)->first();
+        
+        if ($user) {
+            return $user->id;
+        }
+        
+        // If user not found, log a warning
+        $this->warn("User with code '{$code}' not found. Using default user ID 1.");
+        
+        return 1; // Default to user ID 1 if not found
     }
 
     protected function parseBool($val, $trueValues = ['Si', 'Sí', 'Yes', 'Y', '1', 1, true])
@@ -730,7 +754,9 @@ class ImportPoliciesCSV extends Command
         
         if ($debug) {
             if ($company) {
-                $this->info("Found insurance company: {$company->name} (ID: {$company->id})");
+                if ($this->option('debug') || $forceDebug) {
+                    $this->info("Found insurance company: {$company->name} (ID: {$company->id})");
+                }
             } else {
                 $this->warn("Insurance company not found for code: '{$insuranceCompanyCode}'");
                 
@@ -1111,7 +1137,6 @@ class ImportPoliciesCSV extends Command
             }
             
             if ($hasDocumentColumns) {
-                $this->info("Row {$data['row']} has document columns. Processing documents for policy {$policy->id} ({$policy->code}).");
                 if ($isDebugRow) {
                     $this->info("Row {$data['row']} has document columns. Processing documents for policy {$policy->id} ({$policy->code}).");
                     
@@ -1152,6 +1177,11 @@ class ImportPoliciesCSV extends Command
                 $policyApplicant = new PolicyApplicant();
                 $policyApplicant->policy_id = $policy->id;
                 $policyApplicant->contact_id = $contact->id;
+                $policyApplicant->relationship_with_policy_owner = FamilyRelationship::Other->value;
+                $policyApplicant->is_covered_by_policy = in_array($applicantType, [2]); // True for 2 
+                if ($applicantType === 3) {
+                    $policyApplicant->medicaid_client = true;
+                }
                 $policyApplicant->save();
                 
                 if ($isDebugRow) {
@@ -1161,5 +1191,39 @@ class ImportPoliciesCSV extends Command
                 $this->error("Error adding applicant {$contactCode} to policy with ID {$policy->id}: " . $e->getMessage());
             }
         }
+    }
+
+    protected function updatePolicyCounts()
+    {
+        $this->info("Updating policy counts...");
+        
+        // Get all policies
+        $policies = Policy::all();
+        
+        foreach ($policies as $policy) {
+            // Get policy applicants
+            $applicants = $policy->policyApplicants;
+            
+            // Count total family members (all applicants)
+            $totalFamilyMembers = $applicants->count();
+            
+            // Count applicants covered by policy
+            $totalApplicants = $applicants->where('is_covered_by_policy', true)->count();
+            
+            // Count applicants with medicaid
+            $totalApplicantsWithMedicaid = $applicants->where('medicaid_client', true)->count();
+            
+            // Update policy
+            $policy->total_family_members = $totalFamilyMembers;
+            $policy->total_applicants = $totalApplicants;
+            $policy->total_applicants_with_medicaid = $totalApplicantsWithMedicaid;
+            $policy->save();
+            
+            if ($this->option('debug')) {
+                $this->info("Updated policy {$policy->code}: {$totalFamilyMembers} family members, {$totalApplicants} covered applicants, {$totalApplicantsWithMedicaid} with medicaid");
+            }
+        }
+        
+        $this->info("Policy counts updated successfully!");
     }
 }

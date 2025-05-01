@@ -32,7 +32,6 @@ class EditPolicy extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        dd($data);
         if(!isset($data['main_applicant'])) {
             $data['main_applicant'] = [];
         }

@@ -6,6 +6,7 @@ use App\Enums\Gender;
 use App\Enums\ImmigrationStatus;
 use App\Enums\MaritialStatus;
 use App\Enums\PolicyType;
+use App\Enums\UserRoles;
 use App\Filament\Resources\PolicyResource\Pages;
 use App\Filament\Resources\PolicyResource\RelationManagers;
 use App\Tables\Columns\StatusColumn;
@@ -51,8 +52,6 @@ use Filament\Tables\Enums\FiltersLayout;
 use App\Enums\UsState;
 use Filament\Support\Enums\ActionSize;
 use Filament\Tables\Columns\TextColumn;
-
-
 
 class PolicyResource extends Resource
 {
@@ -303,6 +302,7 @@ class PolicyResource extends Resource
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
                     ->searchable()
+                    ->extraAttributes(['style' => 'width:320px'])
                     ->html()
                     ->grow(false)
                     ->size(TextColumn\TextColumnSize::Small)
@@ -372,27 +372,27 @@ class PolicyResource extends Resource
                     ->label('Fecha')
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.code')
                     ->label('Asistente')
-                    ->formatStateUsing(fn(string $state): string => Str::acronym($state))
-//                    ->tooltip(fn(string $state): string => $state)
                     ->sortable()
                     ->badge()
+                    ->tooltip(function(string $state, Policy $record): string {
+                        return $record->user->name;
+                    })
                     ->color(fn (string $state): string => match ($state) {
-                        'Carlos Rojas' => 'success',
-                        'Ricardo Segovia' => 'primary',
-                        'Omar Ostos' => 'warning',
-                        'Fhiona Segovia' => 'danger',
-                        'Ghercy Segovia' => 'info',
-                        'Christell' => 'gray',
-                        'Raul Medrano' => 'purple',
+                        'CR' => 'success',
+                        'RS' => 'primary',
+                        'OO' => 'warning',
+                        'FS' => 'danger',
+                        'GS' => 'info',
+                        'CH' => 'gray',
+                        'RM' => 'violet',
+                        'MC' => 'purple',
+                        'AG' => 'danger',
                     })
                     ->toggleable(),
                 StatusColumn::make('document_status')
                     ->label('Estatus'),
-                Tables\Columns\IconColumn::make('meetsKynectFPLRequirement')
-                    ->boolean()
-                    ->label('FPL'),
                 Tables\Columns\TextColumn::make('effective_date')
                     ->label('Fecha de inicio')
                     ->date('d/m/Y')
@@ -404,12 +404,13 @@ class PolicyResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_renewal')
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->label('Renovada')
                     ->boolean(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('user_id')
-                   ->label('Usuario')
+                   ->label('Asistente')
                    ->relationship('user', 'name')
                    ->default(auth()->user()->id),
                Tables\Filters\SelectFilter::make('agent.name')
@@ -442,15 +443,29 @@ class PolicyResource extends Resource
                Tables\Filters\SelectFilter::make('policy_type')
                    ->options(PolicyType::class)
                    ->label('Tipo de Poliza'),
-                // Tables\Filters\SelectFilter::make('total_applicants_with_medicaid')
-                //     ->label('Aplicantes con Medicaid')
-                //     ->options([
-                //         0 => 'Sin Medicaid',
-                //         1 => 'Con Medicaid'
-                //     ])
-                //     ->query(function ($query, $value) {
-                //         return $query->where('total_applicants_with_medicaid', $value);
-                //     }),
+                Tables\Filters\SelectFilter::make('medicaid_filter')
+                    ->label('Aplicantes con Medicaid')
+                    ->options([
+                        '0' => 'Sin Medicaid',
+                        '1' => 'Con Medicaid'
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (! $data['value']) {
+                            return $query;
+                        }
+                        
+                        if ($data['value'] === '1') {
+                            // Return policies where at least one policy applicant has medicaid_client = true
+                            return $query->whereHas('policyApplicants', function ($q) {
+                                $q->where('medicaid_client', true);
+                            });
+                        }
+                        
+                        // Return policies where no policy applicants have medicaid_client = true
+                        return $query->whereDoesntHave('policyApplicants', function ($q) {
+                            $q->where('medicaid_client', true);
+                        });
+                    }),
                 Tables\Filters\Filter::make('meetsKynectFPLRequirement')
                     ->label('Cumple FPL')
                     ->form([
@@ -502,11 +517,70 @@ class PolicyResource extends Resource
 
                         // Return query with filtered IDs
                         return $query->whereIn('id', $filteredIds);
-                    })
+                    }),
+                Tables\Filters\SelectFilter::make('policy_us_state')
+                    ->label('Estado')
+                    ->options(UsState::class),
             ], layout: FiltersLayout::AboveContent)
             ->actions([
                 // Create a Action group with 3 actions
                 ActionGroup::make([
+                    Tables\Actions\Action::make('change_status')
+                        ->label('Cambiar Estatus')
+                        ->icon('mdi-tag-edit-outline')
+                        ->form([
+                            Forms\Components\Split::make([
+                                Forms\Components\Grid::make(1)
+                                    ->schema([
+                                        Forms\Components\Select::make('status')
+                                            ->label('Estatus')
+                                            ->options(PolicyStatus::class)
+                                            ->required()
+                                            ->preload()
+                                            ->disableOptionWhen(fn (string $value): bool => 
+                                                        ($value === PolicyStatus::ToVerify->value)
+                                                    )
+                                            ->searchable(),
+                                        Forms\Components\TextArea::make('notas')
+                                            ->label('Notas')
+                                            ->required(),
+                                    ]),
+                                Forms\Components\Grid::make(2)
+                                    ->schema([
+                                        Forms\Components\Toggle::make('client_notified')
+                                            ->label('Cliente Informado')
+                                            ->default(fn (Policy $record) => $record->client_notified),
+                                        Forms\Components\Toggle::make('initial_paid')
+                                            ->label('Inicial Pagada')
+                                            ->default(fn (Policy $record) => $record->initial_paid),
+                                        Forms\Components\Toggle::make('autopay')
+                                            ->label('Autopay')
+                                            ->default(fn (Policy $record) => $record->autopay),
+                                        Forms\Components\Toggle::make('aca')
+                                            ->label('ACA')
+                                            ->visible(fn (Policy $record) => $record->requires_aca)
+                                            ->default(fn (Policy $record) => $record->aca),
+                                    ])
+                                ])
+                            ])
+                            ->action(function (Policy $record, array $data): void {
+                                $record->status = $data['status'];
+                                $note = Carbon::now()->toDateTimeString() . ' - ' . auth()->user()->name . ":\nCambio de Estatus: " . PolicyStatus::from($data['status'])->getLabel() . "\n" . $data['notas'] . "\n\n";
+                                $record->notes = $record->notes . $note;
+                                $record->client_notified = $data['client_notified'];
+                                $record->initial_paid = $data['initial_paid'];
+                                $record->autopay = $data['autopay'];
+                                if ($record->requires_aca) {
+                                    $record->aca = $data['aca'];
+                                }
+                                $record->save();
+
+                                Notification::make()
+                                    ->title('Estatus Cambiado')
+                                    ->success()
+                                    ->send();
+                            }),
+                        
                     Tables\Actions\Action::make('view')
                         ->label('Ver')
                         ->icon('heroicon-o-eye')
@@ -520,7 +594,12 @@ class PolicyResource extends Resource
                     //     ->label('Edición Rápida')
                     //     ->icon('heroicon-o-pencil-square')
                     //     ->url(fn (Policy $record): string => route('filament.app.resources.policies.quickedit', $record)),
-                    Tables\Actions\DeleteAction::make(),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn (?Policy $record) => 
+                            $record && 
+                            $record->exists &&
+                            auth()->user()->role === UserRoles::Admin
+                        ),
                     Tables\Actions\ReplicateAction::make()
                         ->label('Duplicar')
                         ->icon('heroicon-o-document-duplicate')
@@ -570,74 +649,74 @@ class PolicyResource extends Resource
                                 ->success()
                                 ->send();
                         }),
-                        Tables\Actions\Action::make('renew')
-                    ->label('Renovar')
-                    ->icon('heroicon-o-arrow-path')
-                    ->form([
-                        Forms\Components\DatePicker::make('start_date')
-                            ->label('Fecha de inicio')
-                            ->required()
-                            ->default(fn (Policy $record) => $record->getRenewalPeriod()['start_date']),
-                        Forms\Components\DatePicker::make('end_date')
-                            ->label('Fecha de fin')
-                            ->required()
-                            ->default(fn (Policy $record) => $record->getRenewalPeriod()['end_date']),
-                        Forms\Components\TextInput::make('premium_amount')
-                            ->label('Prima')
-                            ->numeric()
-                            ->default(fn (Policy $record) => $record->premium_amount)
-                            ->required(),
-                        Forms\Components\Textarea::make('renewal_notes')
-                            ->label('Notas de renovación')
-                            ->rows(3),
-                    ])
-                    ->action(function (Policy $record, array $data): void {
-                        // Create new policy as renewal
-                        $newPolicy = $record->replicate([
-                            'number',
-                            'status',
-                            'renewed_from_policy_id',
-                            'renewed_to_policy_id',
-                            'renewed_by',
-                            'renewed_at',
-                            'renewal_status',
-                            'renewal_notes',
-                        ]);
+                        // Will implement the renew action later
+                        // Tables\Actions\Action::make('renew')
+                        //     ->label('Renovar')
+                        //     ->icon('heroicon-o-arrow-path')
+                        //     ->form([
+                        //         Forms\Components\DatePicker::make('start_date')
+                        //             ->label('Fecha de inicio')
+                        //             ->required()
+                        //             ->default(fn (Policy $record) => $record->getRenewalPeriod()['start_date']),
+                        //         Forms\Components\DatePicker::make('end_date')
+                        //             ->label('Fecha de fin')
+                        //             ->required()
+                        //             ->default(fn (Policy $record) => $record->getRenewalPeriod()['end_date']),
+                        //         Forms\Components\TextInput::make('premium_amount')
+                        //             ->label('Prima')
+                        //             ->numeric()
+                        //             ->default(fn (Policy $record) => $record->premium_amount)
+                        //             ->required(),
+                        //         Forms\Components\Textarea::make('renewal_notes')
+                        //             ->label('Notas de renovación')
+                        //             ->rows(3),
+                        //     ])
+                        //     ->action(function (Policy $record, array $data): void {
+                        //         // Create new policy as renewal
+                        //         $newPolicy = $record->replicate([
+                        //             'number',
+                        //             'status',
+                        //             'renewed_from_policy_id',
+                        //             'renewed_to_policy_id',
+                        //             'renewed_by',
+                        //             'renewed_at',
+                        //             'renewal_status',
+                        //             'renewal_notes',
+                        //         ]);
 
-                        $newPolicy->fill([
-                            'is_renewal' => true,
-                            'renewed_from_policy_id' => $record->id,
-                            'renewed_by' => auth()->id(),
-                            'renewed_at' => now(),
-                            'renewal_status' => RenewalStatus::COMPLETED,
-                            'renewal_notes' => $data['renewal_notes'],
-                            'start_date' => $data['start_date'],
-                            'end_date' => $data['end_date'],
-                            'premium_amount' => $data['premium_amount'],
-                            'status' => PolicyStatus::PENDING,
-                        ]);
+                        //         $newPolicy->fill([
+                        //             'is_renewal' => true,
+                        //             'renewed_from_policy_id' => $record->id,
+                        //             'renewed_by' => auth()->id(),
+                        //             'renewed_at' => now(),
+                        //             'renewal_status' => RenewalStatus::COMPLETED,
+                        //             'renewal_notes' => $data['renewal_notes'],
+                        //             'start_date' => $data['start_date'],
+                        //             'end_date' => $data['end_date'],
+                        //             'premium_amount' => $data['premium_amount'],
+                        //             'status' => PolicyStatus::PENDING,
+                        //         ]);
 
-                        $newPolicy->save();
+                        //         $newPolicy->save();
 
-                        // Update original policy
-                        $record->update([
-                            'renewed_to_policy_id' => $newPolicy->id,
-                        ]);
+                        //         // Update original policy
+                        //         $record->update([
+                        //             'renewed_to_policy_id' => $newPolicy->id,
+                        //         ]);
 
-                        Notification::make()
-                            ->title('Póliza renovada exitosamente')
-                            ->success()
-                            ->send();
-                    })
-                    ->requiresConfirmation()
+                        //         Notification::make()
+                        //             ->title('Póliza renovada exitosamente')
+                        //             ->success()
+                        //             ->send();
+                        //     })
+                        //     ->requiresConfirmation()
+                        ])
+                        ->label('Acciones')
+                        ->icon('heroicon-m-ellipsis-vertical')
+                        ->size(ActionSize::Small)
+                        ->color('primary')
+                        ->button(),
                 ])
-                ->label('Acciones')
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->size(ActionSize::Small)
-                ->color('primary')
-                ->button(),
-                
-            ])
             ->defaultSort('created_at', 'desc');
     }
 

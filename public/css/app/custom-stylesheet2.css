@@ -1,43 +1,5 @@
-:root {
-    --danger: #ff0000;
-    --danger-light: #ffcccc;
-    --danger-dark: #cc0000;
-    
-    --primary: #f59e0b; /* amber-500 */
-    --primary-light: #fde68a; /* amber-200 */
-    --primary-dark: #d97706; /* amber-600 */
-    
-    --success: #22c55e; /* green-500 */
-    --success-light: #bbf7d0; /* green-200 */
-    --success-dark: #16a34a; /* green-600 */
-    
-    --warning: #f59e0b; /* amber-500 */
-    --warning-light: #fde68a; /* amber-200 */
-    --warning-dark: #d97706; /* amber-600 */
-    
-    --info: #3b82f6; /* blue-500 */
-    --info-light: #bfdbfe; /* blue-200 */
-    --info-dark: #2563eb; /* blue-600 */
-    
-    --violet: #8b5cf6; /* violet-500 */
-    --violet-light: #ddd6fe; /* violet-200 */
-    --violet-dark: #7c3aed; /* violet-600 */
-    
-    --pending: #eab308; /* yellow-500 */
-    --pending-light: #fef08a; /* yellow-200 */
-    --pending-dark: #ca8a04; /* yellow-600 */
-    
-    --gray: #737373; /* zinc-500 */
-    --gray-light: #e5e5e5; /* zinc-200 */
-    --gray-dark: #525252; /* zinc-600 */
-}
-
 .custom-input-color-red {
-    background-color: var(--danger-light) !important;
-}
-
-.text-color-danger {
-    color: var(--danger) !important;
+    background-color: #ffcccc !important;
 }
 
 /* primary: colors.amber,
@@ -49,20 +11,7 @@
                 pending: colors.yellow,
                 gray: colors.zinc, */
 
-/* Color utility classes */
-.text-color-primary { color: var(--primary) !important; }
-.text-color-success { color: var(--success) !important; }
-.text-color-warning { color: var(--warning) !important; }
-.text-color-info { color: var(--info) !important; }
-.text-color-violet { color: var(--violet) !important; }
-.text-color-pending { color: var(--pending) !important; }
-.text-color-gray { color: var(--gray) !important; }
-
-.bg-color-primary { background-color: var(--primary-light) !important; }
-.bg-color-danger { background-color: var(--danger-light) !important; }
-.bg-color-success { background-color: var(--success-light) !important; }
-.bg-color-warning { background-color: var(--warning-light) !important; }
-.bg-color-info { background-color: var(--info-light) !important; }
-.bg-color-violet { background-color: var(--violet-light) !important; }
-.bg-color-pending { background-color: var(--pending-light) !important; }
-.bg-color-gray { background-color: var(--gray-light) !important; }
+/* Class .text-color-danger with color red */
+.text-color-danger {
+    color: #ff0000 !important;
+}
