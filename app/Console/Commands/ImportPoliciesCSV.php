@@ -88,6 +88,11 @@ class ImportPoliciesCSV extends Command
         'zip_code' => ['zip_code'],
         'us_county' => ['us_county'],
         'city_name' => ['city_name'],
+        // Notes columns
+        'main_notes' => ['main_notes'],
+        'whatsapp_interaction' => ['whatsapp_interaction'],
+        'notas_rev_doc' => ['notas_rev_doc'],
+        'notes_email_created' => ['notes_email_created'],
         // Enrollment date
         'enroll_date' => ['enroll_date']
     ];
@@ -357,6 +362,24 @@ class ImportPoliciesCSV extends Command
                         $policy->emergency_contact_phone = $data['emergency_phone'] ?? null;
                         $policy->emergency_contact_relationship = $data['emergency_relationship'] ?? null;
                         
+                        // Add formatted notes to the policy
+                        $applicantName = $contact->full_name ?? $data['contact_code'] ?? null;
+                        $formattedNotes = $this->formatNotes($data, $applicantName);
+                        if (!empty($formattedNotes)) {
+                            $policy->notes = $formattedNotes;
+                            
+                            if ($this->option('debug') || $isDebugRow) {
+                                $this->info("Added formatted notes to policy {$policy->code}");
+                                $this->info("Notes content (first 100 chars): " . substr($formattedNotes, 0, 100) . (strlen($formattedNotes) > 100 ? "..." : ""));
+                            }
+                        } else if ($this->option('debug') || $isDebugRow) {
+                            $this->info("No notes found for policy {$policy->code}");
+                            $this->info("main_notes: " . (isset($data['main_notes']) ? "'" . $data['main_notes'] . "'" : "not set"));
+                            $this->info("whatsapp_interaction: " . (isset($data['whatsapp_interaction']) ? "'" . $data['whatsapp_interaction'] . "'" : "not set"));
+                            $this->info("notas_rev_doc: " . (isset($data['notas_rev_doc']) ? "'" . $data['notas_rev_doc'] . "'" : "not set"));
+                            $this->info("notes_email_created: " . (isset($data['notes_email_created']) ? "'" . $data['notes_email_created'] . "'" : "not set"));
+                        }
+                        
                         // Debug insurance company lookup
                         $insuranceCompanyId = $this->findInsuranceCompanyId($type, $insuranceCompanyCode, $isDebugRow);
                         if ($this->option('debug') || $isDebugRow) {
@@ -386,6 +409,11 @@ class ImportPoliciesCSV extends Command
                             } else if ($debug || $isDebugRow) {
                                 $this->warn("Failed to parse date from enroll_date: {$data['enroll_date']}");
                             }
+                        }
+                        
+                        // Set requires_aca to true if state is KY
+                        if (($data['state_code'] ?? null) === 'KY') {
+                            $policy->requires_aca = true;
                         }
                         
                         $policy->save();
@@ -495,7 +523,8 @@ class ImportPoliciesCSV extends Command
                 $docColumns = ['ssn_required', 'lawful_required', 'aptc_required', 'income_required', 
                               'social_required', 'citizenship_required', 'ead_required', 'residency_required',
                               'household_required', 'status_required', 'im_exp_date_required', 
-                              'loss_employement_required', 'driver_license_required'];
+                              'loss_employement_required', 'driver_license_required', 'address_required',
+                              'passport_required'];
                 
                 // Find the column indices for these columns
                 $docColumnIndices = [];
@@ -565,7 +594,7 @@ class ImportPoliciesCSV extends Command
             // Debug output for document columns
             if ($debug || in_array($rowNum, $rowsToDebug) || ($contactToDebug && $data['contact_code'] === $contactToDebug)) {
                 foreach ($this->docColumns as $docCol) {
-                    $this->info("Row $rowNum, $docCol: '" . ($data[$docCol] ?? '') . "'");
+                    $this->info("Row $rowNum, $docCol: '" . (isset($data[$docCol]) ? $data[$docCol] : '') . "'");
                 }
             }
             
@@ -853,7 +882,7 @@ class ImportPoliciesCSV extends Command
         
         foreach ($this->docColumns as $col) {
             if ($shouldDebug) {
-                $this->info("Checking column $col for policy {$policy->id}: " . (isset($data[$col]) ? "'" . $data[$col] . "'" : 'not set'));
+                $this->info("Checking column $col for policy {$policy->id}: " . (isset($data[$col]) ? "'" . $data[$col] . "'" : "not set"));
                 if (isset($data[$col])) {
                     $this->info("Value type: " . gettype($data[$col]) . ", is '1'? " . ($data[$col] === '1' ? 'Yes' : 'No'));
                     $this->info("Is truthy? " . ($this->parseBool($data[$col]) ? 'Yes' : 'No'));
@@ -989,6 +1018,67 @@ class ImportPoliciesCSV extends Command
             }
         }
         return $result;
+    }
+
+    /**
+     * Format notes from CSV columns with appropriate titles
+     *
+     * @param array $data The CSV row data
+     * @param string|null $applicantName Optional applicant name to prefix notes
+     * @return string Formatted notes
+     */
+    protected function formatNotes(array $data, ?string $applicantName = null): string
+    {
+        $formattedNotes = '';
+        
+        // Map of CSV columns to their titles
+        $notesMap = [
+            'main_notes' => 'Notas',
+            'whatsapp_interaction' => 'Interacciones',
+            'notas_rev_doc' => 'Notas Revisión Documentos',
+            'notes_email_created' => 'Correo Creado para el Cliente'
+        ];
+        
+        // Debug output for notes columns
+        if ($this->option('debug')) {
+            $this->info("Formatting notes" . ($applicantName ? " for applicant: $applicantName" : ""));
+            foreach ($notesMap as $column => $title) {
+                $this->info("  Column '$column': " . (isset($data[$column]) ? "'" . $data[$column] . "'" : "not set"));
+            }
+        }
+        
+        // Check if any notes exist
+        $hasNotes = false;
+        foreach ($notesMap as $column => $title) {
+            if (!empty($data[$column])) {
+                $hasNotes = true;
+                break;
+            }
+        }
+        
+        // If there are notes and we have an applicant name, add it at the beginning
+        if ($hasNotes && $applicantName) {
+            $formattedNotes = "Aplicante: {$applicantName}\n\n";
+        }
+        
+        // Add each note section
+        $isFirstNote = true;
+        foreach ($notesMap as $column => $title) {
+            if (!empty($data[$column])) {
+                if (!$isFirstNote) {
+                    $formattedNotes .= "\n\n";
+                }
+                
+                $formattedNotes .= "{$title}:\n{$data[$column]}";
+                $isFirstNote = false;
+            }
+        }
+        
+        if ($this->option('debug') && !empty($formattedNotes)) {
+            $this->info("Formatted notes result: " . substr($formattedNotes, 0, 100) . (strlen($formattedNotes) > 100 ? "..." : ""));
+        }
+        
+        return $formattedNotes;
     }
 
     protected function processAdditionalApplicants($policyMap, $policyDocStatus, $policyExpDates)
@@ -1172,6 +1262,53 @@ class ImportPoliciesCSV extends Command
                 continue;
             }
             
+            // Update policy location information if missing and available from applicant data
+            $locationUpdated = false;
+            if (
+                (empty($policy->policy_zipcode) && !empty($data['zip_code'])) || 
+                (empty($policy->policy_us_county) && !empty($data['us_county'])) || 
+                (empty($policy->policy_city) && !empty($data['city_name'])) || 
+                (empty($policy->policy_us_state) && !empty($data['state_code']))
+            ) {
+                $updateData = [];
+                
+                if (empty($policy->policy_zipcode) && !empty($data['zip_code'])) {
+                    $updateData['policy_zipcode'] = $data['zip_code'];
+                    $locationUpdated = true;
+                }
+                
+                if (empty($policy->policy_us_county) && !empty($data['us_county'])) {
+                    $updateData['policy_us_county'] = $data['us_county'];
+                    $locationUpdated = true;
+                }
+                
+                if (empty($policy->policy_city) && !empty($data['city_name'])) {
+                    $updateData['policy_city'] = $data['city_name'];
+                    $locationUpdated = true;
+                }
+                
+                if (empty($policy->policy_us_state) && !empty($data['state_code'])) {
+                    $updateData['policy_us_state'] = $data['state_code'];
+                    $locationUpdated = true;
+                    
+                    // Set requires_aca to true if state is KY
+                    if ($data['state_code'] === 'KY') {
+                        $updateData['requires_aca'] = true;
+                    }
+                }
+                
+                if ($locationUpdated) {
+                    $policy->update($updateData);
+                    
+                    if ($isDebugRow) {
+                        $this->info("Updated policy {$policy->code} with location information from applicant {$contactCode}");
+                        foreach ($updateData as $field => $value) {
+                            $this->info("  - {$field}: {$value}");
+                        }
+                    }
+                }
+            }
+            
             // Add the applicant to the policy
             try {
                 $policyApplicant = new PolicyApplicant();
@@ -1183,6 +1320,29 @@ class ImportPoliciesCSV extends Command
                     $policyApplicant->medicaid_client = true;
                 }
                 $policyApplicant->save();
+                
+                // Append formatted notes from this applicant to the policy notes
+                $applicantName = $contact->full_name ?? $contactCode;
+                $formattedNotes = $this->formatNotes($data, $applicantName);
+                if (!empty($formattedNotes)) {
+                    $existingNotes = $policy->notes ?? '';
+                    if (!empty($existingNotes)) {
+                        $existingNotes .= "\n\n";
+                    }
+                    $policy->notes = $existingNotes . $formattedNotes;
+                    $policy->save();
+                    
+                    if ($isDebugRow) {
+                        $this->info("Added notes from applicant {$applicantName} to policy {$policy->code}");
+                        $this->info("Notes content (first 100 chars): " . substr($formattedNotes, 0, 100) . (strlen($formattedNotes) > 100 ? "..." : ""));
+                    }
+                } else if ($isDebugRow) {
+                    $this->info("No notes found for applicant {$applicantName} for policy {$policy->code}");
+                    $this->info("main_notes: " . (isset($data['main_notes']) ? "'" . $data['main_notes'] . "'" : "not set"));
+                    $this->info("whatsapp_interaction: " . (isset($data['whatsapp_interaction']) ? "'" . $data['whatsapp_interaction'] . "'" : "not set"));
+                    $this->info("notas_rev_doc: " . (isset($data['notas_rev_doc']) ? "'" . $data['notas_rev_doc'] . "'" : "not set"));
+                    $this->info("notes_email_created: " . (isset($data['notes_email_created']) ? "'" . $data['notes_email_created'] . "'" : "not set"));
+                }
                 
                 if ($isDebugRow) {
                     $this->info("Added applicant {$contactCode} to policy with ID {$policy->id}.");
