@@ -31,5 +31,16 @@ enum UserRoles: string implements HasLabel, HasColor
         };
     }
 
+    // Function to check if the user is an admin
+    public function isAdmin(): bool
+    {
+        return $this === self::Admin;
+    }
+
+    // Function to check if the user is a supervisor
+    public function isSupervisor(): bool
+    {
+        return $this === self::Supervisor;
+    }
 
 }

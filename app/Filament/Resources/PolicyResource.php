@@ -7,12 +7,14 @@ use App\Enums\ImmigrationStatus;
 use App\Enums\MaritialStatus;
 use App\Enums\PolicyType;
 use App\Enums\UserRoles;
+use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource\Pages;
 use App\Filament\Resources\PolicyResource\RelationManagers;
 use App\Tables\Columns\StatusColumn;
 use Faker\Provider\Text;
 use Filament\Forms\Components\Actions;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Filament\Pages\SubNavigationPosition;
 use Filament\Resources\Pages\Page;
 use App\Models\Policy;
@@ -37,7 +39,6 @@ use Filament\Forms\Set;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
-use Filament\Notifications\Notification;
 use App\Enums\PolicyStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\RenewalStatus;
@@ -49,7 +50,6 @@ use Illuminate\Support\Facades\Storage;
 use App\Enums\FamilyRelationship;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables\Enums\FiltersLayout;
-use App\Enums\UsState;
 use Filament\Support\Enums\ActionSize;
 use Filament\Tables\Columns\TextColumn;
 
@@ -125,34 +125,32 @@ class PolicyResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Poliza')
                     ->schema([
-                        Forms\Components\Select::make('contact_id')
-                            ->label('Cliente')
-                            ->relationship('contact', 'full_name')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->live()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('full_name')
-                                    ->label('Nombre')
-                                    ->required()
-                                    ->maxLength(255),
-                            ]),
-                        Forms\Components\Select::make('agent_id')
-                            ->relationship('agent', 'name')
-                            ->label('Cuenta'),
-                        Forms\Components\Select::make('user_id')
-                            ->relationship('user', 'name')
-                            ->label('Asistente'),
                         Forms\Components\Select::make('policy_type')
                             ->options(PolicyType::class)
-                            ->label('Tipo de Poliza'),
+                            ->columnSpan(2)
+                            ->label('Tipo'),
+                        Forms\Components\Select::make('agent_id')
+                            ->relationship('agent', 'name')
+                            ->label('Cuenta')
+                            ->columnSpan(2),
+                        Forms\Components\Select::make('user_id')
+                            ->relationship('user', 'name')
+                            ->label('Asistente')
+                            // Disable is not admin or supervisor the policy doesn't belong to the user
+                            ->disabled(fn (Get $get): bool => !auth()->user()->role->isAdmin() && !auth()->user()->role->isSupervisor() && $get('user_id') != auth()->user()->id)
+                            ->columnSpan(2),
+                        Forms\Components\Select::make('previous_year_policy_user_id')
+                            ->relationship('previousYearPolicyUser', 'name')
+                            ->label('Asistente Año Anterior')
+                            ->columnSpan(2),
+
 
                         Forms\Components\Select::make('insurance_company_id')
                             ->relationship('insuranceCompany', 'name')
                             ->preload()
                             ->label('Aseguradora')
-                            ->searchable(),
+                            ->searchable()
+                            ->columnSpan(2),
                         Forms\Components\Select::make('policy_year')
                             ->label('Año')
                             ->options(function() {
@@ -168,42 +166,94 @@ class PolicyResource extends Resource
                             })
                             ->default(Carbon::now()->year),
                         Forms\Components\DatePicker::make('effective_date')
-                            ->label('Efectiva Desde'),
-                        Forms\Components\DatePicker::make('expiration_date')
-                            ->label('Vencimiento'),
+                            ->label('Inicio')
+                            ->columnSpan(2)
+                            ->extraInputAttributes([
+                                'class' => 'text-center'
+                            ]),
+
+
+
                         Forms\Components\Grid::make('')
                             ->schema([
                                 Forms\Components\TextInput::make('policy_plan')
-                                    ->label('Plan'),
+                                    ->label('Plan')
+                                    ->columnSpan(5),
                                 Forms\Components\TextInput::make('policy_total_cost')
                                     ->label('Costo Poliza'),
                                 Forms\Components\TextInput::make('policy_total_subsidy')
                                     ->label('Subsidio'),
                                 Forms\Components\TextInput::make('premium_amount')
                                     ->label('Prima'),
+                                Forms\Components\Select::make('contact_id')
+                                    ->label('Cliente')
+                                    ->relationship('contact', 'full_name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->createOptionForm([
+                                        Forms\Components\TextInput::make('full_name')
+                                            ->label('Nombre')
+                                            ->required()
+                                            ->maxLength(255),
+                                    ])
+                                    ->columnSpan(3),
+                                Forms\Components\TextInput::make('policy_zipcode')
+                                    ->label('Código Postal')
+                                    ->columnSpan(1),
+                                Forms\Components\TextInput::make('policy_city')
+                                    ->label('Ciudad')
+                                    ->columnSpan(1),
                                 Forms\Components\TextInput::make('policy_us_county')
-                                    ->label('Condado'),
+                                    ->label('Condado')
+                                    ->columnSpan(1),
                                 Forms\Components\Select::make('policy_us_state')
                                     ->label('Estado')
                                     ->live()
-                                    ->options(UsState::class),
+                                    ->options(UsState::class)
+                                    ->columnSpan(2),
                                 Forms\Components\TextInput::make('kynect_case_number')
-                                    ->label('Caso Kynect'),
+                                    ->label('Caso Kynect')
+                                    ->columnSpan(2),
                                 Forms\Components\Toggle::make('has_existing_kynect_case')
                                     ->inline(false)
+                                    ->columnSpan(1)
                                     ->label('Pedir Caso Kynect'),
-                                ])->columns(4)->columnSpanFull(),
+                                Forms\Components\TextInput::make('total_family_members')
+                                    ->label('Familiares')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
+                                    ->columnSpan(1),
+                                Forms\Components\TextInput::make('total_applicants')
+                                    ->label('Aplicantes')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
+                                    ->columnSpan(1),
+                                Forms\Components\TextInput::make('total_applicants_with_medicaid')
+                                    ->label('Medicaid')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
+                                    ->columnSpan(1),
+
+                                Forms\Components\TextInput::make('estimated_household_income')
+                                    ->label('Ingresos Estimados')
+                                    ->extraInputAttributes([
+                                        'class' => 'text-center'
+                                    ])
+                                    ->formatStateUsing(fn ($state) => number_format($state, 2))
+                                    ->columnSpan(2),
+                                ])->columns(['sm' => 4, 'md' => 8, 'lg' => 8, 'xl' => 8])->columnSpanFull(),
 
                         Forms\Components\Fieldset::make()
                             ->schema([
-                                Forms\Components\Select::make('previous_year_policy_user_id')
-                                    ->relationship('previousYearPolicyUser', 'name')
-                                    ->label('Asistente Año Anterior')
-                                    ->columnStart(7)
-                                    ->columnSpan(2),
+
                                 Forms\Components\Select::make('status')
                                     ->label('Estatus')
                                     ->columnSpan(2)
+                                    ->disabled()
                                     ->options(PolicyStatus::class),
                                 Forms\Components\Select::make('document_status')
                                     ->columnSpan(2)
@@ -226,21 +276,25 @@ class PolicyResource extends Resource
                                     ->disabled(fn (Forms\Get $get): bool => $get ('policy_us_state') != UsState::KENTUCKY->value),
                                 Forms\Components\Toggle::make('is_initial_verification_complete')
                                     ->inline(false)
+                                    ->disabled()
                                     ->live()
                                     ->columnSpan(2)
                                     ->label('Verificacion Inicial'),
                                 Forms\Components\Select::make('initial_verification_performed_by')
                                     ->relationship('initialVerificationPerformedBy', 'name')
+                                    ->disabled()
                                     ->label('Verificado Por')
                                     ->disabled(fn (Get $get) => $get('is_initial_verification_complete') != true)
                                     ->columnSpan(3),
                                 Forms\Components\DatePicker::make('initial_verification_date')
                                     ->label('Fecha Verificacion')
                                     ->disabled(fn (Get $get) => $get('is_initial_verification_complete') != true)
+                                    ->disabled()
                                     ->columnSpan(3),
                                 Forms\Components\Textarea::make('notes')
                                     ->label('Observaciones')
                                     ->rows(6)
+                                    ->readOnly()
                                     ->columnSpanFull(),
                                 Forms\Components\Actions::make([
                                     Forms\Components\Actions\Action::make('add_note')
@@ -257,11 +311,43 @@ class PolicyResource extends Resource
                                         ->modalSubmitActionLabel('Agregar')
                                         ->action(function (Policy $record, array $data, Set $set): void {
                                             $note = Carbon::now()->toDateTimeString() . ' - ' . auth()->user()->name . ":\n" . $data['note'] . "\n\n" ;
-                                            $record->notes = $record->notes . $note;
+                                            $record->notes = !empty($record->notes) ? $record->notes . "\n\n" . $note : $note;
                                             $record->save();
 
                                             // Refresh the notes field with the updated value
                                             $set('notes', $record->notes);
+                                        }),
+                                    Forms\Components\Actions\Action::make('verification')
+                                        ->label('Marcar como Verificada')
+                                        ->color('success')
+                                        ->modalHeading('Verificación')
+                                        ->visible(fn (?Policy $record) => $record && $record->exists && $record->status === PolicyStatus::ToVerify)
+                                        ->form([
+                                            Forms\Components\Select::make('status')
+                                                ->options(PolicyStatus::class)
+                                                ->disableOptionWhen(fn (string $value): bool =>
+                                                        ($value === PolicyStatus::ToVerify->value)
+                                                    )
+                                                ->required(),
+                                            Forms\Components\Textarea::make('note')
+                                                ->required()
+                                                ->rows(3)
+                                                ->label('Nota'),
+                                        ])
+                                        ->modalSubmitActionLabel('Verificación')
+                                        ->action(function (Policy $record, array $data, Set $set): void {
+                                            $note = 'Verificada el ' . Carbon::now()->toDateTimeString() . ' por ' . auth()->user()->name;
+                                            $note = $note . ":\n" . $data['note'] . "\n\n" ;
+                                            $record->notes = !empty($record->notes) ? $record->notes . "\n\n" . $note : $note;
+                                            $record->status = $data['status'];
+                                            $record->is_initial_verification_complete = true;
+                                            $record->initial_verification_performed_by = auth()->user()->id;
+                                            $record->initial_verification_date = Carbon::now();
+                                            $record->save();
+
+                                            // Refresh the notes field with the updated value
+                                            $set('notes', $record->notes);
+                                            // $this->redirect(PolicyResource::getUrl('edit', ['record' => $this->record]));
                                         }),
                                     ])
                                     ->alignEnd()
@@ -269,7 +355,7 @@ class PolicyResource extends Resource
                                 ])
                             ->columns([ 'md' => 8, 'lg' => 8 ])
                             ->columnSpanFull(),
-                        ])->columns(['md' => 4, 'lg' => 4]),
+                        ])->columns(['md' => 8, 'lg' => 8]),
             ]);
     }
 
@@ -443,6 +529,9 @@ class PolicyResource extends Resource
                Tables\Filters\SelectFilter::make('policy_type')
                    ->options(PolicyType::class)
                    ->label('Tipo de Poliza'),
+                Tables\Filters\SelectFilter::make('policy_us_state')
+                    ->label('Estado')
+                    ->options(UsState::class),
                 Tables\Filters\SelectFilter::make('medicaid_filter')
                     ->label('Aplicantes con Medicaid')
                     ->options([
@@ -453,14 +542,14 @@ class PolicyResource extends Resource
                         if (! $data['value']) {
                             return $query;
                         }
-                        
+
                         if ($data['value'] === '1') {
                             // Return policies where at least one policy applicant has medicaid_client = true
                             return $query->whereHas('policyApplicants', function ($q) {
                                 $q->where('medicaid_client', true);
                             });
                         }
-                        
+
                         // Return policies where no policy applicants have medicaid_client = true
                         return $query->whereDoesntHave('policyApplicants', function ($q) {
                             $q->where('medicaid_client', true);
@@ -518,9 +607,6 @@ class PolicyResource extends Resource
                         // Return query with filtered IDs
                         return $query->whereIn('id', $filteredIds);
                     }),
-                Tables\Filters\SelectFilter::make('policy_us_state')
-                    ->label('Estado')
-                    ->options(UsState::class),
             ], layout: FiltersLayout::AboveContent)
             ->actions([
                 // Create a Action group with 3 actions
@@ -537,7 +623,7 @@ class PolicyResource extends Resource
                                             ->options(PolicyStatus::class)
                                             ->required()
                                             ->preload()
-                                            ->disableOptionWhen(fn (string $value): bool => 
+                                            ->disableOptionWhen(fn (string $value): bool =>
                                                         ($value === PolicyStatus::ToVerify->value)
                                                     )
                                             ->searchable(),
@@ -554,7 +640,7 @@ class PolicyResource extends Resource
                                             ->label('Inicial Pagada')
                                             ->default(fn (Policy $record) => $record->initial_paid),
                                         Forms\Components\Toggle::make('autopay')
-                                            ->label('Autopay')
+                                            ->label('Cotizacion')
                                             ->default(fn (Policy $record) => $record->autopay),
                                         Forms\Components\Toggle::make('aca')
                                             ->label('ACA')
@@ -566,7 +652,7 @@ class PolicyResource extends Resource
                             ->action(function (Policy $record, array $data): void {
                                 $record->status = $data['status'];
                                 $note = Carbon::now()->toDateTimeString() . ' - ' . auth()->user()->name . ":\nCambio de Estatus: " . PolicyStatus::from($data['status'])->getLabel() . "\n" . $data['notas'] . "\n\n";
-                                $record->notes = $record->notes . $note;
+                                $record->notes = !empty($record->notes) ? $record->notes . "\n\n" . $note : $note;
                                 $record->client_notified = $data['client_notified'];
                                 $record->initial_paid = $data['initial_paid'];
                                 $record->autopay = $data['autopay'];
@@ -580,7 +666,7 @@ class PolicyResource extends Resource
                                     ->success()
                                     ->send();
                             }),
-                        
+
                     Tables\Actions\Action::make('view')
                         ->label('Ver')
                         ->icon('heroicon-o-eye')
@@ -595,8 +681,8 @@ class PolicyResource extends Resource
                     //     ->icon('heroicon-o-pencil-square')
                     //     ->url(fn (Policy $record): string => route('filament.app.resources.policies.quickedit', $record)),
                     Tables\Actions\DeleteAction::make()
-                        ->visible(fn (?Policy $record) => 
-                            $record && 
+                        ->visible(fn (?Policy $record) =>
+                            $record &&
                             $record->exists &&
                             auth()->user()->role === UserRoles::Admin
                         ),
@@ -717,6 +803,37 @@ class PolicyResource extends Resource
                         ->color('primary')
                         ->button(),
                 ])
+            ->bulkActions([
+                Tables\Actions\BulkAction::make('change_assistant')
+                    ->label('Cambiar Asistente')
+                    // Visible only if the user is admin
+                    ->visible(fn (Get $get): bool => auth()->user()->role->isAdmin())
+                    ->form([
+                        Forms\Components\Select::make('user_id')
+                            ->relationship('user', 'name')
+                            ->label('Asistente')
+                            ->required(),
+                        Forms\Components\Textarea::make('notes')
+                            ->label('Notas')
+                            ->rows(3),
+                        ])
+                    ->action(function (\Illuminate\Database\Eloquent\Collection $records, array $data): void {
+                        foreach ($records as $record) {
+                            $record->update([
+                                'user_id' => $data['user_id'],
+                                'notes' => ($record->notes ? $record->notes . "\n\n" : '') .
+                                    "=== Cambio de Asistente ===\n" .
+                                    "Asistente cambiado por " . auth()->user()->name . " el " . now()->format('Y-m-d H:i:s') .
+                                    ($data['notes'] ? "\n\n" . $data['notes'] : ''),
+                            ]);
+                        }
+                        Notification::make()
+                            ->title('Asistente cambiado exitosamente')
+                            ->success()
+                            ->send();
+                    })
+                    ->requiresConfirmation(),
+            ])
             ->defaultSort('created_at', 'desc');
     }
 

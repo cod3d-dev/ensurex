@@ -23,7 +23,7 @@ use App\Models\Policy;
  */
 
 
-class PolicyFactory extends Factory
+class PolicyFactoryOld extends Factory
 {
     private static $lastCreatedAt = null;
 
@@ -42,7 +42,7 @@ class PolicyFactory extends Factory
     {
         parent::__construct();
         $this->faker = \Faker\Factory::create('es_VE');
-        
+
         if (self::$lastCreatedAt === null) {
             $latestPolicy = Policy::orderBy('created_at', 'desc')->first();
             self::$lastCreatedAt = $latestPolicy ? $latestPolicy->created_at : now()->subYears(4);
@@ -88,7 +88,7 @@ class PolicyFactory extends Factory
 
         // Default policy type (can be overridden by state methods)
         $policyType = $this->faker->randomElement(PolicyType::class);
-        
+
         // Generate life insurance data if policy type is Life
         $lifeInsurance = null;
         if ($policyType === PolicyType::Life) {
@@ -146,14 +146,14 @@ class PolicyFactory extends Factory
             'total_family_members' => $totalFamilyMembers,
             'total_applicants' => $totalFamilyMembers,
             'total_applicants_with_medicaid' => $totalApplicantsWithMedicaid,
-            
+
             // Calculate total household income from all applicants
             'estimated_household_income' => $this->calculateTotalHouseholdIncome($mainApplicant, $additionalApplicants),
-            
+
             'preferred_doctor' => $this->faker->optional(0.5)->name(),
             'prescription_drugs' => $prescriptionDrugs,
             'contact_information' => $contactInformation,
-            
+
             // Life Insurance Data
             'life_insurance' => $lifeInsurance,
 
@@ -265,7 +265,7 @@ class PolicyFactory extends Factory
             'yearly_income' => null,
             'age' => Carbon::parse($contact->date_of_birth)->age ?? $this->faker->numberBetween(18, 80),
         ];
-        
+
         // Set employment values based on employment type
         if ($isSelfEmployed) {
             $applicant['self_employed_yearly_income'] = $this->faker->randomFloat(2, 20000, 60000);
@@ -274,10 +274,10 @@ class PolicyFactory extends Factory
             $applicant['income_per_hour'] = $this->faker->randomFloat(2, 15, 100);
             $applicant['hours_per_week'] = $this->faker->numberBetween(10, 40);
             $applicant['weeks_per_year'] = $this->faker->numberBetween(40, 52);
-            
+
             // Calculate base yearly income
             $yearlyIncome = $applicant['income_per_hour'] * $applicant['hours_per_week'] * $applicant['weeks_per_year'];
-            
+
             // Add extra hours if applicable (60% chance)
             $hasExtraHours = $this->faker->boolean(60);
             if ($hasExtraHours) {
@@ -285,10 +285,10 @@ class PolicyFactory extends Factory
                 $applicant['extra_hours_per_week'] = $this->faker->numberBetween(1, 20);
                 $yearlyIncome += $applicant['income_per_extra_hour'] * $applicant['extra_hours_per_week'] * $applicant['weeks_per_year'];
             }
-            
+
             $applicant['yearly_income'] = $yearlyIncome;
         }
-        
+
         return $applicant;
     }
 
@@ -365,14 +365,14 @@ class PolicyFactory extends Factory
                 'weeks_per_year' => null,
                 'yearly_income' => null,
             ];
-            
+
             // Only add income for applicants over 12 years old, with 40% chance
             $hasIncome = $age > 12 && $this->faker->boolean(40);
-            
+
             if ($hasIncome) {
                 $isSelfEmployed = $this->faker->boolean(30);
                 $applicants[$i]['is_self_employed'] = $isSelfEmployed;
-                
+
                 if ($isSelfEmployed) {
                     $applicants[$i]['self_employed_profession'] = $this->faker->jobTitle();
                     $applicants[$i]['self_employed_yearly_income'] = $this->faker->randomFloat(2, 20000, 60000);
@@ -381,10 +381,10 @@ class PolicyFactory extends Factory
                     $applicants[$i]['income_per_hour'] = $this->faker->randomFloat(2, 15, 100);
                     $applicants[$i]['hours_per_week'] = $this->faker->numberBetween(10, 40);
                     $applicants[$i]['weeks_per_year'] = $this->faker->numberBetween(40, 52);
-                    
+
                     // Calculate base yearly income
                     $yearlyIncome = $applicants[$i]['income_per_hour'] * $applicants[$i]['hours_per_week'] * $applicants[$i]['weeks_per_year'];
-                    
+
                     // Add extra hours if applicable (60% chance)
                     $hasExtraHours = $this->faker->boolean(60);
                     if ($hasExtraHours) {
@@ -392,7 +392,7 @@ class PolicyFactory extends Factory
                         $applicants[$i]['extra_hours_per_week'] = $this->faker->numberBetween(1, 20);
                         $yearlyIncome += $applicants[$i]['income_per_extra_hour'] * $applicants[$i]['extra_hours_per_week'] * $applicants[$i]['weeks_per_year'];
                     }
-                    
+
                     $applicants[$i]['yearly_income'] = $yearlyIncome;
                 }
             }
@@ -493,10 +493,10 @@ class PolicyFactory extends Factory
         $totalBeneficiaries = $this->faker->numberBetween(1, 3);
         $beneficiaries = [];
         $totalPercentage = 0;
-        
+
         // Calculate percentages for beneficiaries
         $percentages = $this->distributePercentages($totalBeneficiaries);
-        
+
         // Generate beneficiary data
         for ($i = 1; $i <= $totalBeneficiaries; $i++) {
             $relationship = $this->faker->randomElement(\App\Enums\FamilyRelationship::cases());
@@ -511,16 +511,16 @@ class PolicyFactory extends Factory
             ];
             $totalPercentage += $percentages[$i - 1];
         }
-        
+
         // Generate 0-2 contingent beneficiaries
         $totalContingents = $this->faker->numberBetween(0, 2);
         $contingents = [];
         $totalContingentPercentage = 0;
-        
+
         if ($totalContingents > 0) {
             // Calculate percentages for contingent beneficiaries
             $contingentPercentages = $this->distributePercentages($totalContingents);
-            
+
             // Generate contingent beneficiary data
             for ($i = 1; $i <= $totalContingents; $i++) {
                 $relationship = $this->faker->randomElement(\App\Enums\FamilyRelationship::cases());
@@ -536,44 +536,44 @@ class PolicyFactory extends Factory
                 $totalContingentPercentage += $contingentPercentages[$i - 1];
             }
         }
-        
+
         // Generate physical data
         $heightCm = $this->faker->numberBetween(150, 200);
         $heightFeet = number_format($heightCm / 30.48, 2);
         $weightKg = $this->faker->numberBetween(50, 120);
         $weightLbs = number_format($weightKg / 0.45359237, 2);
-        
+
         // Generate medical data
         $hasDiagnosis = $this->faker->boolean(30);
         $diagnosisDate = $hasDiagnosis ? $this->faker->dateTimeBetween('-5 years', 'now')->format('Y-m-d') : null;
         $diagnosis = $hasDiagnosis ? $this->faker->sentence(10) : null;
-        
+
         $hasDisease = $this->faker->boolean(20);
         $disease = $hasDisease ? $this->faker->randomElement(['Diabetes', 'Hipertensión', 'Asma', 'Artritis', 'Migraña']) : null;
-        
+
         $hasBeenHospitalized = $this->faker->boolean(25);
         $hospitalizedDate = $hasBeenHospitalized ? $this->faker->dateTimeBetween('-3 years', 'now')->format('Y-m-d') : null;
-        
+
         // Generate family medical history
         $fatherIsAlive = $this->faker->boolean(70);
         $fatherAge = $fatherIsAlive ? $this->faker->numberBetween(50, 90) : $this->faker->numberBetween(50, 80);
         $fatherDeathReason = $fatherIsAlive ? null : $this->faker->randomElement(['Cáncer', 'Infarto', 'Accidente', 'Causas naturales']);
-        
+
         $motherIsAlive = $this->faker->boolean(75);
         $motherAge = $motherIsAlive ? $this->faker->numberBetween(50, 90) : $this->faker->numberBetween(50, 80);
         $motherDeathReason = $motherIsAlive ? null : $this->faker->randomElement(['Cáncer', 'Infarto', 'Accidente', 'Causas naturales']);
-        
+
         $hasFamilyMemberWithDisease = $this->faker->boolean(40);
         $familyMemberRelationship = $hasFamilyMemberWithDisease ? $this->faker->randomElement(\App\Enums\FamilyRelationship::cases()) : null;
         $familyMemberDiseaseDescription = $hasFamilyMemberWithDisease ? $this->faker->randomElement(['Cáncer', 'Diabetes', 'Enfermedad cardíaca', 'Alzheimer', 'Parkinson']) : null;
-        
+
         // Generate employment information
         $employerName = $this->faker->company();
         $jobTitle = $this->faker->jobTitle();
         $employmentPhone = $this->faker->phoneNumber();
         $employmentAddress = $this->faker->address();
         $employmentStartDate = $this->faker->dateTimeBetween('-10 years', '-1 month')->format('Y-m-d');
-        
+
         // Compile all life insurance data
         return [
             'applicant' => [
@@ -626,7 +626,7 @@ class PolicyFactory extends Factory
             'contingents' => $totalContingents > 0 ? array_merge($contingents, ['total_percentage' => $totalContingentPercentage]) : [],
         ];
     }
-    
+
     /**
      * Distribute percentages to equal 100%
      */
@@ -635,10 +635,10 @@ class PolicyFactory extends Factory
         if ($count === 1) {
             return [100];
         }
-        
+
         $percentages = [];
         $remaining = 100;
-        
+
         for ($i = 0; $i < $count - 1; $i++) {
             // For all but the last item, assign a random percentage
             $max = $remaining - ($count - $i - 1); // Ensure at least 1% for each remaining item
@@ -646,13 +646,13 @@ class PolicyFactory extends Factory
             $percentages[] = $percentage;
             $remaining -= $percentage;
         }
-        
+
         // Assign the remaining percentage to the last item
         $percentages[] = $remaining;
-        
+
         return $percentages;
     }
-    
+
     /**
      * Configure the model factory to create a Life insurance policy.
      *
@@ -663,10 +663,10 @@ class PolicyFactory extends Factory
         return $this->state(function (array $attributes) {
             // Get the main applicant from attributes or use an empty array as fallback
             $mainApplicant = $attributes['main_applicant'] ?? [];
-            
+
             // Force generate life insurance data regardless of what was in the attributes
             $lifeInsurance = $this->generateLifeInsuranceData($mainApplicant);
-            
+
             return [
                 'policy_type' => PolicyType::Life,
                 'life_insurance' => $lifeInsurance,
@@ -685,22 +685,22 @@ class PolicyFactory extends Factory
             // Check if the main applicant (from JSON) matches the policy owner
             $mainApplicant = $policy->main_applicant;
             $isOwnerApplicant = false;
-            
+
             if ($mainApplicant && $policy->contact) {
                 // Check if the main applicant is the policy owner
-                $isOwnerApplicant = 
-                    $mainApplicant['first_name'] === $policy->contact->first_name && 
+                $isOwnerApplicant =
+                    $mainApplicant['first_name'] === $policy->contact->first_name &&
                     $mainApplicant['last_name'] === $policy->contact->last_name;
-                
+
                 // If the owner is an applicant, add them to the pivot table
                 if ($isOwnerApplicant) {
                     $policy->applicants()->attach($policy->contact_id);
                 }
             }
-            
+
             // Process additional applicants from the JSON
             $additionalApplicants = $policy->additional_applicants ?? [];
-            
+
             foreach ($additionalApplicants as $applicantData) {
                 // Create a new contact for each additional applicant
                 $contact = Contact::create([
@@ -734,7 +734,7 @@ class PolicyFactory extends Factory
                     'created_at' => $policy->created_at,
                     'updated_at' => $policy->created_at,
                 ]);
-                
+
                 // Attach the new contact to the policy as an applicant
                 $policy->applicants()->attach($contact->id);
             }
