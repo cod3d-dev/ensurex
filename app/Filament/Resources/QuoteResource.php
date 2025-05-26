@@ -84,7 +84,29 @@ class QuoteResource extends Resource
                                     ->searchable()
                                     ->live()
                                     ->options(function () {
-                                        return Contact::all()->pluck('full_name', 'id')->toArray();
+                                        return Contact::all()
+                                            ->mapWithKeys(function ($contact) {
+                                                $details = [];
+                                                
+                                                // Calculate age from date_of_birth if available
+                                                if ($contact->date_of_birth) {
+                                                    $age = \Carbon\Carbon::parse($contact->date_of_birth)->age;
+                                                    $details[] = "{$age} años";
+                                                }
+                                                
+                                                if ($contact->state_province) {
+                                                    $state = $contact->state_province instanceof \App\Enums\UsState 
+                                                        ? $contact->state_province->value 
+                                                        : $contact->state_province;
+                                                    $details[] = $state;
+                                                }
+                                                
+                                                $detailsText = $details ? ' (' . implode(', ', $details) . ')' : '';
+                                                return [
+                                                    $contact->id => $contact->full_name . $detailsText
+                                                ];
+                                            })
+                                            ->toArray();
                                     })
                                     ->preload()
                                     ->required()
@@ -134,12 +156,23 @@ class QuoteResource extends Resource
                                             'relationship' => FamilyRelationship::Self->value,
                                             'full_name' => $contact->full_name,
                                             'date_of_birth' => $contact->date_of_birth,
-                                            'gender' => $contact->gender,
                                             'age' => $contact->age,
                                             'is_covered' => true,
+                                            'gender' => $contact->gender,
                                             'is_pregnant' => false,
                                             'is_tobacco_user' => false,
+                                            'is_self_employed' => false,
                                             'is_eligible_for_coverage' => false,
+                                            'employeer_name' => '',
+                                            'employement_role' => '',
+                                            'employeer_phone' => '',
+                                            'income_per_hour' => '',
+                                            'hours_per_week' => '',
+                                            'income_per_extra_hour' => '',
+                                            'extra_hours_per_week' => '',
+                                            'weeks_per_year' => '',
+                                            'yearly_income' => '',
+                                            'self_employed_yearly_income' => '',
                                         ];
                                         
                                         // If applicants array is empty, add the new applicant
@@ -179,12 +212,23 @@ class QuoteResource extends Resource
                                             'relationship' => FamilyRelationship::Self->value,
                                             'full_name' => $contact->full_name,
                                             'date_of_birth' => $contact->date_of_birth,
-                                            'gender' => $contact->gender,
                                             'age' => $contact->age,
                                             'is_covered' => true,
+                                            'gender' => $contact->gender,
                                             'is_pregnant' => false,
                                             'is_tobacco_user' => false,
+                                            'is_self_employed' => false,
                                             'is_eligible_for_coverage' => false,
+                                            'employeer_name' => '',
+                                            'employement_role' => '',
+                                            'employeer_phone' => '',
+                                            'income_per_hour' => '',
+                                            'hours_per_week' => '',
+                                            'income_per_extra_hour' => '',
+                                            'extra_hours_per_week' => '',
+                                            'weeks_per_year' => '',
+                                            'yearly_income' => '',
+                                            'self_employed_yearly_income' => '',
                                         ];
                                         
                                         // If applicants array is empty, add the new applicant
@@ -271,18 +315,34 @@ class QuoteResource extends Resource
                                 Forms\Components\DatePicker::make('contact.date_of_birth')
                                     ->label('Fecha Nacimiento')
                                     ->live(onBlur: true)
-                                    ->afterStateHydrated(function ($state, Forms\Set $set) {
+                                    ->afterStateHydrated(function ($state, Forms\Set $set, $get) {
                                         if ($state) {
                                             $birthDate = \Carbon\Carbon::parse($state);
                                             $age = $birthDate->age;
                                             $set('contact.age', $age);
+                                            
+                                            // Update the first applicant in the repeater
+                                            $applicants = $get('applicants') ?? [];
+                                            if (count($applicants) > 0) {
+                                                $applicants[0]['date_of_birth'] = $birthDate->format('Y-m-d');
+                                                $applicants[0]['age'] = $age;
+                                                $set('applicants', $applicants);
+                                            }
                                         }
                                     })
-                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
                                         if ($state) {
                                             $birthDate = \Carbon\Carbon::parse($state);
                                             $age = $birthDate->age;
                                             $set('contact.age', $age);
+                                            
+                                            // Update the first applicant in the repeater
+                                            $applicants = $get('applicants') ?? [];
+                                            if (count($applicants) > 0) {
+                                                $applicants[0]['date_of_birth'] = $birthDate->format('Y-m-d');
+                                                $applicants[0]['age'] = $age;
+                                                $set('applicants', $applicants);
+                                            }
                                         }
                                     })
                                     ->columnSpan(2),
@@ -357,7 +417,7 @@ class QuoteResource extends Resource
                                     ->live()
                                     ->afterStateUpdated(function (string $state, Forms\Set $set) {
                                         $kinectKPL = \App\Models\KynectFPL::threshold(2024, (int) $state);
-                                        $set('../data.kynect_fpl_threshold', $kinectKPL * 12);
+                                        $set('kynect_fpl_threshold', $kinectKPL * 12);
                                     }),
                                 Forms\Components\TextInput::make('total_applicants')
                                     ->numeric()
@@ -406,20 +466,15 @@ class QuoteResource extends Resource
                                     ->prefix('$'),
                                 Forms\Components\TextInput::make('kynect_fpl_threshold')
                                     ->label('Ingresos Requeridos Kynect')
-                                    ->disabled()
+                                    ->readOnly()
+                                    ->dehydrated(false)
                                     ->prefix('$')
                                     ->live()
                                     ->formatStateUsing(function ($state, $get) {
-                                        $memberCount = $get('../../total_family_members') ?? 1;
+                                        $memberCount = $get('total_family_members') ?? 1;
                                         $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
                                             $memberCount));
                                         return $kinectKPL * 12;
-                                    })
-                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
-                                        $memberCount = $get('../../total_family_members') ?? 1;
-                                        $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
-                                            $memberCount));
-                                        $set('kynect_fpl_threshold', $kinectKPL * 12);
                                     }),
                             ])
                             ->columns(4),
@@ -443,17 +498,22 @@ class QuoteResource extends Resource
                                     ->required(),
                                 Forms\Components\TextInput::make('full_name')
                                     ->label('Nombre')
-                                    ->columnSpan(3)
-                                    ->required(),
+                                    ->columnSpan(3),
                                 Forms\Components\DatePicker::make('date_of_birth')
                                     ->label('Fecha Nac.')
                                     ->columnSpan(2)
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
                                         if ($state) {
                                             $birthDate = \Carbon\Carbon::parse($state);
                                             $age = $birthDate->age;
                                             $set('age', $age);
+                                            
+                                            // Only update contact if this is the 'self' relationship
+                                            if (($get('relationship') ?? '') === 'self') {
+                                                $set('../../contact.date_of_birth', $birthDate->format('Y-m-d'));
+                                                $set('../../contact.age', $age);
+                                            }
                                         }
                                     }),
                                 Forms\Components\TextInput::make('age')
@@ -692,23 +752,26 @@ class QuoteResource extends Resource
                                 Forms\Components\TextInput::make('estimated_household_income')
                                     ->numeric()
                                     ->label('Ingreso Familiar Estimado')
-                                    ->prefix('$'),
+                                    ->prefix('$')
+                                    ->extraInputAttributes(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $kynectFplThreshold = $get('kynect_fpl_threshold');
+                                        $estimatedHouseholdIncome = $state;
+                                        if ($estimatedHouseholdIncome < $kynectFplThreshold) {
+                                            return ['style' => 'background-color: #FEE2E2;'];
+                                        }
+                                        return [];
+                                    }),
                                 Forms\Components\TextInput::make('kynect_fpl_threshold')
                                     ->label('Ingresos Requeridos Kynect')
-                                    ->disabled()
+                                    ->readOnly()
+                                    ->dehydrated(false)
                                     ->prefix('$')
                                     ->live()
                                     ->formatStateUsing(function ($state, $get) {
-                                        $memberCount = $get('../../total_family_members') ?? 1;
+                                        $memberCount = $get('total_family_members') ?? 1;
                                         $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
                                             $memberCount));
                                         return $kinectKPL * 12;
-                                    })
-                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
-                                        $memberCount = $get('../../total_family_members') ?? 1;
-                                        $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
-                                            $memberCount));
-                                        $set('kynect_fpl_threshold', $kinectKPL * 12);
                                     }),
                             ])
                             ->columns(6),
