@@ -22,41 +22,41 @@ class EditQuote extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        \Log::info('HealthSherpa Form Data Before Save:', $data);
+        // \Log::info('HealthSherpa Form Data Before Save:', $data);
 
-        // Update main applicant data from contact information
-        if (isset($data['contact_information']['date_of_birth'])) {
-            $data['main_applicant']['age'] = Carbon::parse($data['contact_information']['date_of_birth'])->age;
-        }
+        // // Update main applicant data from contact information
+        // if (isset($data['contact_information']['date_of_birth'])) {
+        //     $data['main_applicant']['age'] = Carbon::parse($data['contact_information']['date_of_birth'])->age;
+        // }
 
-        $data['main_applicant']['relationship'] = 'Aplicante Principal';
-        $data['main_applicant']['gender'] = $data['contact_information']['gender'] ?? null;
-        $data['main_applicant']['is_pregnant'] = $data['contact_information']['is_pregnant'] ?? false;
-        $data['main_applicant']['is_tobacco_user'] = $data['contact_information']['is_tobacco_user'] ?? false;
-        $data['main_applicant']['is_eligible_for_coverage'] = $data['contact_information']['is_eligible_for_coverage'] ?? false;
+        // $data['main_applicant']['relationship'] = 'Aplicante Principal';
+        // $data['main_applicant']['gender'] = $data['contact_information']['gender'] ?? null;
+        // $data['main_applicant']['is_pregnant'] = $data['contact_information']['is_pregnant'] ?? false;
+        // $data['main_applicant']['is_tobacco_user'] = $data['contact_information']['is_tobacco_user'] ?? false;
+        // $data['main_applicant']['is_eligible_for_coverage'] = $data['contact_information']['is_eligible_for_coverage'] ?? false;
 
-        // Calculate yearly income for main applicant
-        if (!($data['main_applicant']['is_self_employed'] ?? false)) {
-            $data['main_applicant']['yearly_income'] = ($data['main_applicant']['income_per_hour'] * $data['main_applicant']['hours_per_week']
-                + $data['main_applicant']['income_per_extra_hour'] * $data['main_applicant']['extra_hours_per_week']) * $data['main_applicant']['weeks_per_year'] ?? null;
-        }
+        // // Calculate yearly income for main applicant
+        // if (!($data['main_applicant']['is_self_employed'] ?? false)) {
+        //     $data['main_applicant']['yearly_income'] = ($data['main_applicant']['income_per_hour'] * $data['main_applicant']['hours_per_week']
+        //         + $data['main_applicant']['income_per_extra_hour'] * $data['main_applicant']['extra_hours_per_week']) * $data['main_applicant']['weeks_per_year'] ?? null;
+        // }
 
-        // Calculate yearly income for additional applicants
-        if (isset($data['additional_applicants'])) {
-            foreach ($data['additional_applicants'] as $key => $additional_applicant) {
-                if (!($additional_applicant['is_self_employed'] ?? false)) {
-                    $data['additional_applicants'][$key]['yearly_income'] = ($additional_applicant['income_per_hour'] * $additional_applicant['hours_per_week']
-                        + $additional_applicant['income_per_extra_hour'] * $additional_applicant['extra_hours_per_week']) * $additional_applicant['weeks_per_year'] ?? null;
-                }
-            }
-        }
+        // // Calculate yearly income for additional applicants
+        // if (isset($data['additional_applicants'])) {
+        //     foreach ($data['additional_applicants'] as $key => $additional_applicant) {
+        //         if (!($additional_applicant['is_self_employed'] ?? false)) {
+        //             $data['additional_applicants'][$key]['yearly_income'] = ($additional_applicant['income_per_hour'] * $additional_applicant['hours_per_week']
+        //                 + $additional_applicant['income_per_extra_hour'] * $additional_applicant['extra_hours_per_week']) * $additional_applicant['weeks_per_year'] ?? null;
+        //         }
+        //     }
+        // }
 
-        $data['state_province'] = $data['contact_information']['state'];
+        // $data['state_province'] = $data['contact_information']['state'];
 
-        // Remove the separate applicant fields as they're not part of the Quote model
+        // // Remove the separate applicant fields as they're not part of the Quote model
 
-        unset($data['create_new_client']);
-//        unset($data['contact_information']);
+        // unset($data['create_new_client']);
+       unset($data['contact']);
         return $data;
     }
 

@@ -36,7 +36,8 @@ class Quote extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'valid_until' => 'date',
-        'policy_type' => PolicyType::class,
+        'policy_types' => 'array',
+        'applicants' => 'array',
         'state_province' => UsState::class,
     ];
 
@@ -84,5 +85,47 @@ class Quote extends Model
     public function additionalApplicants()
     {
         return $this->applicants?->additionalApplicants();
+    }
+    
+    /**
+     * Get the main applicant from the applicants JSON field
+     * 
+     * @return array|null
+     */
+    public function getMainApplicantFromJson()
+    {
+        if (!$this->applicants || !is_array($this->applicants)) {
+            return null;
+        }
+        
+        foreach ($this->applicants as $applicant) {
+            if (isset($applicant['is_primary']) && $applicant['is_primary']) {
+                return $applicant;
+            }
+        }
+        
+        return $this->applicants[0] ?? null;
+    }
+    
+    /**
+     * Get additional applicants from the applicants JSON field
+     * 
+     * @return array
+     */
+    public function getAdditionalApplicantsFromJson()
+    {
+        if (!$this->applicants || !is_array($this->applicants)) {
+            return [];
+        }
+        
+        $additionalApplicants = [];
+        
+        foreach ($this->applicants as $index => $applicant) {
+            if (!isset($applicant['is_primary']) || !$applicant['is_primary']) {
+                $additionalApplicants[] = $applicant;
+            }
+        }
+        
+        return $additionalApplicants;
     }
 }

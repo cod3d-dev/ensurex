@@ -5,37 +5,39 @@ namespace App\Filament\Resources;
 use App\Enums\FamilyRelationship;
 use App\Filament\Resources\QuoteResource\Pages;
 use App\Filament\Resources\QuoteResource\RelationManagers;
-use App\Models\Quote;
 use App\Models\Contact;
-use Filament\Forms;
+use App\Models\Quote;
+use App\Services\GoogleMapsService;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Split;
+use Filament\Forms\Components\Wizard;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Forms;
+use Filament\Tables;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Forms\Components\Wizard;
-//use Filament\Forms\FormEvents;
-use App\Filament\Resources\QuoteResource\Actions\ConvertToPolicy;
+use Illuminate\Support\Facades\Http;
+// use Filament\Forms\FormEvents;
 use App\Enums\QuoteStatus;
-//use Awcodes\TableRepeater\Components\TableRepeater;
-//use Awcodes\TableRepeater\Header;
-//use App\Actions\ResetStars;
+use App\Filament\Resources\QuoteResource\Actions\ConvertToPolicy;
+// use Awcodes\TableRepeater\Components\TableRepeater;
+// use Awcodes\TableRepeater\Header;
+// use App\Actions\ResetStars;
 use Filament\Forms\Components\Actions\Action;
-//use App\Actions\Star;
-use Filament\Forms\Components\Actions;
+// use App\Actions\Star;
 use App\Enums\Gender;
 use App\Enums\PolicyType;
 use App\Enums\UsState;
-use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
+use Filament\Forms\Components\Actions;
+use Filament\Tables\Enums\FiltersLayout;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Carbon\Carbon;
 use Illuminate\Support\Str;
-use Filament\Tables\Enums\FiltersLayout;
 
 class QuoteResource extends Resource
 {
@@ -47,15 +49,15 @@ class QuoteResource extends Resource
     protected static ?string $navigationGroup = 'Polizas';
     protected static ?int $navigationSort = 1;
 
-//    public static function shouldRegisterNavigation(): bool
-//    {
-//        return true;
-//    }
+    //    public static function shouldRegisterNavigation(): bool
+    //    {
+    //        return true;
+    //    }
 
-// public static function getGloballySearchableAttributes(): array
-//     {
-//         return ['contact.first_name', 'contact.middle_name', 'contact.last_name', 'contact.second_last_name'];
-//     }
+    // public static function getGloballySearchableAttributes(): array
+    //     {
+    //         return ['contact.first_name', 'contact.middle_name', 'contact.last_name', 'contact.second_last_name'];
+    //     }
 
     // public static function getGlobalSearchResultDetails(Model $record): array
     // {
@@ -68,541 +70,649 @@ class QuoteResource extends Resource
     //     ];
     // }
 
-
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Wizard::make()
+                Section::make('Cotización')
                     ->schema([
-                        Wizard\Step::make('Información Básica')
+                        Forms\Components\Grid::make()  // Quote details
                             ->schema([
-                                Forms\Components\Grid::make()
-                                    ->schema([
-                                        Forms\Components\Select::make('agent_id')
-                                            ->relationship('Agent', 'name')
-                                            ->required()
-                                            ->label('Cuenta')
-                                            ->default(1)
-                                            ->columnSpan(2),
-                                        Forms\Components\Select::make('user_id')
-                                            ->relationship('user', 'name')
-                                            ->required()
-                                            ->label('Asistente')
-                                            ->searchable()
-                                            ->preload()
-                                            ->default(auth()->user()->id)
-                                            ->columnSpan(2),
-                                        Forms\Components\Select::make('policy_type')
-                                            ->options(PolicyType::class)
-                                            ->required()
-                                            ->label('Tipo')
-                                            ->default(PolicyType::Health)
-                                            ->columnSpan(2),
-                                        Forms\Components\Select::make('year')
-                                            ->required()
-                                            ->label('Año')
-                                            ->options(function() {
-                                                $startYear = 2018;
-                                                $endYear = Carbon::now()->addYears(2)->year;
-                                                $years = [];
-
-                                                for ($year = $startYear; $year <= $endYear; $year++) {
-                                                    $years[$year] = $year;
-                                                }
-
-                                                return $years;
-                                            })
-                                            ->default(Carbon::now()->year)
-                                            ->columnSpan(1),
-                                        Forms\Components\Hidden::make('policy_id')
-                                            ->dehydrated(true),
-                                        Forms\Components\Select::make('status')
-                                            ->label('Estatus')
-                                            ->options(QuoteStatus::class)
-                                            ->default(QuoteStatus::Pending)
-                                            ->required()
-                                            ->columnSpan(2)
-                                            ->suffixAction(
-                                                Action::make('poliza')
-                                                    ->icon('iconoir-privacy-policy')
-                                                    ->label('Ver Póliza')
-                                                    ->tooltip('Ver póliza asociada')
-                                                    ->visible(fn (Forms\Get $get) => $get('policy_id') !== null)
-                                                    ->url(function (Forms\Get $get) {
-                                                        $policyId = $get('policy_id');
-
-                                                        if ($policyId) {
-                                                            return PolicyResource::getUrl('view', ['record' => $policyId]);
-                                                        }
-                                                        return '';
-                                                    })
-                                                    ->openUrlInNewTab()),
-                                    ])->columns(9),
-
-
-                                Section::make()
-                                    ->schema([
-                                        Forms\Components\Toggle::make('create_new_client')
-                                            ->label('Crear Nuevo Cliente')
-                                            ->live()
-                                            ->default(true)
-                                            ->inline(false),
-                                        Forms\Components\Select::make('contact_id')
-                                            ->relationship(
-                                                'contact',
-                                                'first_name',
-                                                fn(Builder $query
-                                                ) => $query->orderBy('first_name')->orderBy('last_name')
-                                            )
-                                            ->getOptionLabelFromRecordUsing(fn(Contact $record) => $record->full_name)
-                                            ->disabled(fn(Forms\Get $get): bool => $get('create_new_client'))
-                                            ->dehydrated(true)
-                                            ->required(fn(Forms\Get $get): bool => !$get('create_new_client'))
-                                            ->label('Cliente')
-                                            ->searchable(['first_name', 'last_name', 'middle_name', 'second_last_name'])
-                                            ->preload()
-                                            ->live()
-                                            ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                                if ($state) {
-                                                    $contact = Contact::find($state);
-                                                    if ($contact) {
-                                                        $set('contact_information.first_name', $contact->first_name);
-                                                        $set('contact_information.last_name', $contact->last_name);
-                                                        $set('contact_information.middle_name', $contact->middle_name);
-                                                        $set('contact_information.second_last_name',
-                                                            $contact->second_last_name);
-                                                        $set('contact_information.date_of_birth',
-                                                            $contact->date_of_birth);
-                                                        $set('contact_information.gender', $contact->gender);
-                                                        $set('contact_information.phone', $contact->phone);
-                                                        $set('contact_information.email_address',
-                                                            $contact->email_address);
-                                                        $set('contact_information.zip_code',
-                                                            $contact->zip_code);
-                                                        $set('contact_information.is_tobacco_user',
-                                                            $contact->is_tobacco_user);
-                                                        $set('contact_information.is_pregnant', $contact->is_pregnant);
-                                                        $set('contact_information.kommo_id', $contact->kommo_id);
-                                                        $set('contact_information.is_eligible_for_coverage',
-                                                            $contact->is_eligible_for_coverage);
-
-                                                    }
-                                                }
-                                            })
-                                            ->columnSpan(3),
-                                        Forms\Components\TextInput::make('contact_information.first_name')
-                                            ->label('Primer Nombre')
-                                            ->required(),
-                                        Forms\Components\TextInput::make('contact_information.middle_name')
-                                            ->label('Segundo Nombre'),
-                                        Forms\Components\TextInput::make('contact_information.last_name')
-                                            ->label('Primer Apellido')
-                                            ->required(),
-                                        Forms\Components\TextInput::make('contact_information.second_last_name')
-                                            ->label('Segundo Apellido'),
+                                Forms\Components\Select::make('contact_id')
+                                    ->label('Nombre')
+                                    ->relationship('contact', 'full_name')
+                                    ->searchable()
+                                    ->live()
+                                    ->options(function () {
+                                        return Contact::all()->pluck('full_name', 'id')->toArray();
+                                    })
+                                    ->preload()
+                                    ->required()
+                                    ->createOptionForm([
                                         Forms\Components\Grid::make()
                                             ->schema([
-                                                Forms\Components\DatePicker::make('contact_information.date_of_birth')
-                                                    ->label('Fecha de Nacimiento')
+                                                Forms\Components\TextInput::make('full_name')
+                                                    ->label('Nombre')
+                                                    ->columnSpan(2)
                                                     ->required()
-                                                    ->live(onBlur: true)
-                                                    ->afterStateHydrated(function ($state, Forms\Set $set) {
-                                                        if ($state) {
-                                                            $birthDate = \Carbon\Carbon::parse($state);
-                                                            $age = $birthDate->age;
-                                                            $set('contact_information.age', $age);
-                                                        }
-                                                    })
-                                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                                        if ($state) {
-                                                            $birthDate = \Carbon\Carbon::parse($state);
-                                                            $age = $birthDate->age;
-                                                            $set('contact_information.age', $age);
-                                                        }
-                                                    })
-                                                    ->columnSpan(2),
-                                                Forms\Components\TextInput::make('contact_information.age')
-                                                    ->label('Edad')
-                                                    ->disabled(),
-                                                Forms\Components\Select::make('contact_information.gender')
+                                                    ->maxLength(255),
+                                                Forms\Components\DatePicker::make('date_of_birth')
+                                                    ->label('Fecha de Nacimiento'),
+                                                Forms\Components\Select::make('gender')
                                                     ->label('Género')
-                                                    ->placeholder('Genero')
-                                                    ->options(Gender::class)
-                                                    ->required()
-                                                    ->columnSpan(2),
-                                                Forms\Components\TextInput::make('contact_information.phone')
-                                                    ->label('Teléfono')
-                                                    ->tel()
-                                                    ->required()
-                                                    ->columnSpan(2),
-                                                Forms\Components\TextInput::make('contact_information.kommo_id')
-                                                    ->label('Kommo ID')
-                                                    ->columnSpan(2),
+                                                    ->options(Gender::class),
                                             ])
-                                            ->columns(9)
-                                            ->columnSpanFull(),
-
-                                        Forms\Components\Grid::make()
-                                            ->schema([
-                                                Forms\Components\TextInput::make('contact_information.zip_code')
-                                                    ->label('Código Postal')
-                                                    ->required(),
-                                                Forms\Components\TextInput::make('contact_information.county')
-                                                    ->label('Condado')
-                                                    ->required(),
-                                                Forms\Components\TextInput::make('contact_information.city')
-                                                    ->label('Ciudad')
-                                                    ->required(),
-                                                Forms\Components\Select::make('contact_information.state')
-                                                    ->label('Estado')
-                                                    ->placeholder('Estado')
-                                                    ->options(UsState::class)
-                                                    ->searchable()
-                                                    ->required(),
-                                                Forms\Components\TextInput::make('contact_information.email_address')
-                                                    ->label('Email')
-                                                    ->email()
-                                                    ->columnSpan(2),
-                                            ])
-                                            ->columns(6)
-                                            ->columnSpanFull(),
-
-                                        Forms\Components\Toggle::make('contact_information.is_tobacco_user')
-                                            ->label('¿Usa Tabaco?'),
-                                        Forms\Components\Toggle::make('contact_information.is_pregnant')
-                                            ->label('¿Embarazada?'),
-                                        Forms\Components\Toggle::make('contact_information.is_eligible_for_coverage')
-                                            ->label('¿Elegible para Medicare?'),
-
-
+                                            ->columns(['md' => 4, 'lg' => 4, 'xl' => 4]),
                                     ])
-                                    ->columns(4),
+                                    ->createOptionUsing(function (array $data) {
+                                        $contact = Contact::create($data);
+                                        return $contact->id;
+                                    })
+                                    ->columnSpan(4)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $contact = Contact::find($state);
+                                        if (!$contact) {
+                                            return;
+                                        }
+                                        $set('contact.full_name', $contact->full_name);
+                                        $set('contact.date_of_birth', $contact->date_of_birth);
+                                        $set('contact.gender', $contact->gender);
+                                        $set('contact.age', $contact->age);
+                                        $set('contact.phone', $contact->phone);
+                                        $set('contact.phone2', $contact->phone2);
+                                        $set('contact.kommo_id', $contact->kommo_id);
+                                        $set('contact.email_address', $contact->email_address);
+                                        $set('contact.city', $contact->city);
+                                        $set('contact.county', $contact->county);
+                                        $set('contact.state_province', $contact->state_province);
+                                        $set('contact.zip_code', $contact->zip_code);
 
+                                        $applicants = $get('applicants') ?: [];
+                                        
+                                        // Create a new applicant entry for the selected contact
+                                        $newApplicant = [
+                                            'relationship' => FamilyRelationship::Self->value,
+                                            'full_name' => $contact->full_name,
+                                            'date_of_birth' => $contact->date_of_birth,
+                                            'gender' => $contact->gender,
+                                            'age' => $contact->age,
+                                            'is_covered' => true,
+                                            'is_pregnant' => false,
+                                            'is_tobacco_user' => false,
+                                            'is_eligible_for_coverage' => false,
+                                        ];
+                                        
+                                        // If applicants array is empty, add the new applicant
+                                        // Otherwise, update the first applicant with the new data
+                                        if (empty($applicants)) {
+                                            $applicants[] = $newApplicant;
+                                        } else {
+                                            // Get the first key in the array (could be any string/number)
+                                            $firstKey = array_key_first($applicants);
+                                            $applicants[$firstKey] = array_merge($applicants[$firstKey] ?? [], $newApplicant);
+                                        }
+                                        
+                                        $set('applicants', $applicants);
+                                    })
+                                    ->afterStateHydrated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $contact = Contact::find($state);
+                                        if (!$contact) {
+                                            return;
+                                        }
+                                        $set('contact.full_name', $contact->full_name);
+                                        $set('contact.date_of_birth', $contact->date_of_birth);
+                                        $set('contact.gender', $contact->gender);
+                                        $set('contact.age', $contact->age);
+                                        $set('contact.phone', $contact->phone);
+                                        $set('contact.phone2', $contact->phone2);
+                                        $set('contact.kommo_id', $contact->kommo_id);
+                                        $set('contact.email_address', $contact->email_address);
+                                        $set('contact.city', $contact->city);
+                                        $set('contact.county', $contact->county);
+                                        $set('contact.state_province', $contact->state_province);
+                                        $set('contact.zip_code', $contact->zip_code);
 
-                            ])->columns(2),
+                                        $applicants = $get('applicants') ?: [];
+                                        
+                                        // Create a new applicant entry for the selected contact
+                                        $newApplicant = [
+                                            'relationship' => FamilyRelationship::Self->value,
+                                            'full_name' => $contact->full_name,
+                                            'date_of_birth' => $contact->date_of_birth,
+                                            'gender' => $contact->gender,
+                                            'age' => $contact->age,
+                                            'is_covered' => true,
+                                            'is_pregnant' => false,
+                                            'is_tobacco_user' => false,
+                                            'is_eligible_for_coverage' => false,
+                                        ];
+                                        
+                                        // If applicants array is empty, add the new applicant
+                                        // Otherwise, update the first applicant with the new data
+                                        if (empty($applicants)) {
+                                            $applicants[] = $newApplicant;
+                                        } else {
+                                            // Get the first key in the array (could be any string/number)
+                                            $firstKey = array_key_first($applicants);
+                                            $applicants[$firstKey] = array_merge($applicants[$firstKey] ?? [], $newApplicant);
+                                        }
+                                        
+                                        $set('applicants', $applicants);
+                                    }),
+                                Forms\Components\Select::make('agent_id')
+                                    ->relationship('Agent', 'name')
+                                    ->required()
+                                    ->label('Cuenta')
+                                    ->default(1)
+                                    ->columnSpan(2),
+                                Forms\Components\Select::make('user_id')
+                                    ->relationship('user', 'name')
+                                    ->required()
+                                    ->label('Asistente')
+                                    ->searchable()
+                                    ->preload()
+                                    ->default(auth()->user()->id)
+                                    ->columnSpan(2),
+                                Forms\Components\Select::make('year')
+                                    ->required()
+                                    ->columnSpan(2)
+                                    ->label('Año')
+                                    ->options(function () {
+                                        $startYear = 2018;
+                                        $endYear = Carbon::now()->addYears(2)->year;
+                                        $years = [];
 
-                        Wizard\Step::make('Aplicantes')
-                            ->schema([
-                                Section::make('Aplicantes')
-                                    ->schema([
-                                        Forms\Components\TextInput::make('total_family_members')
-                                            ->numeric()
-                                            ->label('Total Miembros Familiares')
-                                            ->required()
-                                            ->default(1)
-                                            ->live()
-                                            ->afterStateUpdated(function (string $state, Forms\Set $set) {
-                                                $kinectKPL = \App\Models\KynectFPL::threshold(2024, (int) $state);
-                                                $set('../data.kynect_fpl_threshold', $kinectKPL * 12);
-                                            }),
-                                        Forms\Components\TextInput::make('total_applicants')
-                                            ->numeric()
-                                            ->label('Total Solicitantes')
-                                            ->required()
-                                            ->default(1)
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
-                                                $additional_applicants = $get('additional_applicants') ?? [];
-                                                $applicants_count = count($additional_applicants);
+                                        for ($year = $startYear; $year <= $endYear; $year++) {
+                                            $years[$year] = $year;
+                                        }
 
-                                                // If we need more rows than we currently have
-                                                if ($state > $applicants_count) {
-                                                    // Keep existing members
-//                                                    $newFamilyMembers = $familyMembers;
+                                        return $years;
+                                    })
+                                    ->default(Carbon::now()->year),
+                                Forms\Components\Select::make('status')
+                                    ->label('Estatus')
+                                    ->options(QuoteStatus::class)
+                                    ->default(QuoteStatus::Pending)
+                                    ->required()
+                                    ->columnSpan(2)
+                                    ->suffixAction(
+                                        Action::make('poliza')
+                                            ->icon('iconoir-privacy-policy')
+                                            ->label('Ver Póliza')
+                                            ->tooltip('Ver póliza asociada')
+                                            ->visible(fn(Forms\Get $get): bool => $get('policy_id') !== null)
+                                            ->url(function (Forms\Get $get) {
+                                                $policyId = $get('policy_id');
 
-                                                    // Add new empty rows
-                                                    for ($i = $applicants_count; $i < $state - 1; $i++) {
-                                                        $additional_applicants[] = [
-                                                            'relationship' => '',
-                                                            'age' => '',
-                                                            'pregnant' => false,
-                                                            'tobacco_user' => false,
-                                                            'is_eligible_for_coverage' => false,
-                                                            'income_per_hour' => '',
-                                                            'hours_per_week' => '',
-                                                            'income_per_extra_hour' => '',
-                                                            'extra_hours_per_week' => '',
-                                                            'weeks_per_year' => '',
-                                                            'yearly_income' => '',
-                                                            'is_self_employed' => false,
-                                                            'self_employed_yearly_income' => '',
-                                                        ];
-                                                    }
-                                                } else {
-                                                    // If we need fewer rows, just keep the first $state rows
-                                                    $additional_applicants = array_slice($additional_applicants, 0,
-                                                        $state - 1);
+                                                if ($policyId) {
+                                                    return PolicyResource::getUrl('view', ['record' => $policyId]);
                                                 }
-
-                                                $set('additional_applicants', $additional_applicants);
-                                            }),
-                                        Forms\Components\TextInput::make('estimated_household_income')
-                                            ->numeric()
-                                            ->label('Ingreso Familiar Estimado')
-                                            ->prefix('$'),
-                                        Forms\Components\TextInput::make('kynect_fpl_threshold')
-                                            ->label('Ingresos Requeridos Kynect')
-                                            ->disabled()
-                                            ->prefix('$')
-                                            ->live()
-                                            ->formatStateUsing(function ($state, $get) {
-                                                $memberCount = $get('../../total_family_members') ?? 1;
-                                                $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
-                                                    $memberCount));
-                                                return $kinectKPL * 12;
+                                                return '';
                                             })
-                                            ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
-                                                $memberCount = $get('../../total_family_members') ?? 1;
-                                                $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
-                                                    $memberCount));
-                                                $set('kynect_fpl_threshold', $kinectKPL * 12);
-                                            }),
-                                    ])->columns(4),
+                                            ->openUrlInNewTab()
+                                    ),
+                                Forms\Components\CheckboxList::make('policy_types')
+                                    ->options(PolicyType::class)
+                                    ->extraInputAttributes(['class' => 'text-left'])
+                                    ->columnStart(5)
+                                    ->inlineLabel()
+                                    ->required()
+                                    ->columnStart(1)
+                                    ->label('Tipo de Póliza')
+                                    ->columns(['md' => 6])
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(['md' => 12, 'lg' => 12, 'xl' => 12]),
+                        Section::make('Datos del Titular')
+                            ->schema([
+                                Forms\Components\TextInput::make('contact.full_name')
+                                    ->label('Nombre')
+                                    ->columnSpan(4),
+                                Forms\Components\DatePicker::make('contact.date_of_birth')
+                                    ->label('Fecha Nacimiento')
+                                    ->live(onBlur: true)
+                                    ->afterStateHydrated(function ($state, Forms\Set $set) {
+                                        if ($state) {
+                                            $birthDate = \Carbon\Carbon::parse($state);
+                                            $age = $birthDate->age;
+                                            $set('contact.age', $age);
+                                        }
+                                    })
+                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                        if ($state) {
+                                            $birthDate = \Carbon\Carbon::parse($state);
+                                            $age = $birthDate->age;
+                                            $set('contact.age', $age);
+                                        }
+                                    })
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('contact.age')
+                                    ->dehydrated(false)
+                                    ->label('Edad'),
+                                Forms\Components\Select::make('contact.gender')
+                                    ->label('Género')
+                                    ->placeholder('Genero')
+                                    ->options(Gender::class)
+                                    ->required()
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('contact.phone')
+                                    ->label('Teléfono')
+                                    ->columnStart(1)
+                                    ->tel()
+                                    ->required()
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('contact.phone2')
+                                    ->label('Teléfono 2')
+                                    ->tel()
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('contact.kommo_id')
+                                    ->label('Kommo ID')
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('contact.email_address')
+                                    ->label('Correo Electrónico')
+                                    ->email()
+                                    ->columnSpan(4),
+                                Forms\Components\TextInput::make('contact.zip_code')
+                                    ->columnStart(1)
+                                    ->label('Código Postal')
+                                    ->required()
+                                    ->columnSpan(2)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (string $state, Forms\Set $set) {
+                                        if ($state !== null && strlen($state) === 5 && is_numeric($state)) {
+                                            $googleMapsService = app(GoogleMapsService::class);
+                                            $locationData = $googleMapsService->getLocationFromZipCode($state);
 
+                                            if ($locationData) {
+                                                $set('contact.city', $locationData['city']);
+                                                $set('contact.state_province', $locationData['state']);
+                                                $set('contact.county', $locationData['county']);
+                                            }
+                                        }
+                                    }),
+                                Forms\Components\TextInput::make('contact.county')
+                                    ->label('Condado')
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('contact.city')
+                                    ->label('Ciudad')
+                                    ->columnSpan(3)
+                                    ->required(),
+                                Forms\Components\Select::make('contact.state_province')
+                                    ->label('Estado')
+                                    ->columnSpan(3)
+                                    ->placeholder('Estado')
+                                    ->options(UsState::class)
+                                    ->searchable()
+                                    ->required(),
+                            ])
+                            ->columns(['md' => 10]),
 
-                                Section::make('Ingresos Familiares')
+                            Section::make('Aplicantes')
+                            ->schema([
+                                Forms\Components\TextInput::make('total_family_members')
+                                    ->numeric()
+                                    ->label('Total Miembros Familiares')
+                                    ->required()
+                                    ->default(1)
+                                    ->live()
+                                    ->afterStateUpdated(function (string $state, Forms\Set $set) {
+                                        $kinectKPL = \App\Models\KynectFPL::threshold(2024, (int) $state);
+                                        $set('../data.kynect_fpl_threshold', $kinectKPL * 12);
+                                    }),
+                                Forms\Components\TextInput::make('total_applicants')
+                                    ->numeric()
+                                    ->label('Total Solicitantes')
+                                    ->required()
+                                    ->default(1)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $applicants = $get('applicants') ?? [];
+                                        $applicants_count = count($applicants);
+
+                                        // If we need more rows than we currently have
+                                        if ($state > $applicants_count) {
+                                            // Keep existing members
+                                            //                                                    $newFamilyMembers = $familyMembers;
+
+                                            // Add new empty rows
+                                            for ($i = $applicants_count; $i < $state; $i++) {
+                                                $applicants[] = [
+                                                    'relationship' => '',
+                                                    'age' => '',
+                                                    'pregnant' => false,
+                                                    'tobacco_user' => false,
+                                                    'is_eligible_for_coverage' => false,
+                                                    'income_per_hour' => '',
+                                                    'hours_per_week' => '',
+                                                    'income_per_extra_hour' => '',
+                                                    'extra_hours_per_week' => '',
+                                                    'weeks_per_year' => '',
+                                                    'yearly_income' => '',
+                                                    'is_self_employed' => false,
+                                                    'self_employed_yearly_income' => '',
+                                                ];
+                                            }
+                                        } else {
+                                            // If we need fewer rows, just keep the first $state rows
+                                            $applicants = array_slice($applicants, 0,
+                                                $state);
+                                        }
+
+                                        $set('applicants', $applicants);
+                                    }),
+                                Forms\Components\TextInput::make('estimated_household_income')
+                                    ->numeric()
+                                    ->label('Ingreso Familiar Estimado')
+                                    ->prefix('$'),
+                                Forms\Components\TextInput::make('kynect_fpl_threshold')
+                                    ->label('Ingresos Requeridos Kynect')
+                                    ->disabled()
+                                    ->prefix('$')
+                                    ->live()
+                                    ->formatStateUsing(function ($state, $get) {
+                                        $memberCount = $get('../../total_family_members') ?? 1;
+                                        $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
+                                            $memberCount));
+                                        return $kinectKPL * 12;
+                                    })
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
+                                        $memberCount = $get('../../total_family_members') ?? 1;
+                                        $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
+                                            $memberCount));
+                                        $set('kynect_fpl_threshold', $kinectKPL * 12);
+                                    }),
+                            ])
+                            ->columns(4),
+
+                        Forms\Components\Repeater::make('applicants')
+                            ->label('Aplicantes')
+                            ->addable(false)
+                            ->deletable(false)
+                            ->defaultItems(0)
+                            // ->hiddenLabel(true)
+                            ->schema([
+                                Forms\Components\Select::make('relationship')
+                                    ->label('Relación con el Titular')
+                                    ->options(FamilyRelationship::class)
+                                    ->disableOptionWhen(fn ($state, $value): bool => 
+                                                        ($state === null && $value === 'self') || 
+                                                        ($state !== null && $value === 'self') || 
+                                                        $state === 'self'
+                                                    )
+                                    ->columnSpan(2)
+                                    ->required(),
+                                Forms\Components\TextInput::make('full_name')
+                                    ->label('Nombre')
+                                    ->columnSpan(3)
+                                    ->required(),
+                                Forms\Components\DatePicker::make('date_of_birth')
+                                    ->label('Fecha Nac.')
+                                    ->columnSpan(2)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                        if ($state) {
+                                            $birthDate = \Carbon\Carbon::parse($state);
+                                            $age = $birthDate->age;
+                                            $set('age', $age);
+                                        }
+                                    }),
+                                Forms\Components\TextInput::make('age')
+                                    ->label('Edad')
+                                    ->disabled()
+                                    ->dehydrated(false),
+                                Forms\Components\Toggle::make('is_covered')
+                                    ->label('Aplicante')
+                                    ->inline(false)
+                                    ->default(true),
+                                Forms\Components\Select::make('gender')
+                                    ->label('Género')
+                                    ->options(Gender::class)
+                                    ->columnSpan(2)
+                                    ->columnStart(4)
+                                    ->required(),
+                                Forms\Components\Toggle::make('is_pregnant')
+                                    ->label('Embarazada')
+                                    ->columnStart(7)
+                                    ->inline(false)
+                                    ->default(false),
+                                Forms\Components\Toggle::make('is_tobacco_user')
+                                    ->label('Fuma')
+                                    ->inline(false)
+                                    ->default(false),
+                                Forms\Components\Toggle::make('is_eligible_for_coverage')
+                                    ->label('Medicaid')
+                                    ->inline(false)
+                                    ->default(false),
+                                Forms\Components\Fieldset::make('Ingresos')
                                     ->schema([
-                                        Section::make('Aplicante Principal')
-                                            ->schema([
-                                                Forms\Components\Grid::make()
-                                                    ->schema([
-                                                        Forms\Components\TextInput::make('main_applicant.income_per_hour')
-                                                            ->numeric()
-                                                            ->label('Hora $')
-                                                            ->live(onBlur: true)
-                                                            ->disabled(fn(Forms\Get $get
-                                                            ): bool => $get('main_applicant.is_self_employed'))
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('main', $state, $set,
-                                                                $get)),
-                                                        Forms\Components\TextInput::make('main_applicant.hours_per_week')
-                                                            ->numeric()
-                                                            ->label('Horas/Semana')
-                                                            ->live(onBlur: true)
-                                                            ->disabled(fn(Forms\Get $get
-                                                            ): bool => $get('main_applicant.is_self_employed'))
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('main', $state, $set,
-                                                                $get)),
-                                                        Forms\Components\TextInput::make('main_applicant.income_per_extra_hour')
-                                                            ->numeric()
-                                                            ->label('Hora Extra $')
-                                                            ->live(onBlur: true)
-                                                            ->disabled(fn(Forms\Get $get
-                                                            ): bool => $get('main_applicant.is_self_employed'))
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('main', $state, $set,
-                                                                $get)),
-                                                        Forms\Components\TextInput::make('main_applicant.extra_hours_per_week')
-                                                            ->numeric()
-                                                            ->label('Extra/Semana')
-                                                            ->live(onBlur: true)
-                                                            ->disabled(fn(Forms\Get $get
-                                                            ): bool => $get('main_applicant.is_self_employed'))
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('main', $state, $set,
-                                                                $get)),
-                                                        Forms\Components\TextInput::make('main_applicant.weeks_per_year')
-                                                            ->numeric()
-                                                            ->label('Semanas por Año')
-                                                            ->live(onBlur: true)
-                                                            ->disabled(fn(Forms\Get $get
-                                                            ): bool => $get('main_applicant.is_self_employed'))
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('main', $state, $set,
-                                                                $get)),
-                                                        Forms\Components\TextInput::make('main_applicant.yearly_income')
-                                                            ->numeric()
-                                                            ->label('Ingreso Anual')
-                                                            ->disabled(),
+                                        Forms\Components\TextInput::make('employeer_name')
+                                            ->label('Empresa')
+                                            ->columnSpan(3),
+                                        Forms\Components\TextInput::make('employement_role')
+                                            ->label('Cargo')
+                                            ->columnSpan(3),
+                                        Forms\Components\TextInput::make('employeer_phone')
+                                            ->label('Teléfono')
+                                            ->columnSpan(3),
+                                        Forms\Components\TextInput::make('income_per_hour')
+                                            ->numeric()
+                                            ->label('Hora $')
+                                            ->live(onBlur: true)
+                                            ->columnSpan(2)
+                                            ->afterStateUpdated(fn(
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('hours_per_week')
+                                            ->numeric()
+                                            ->label('H/S')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn(
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('income_per_extra_hour')
+                                            ->numeric()
+                                            ->label('H/Extra $')
+                                            ->columnSpan(2)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn(
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('extra_hours_per_week')
+                                            ->numeric()
+                                            ->label('H/E S')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn(
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('weeks_per_year')
+                                            ->numeric()
+                                            ->label('S/Año')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn(
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('yearly_income')
+                                            ->numeric()
+                                            ->label('Ingreso Anual')
+                                            ->disabled()
+                                            ->columnSpan(2),
+                                        Forms\Components\Toggle::make('is_self_employed')
+                                            ->label('¿Self Employeed?')
+                                            ->inline(false)
+                                            ->live(onBlur: true)
+                                            ->columnSpan(2)
+                                            ->columnStart(6)
+                                            ->afterStateHydrated(fn(
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'applicant',
+                                                $state,
+                                                $set,
+                                                $get
+                                            ))
+                                            ->afterStateUpdated(function (
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) {
+                                                static::lockHourlyIncome(
+                                                    'additional',
+                                                    $state,
+                                                    $set,
+                                                    $get
+                                                );
+                                                static::calculateYearlyIncome(
+                                                    'additional',
+                                                    $state,
+                                                    $set,
+                                                    $get
+                                                );
+                                            }),
+                                        Forms\Components\TextInput::make('self_employed_yearly_income')
+                                            ->numeric()
+                                            ->live(onBlur: true)
+                                            ->label('Ingreso Anual')
+                                            ->columnSpan(2)
+                                            ->afterStateUpdated(fn(
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                    ])
+                                    ->columns(9),
+                            ])
+                            ->columns(9)
+                            ->itemLabel(function (array $state): ?string {
+                                if (isset($state['first_name']) && isset($state['last_name'])) {
+                                    $isPrimary = isset($state['is_primary']) && $state['is_primary'] ? ' (Principal)' : '';
+                                    return $state['first_name'] . ' ' . $state['last_name'] . $isPrimary;
+                                }
 
+                                return null;
+                            })
+                            ->reorderable(false)
+                            ->collapsible()
+                            ->columnSpanFull(),
+                        Forms\Components\Grid::make()
+                            ->schema([
+                                Forms\Components\TextInput::make('total_family_members')
+                                    ->numeric()
+                                    ->label('Total Miembros Familiares')
+                                    ->required()
+                                    ->columnStart(2)
+                                    ->default(1)
+                                    ->live()
+                                    ->afterStateUpdated(function (string $state, Forms\Set $set) {
+                                        $kinectKPL = \App\Models\KynectFPL::threshold(2024, (int) $state);
+                                        $set('../data.kynect_fpl_threshold', $kinectKPL * 12);
+                                    }),
+                                Forms\Components\TextInput::make('total_applicants')
+                                    ->numeric()
+                                    ->label('Total Solicitantes')
+                                    ->required()
+                                    ->default(1)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $applicants = $get('applicants') ?? [];
+                                        $applicants_count = count($applicants);
 
-                                                        Forms\Components\Toggle::make('main_applicant.is_eligible_for_coverage')
-                                                            ->label('¿Elegible Medicare?')
-                                                            ->inline(false)
-                                                            ->default(false),
-                                                        Forms\Components\Toggle::make('main_applicant.is_self_employed')
-                                                            ->label('¿Self Employeed?')
-                                                            ->inline(false)
-                                                            ->live()
-                                                            ->columnStart(4)
-                                                            ->afterStateHydrated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('main', $state, $set,
-                                                                $get))
-                                                            ->afterStateUpdated(function (
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) {
-                                                                static::lockHourlyIncome('main', $state, $set, $get);
-                                                                static::calculateYearlyIncome('main', $state, $set,
-                                                                    $get);
-                                                            }),
-                                                        Forms\Components\TextInput::make('main_applicant.self_employed_profession')
-                                                            ->label('Profesión')
-                                                            ->disabled(fn(Forms\Get $get
-                                                            ): bool => !$get('main_applicant.is_self_employed')),
-                                                        Forms\Components\TextInput::make('main_applicant.self_employed_yearly_income')
-                                                            ->numeric()
-                                                            ->label('Ingreso Anual')
-                                                            ->live(onBlur: true)
-                                                            ->columnStart(6)
-                                                            ->disabled(fn(Forms\Get $get
-                                                            ): bool => !$get('main_applicant.is_self_employed'))
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('main', $state, $set,
-                                                                $get)),
-                                                    ])->columns(6),
+                                        // If we need more rows than we currently have
+                                        if ($state > $applicants_count) {
+                                            // Keep existing members
+                                            //                                                    $newFamilyMembers = $familyMembers;
 
-                                            ]),
+                                            // Add new empty rows
+                                            for ($i = $applicants_count; $i < $state; $i++) {
+                                                $applicants[] = [
+                                                    'relationship' => '',
+                                                    'age' => '',
+                                                    'pregnant' => false,
+                                                    'tobacco_user' => false,
+                                                    'is_eligible_for_coverage' => false,
+                                                    'income_per_hour' => '',
+                                                    'hours_per_week' => '',
+                                                    'income_per_extra_hour' => '',
+                                                    'extra_hours_per_week' => '',
+                                                    'weeks_per_year' => '',
+                                                    'yearly_income' => '',
+                                                    'is_self_employed' => false,
+                                                    'self_employed_yearly_income' => '',
+                                                ];
+                                            }
+                                        } else {
+                                            // If we need fewer rows, just keep the first $state rows
+                                            $applicants = array_slice($applicants, 0,
+                                                $state);
+                                        }
 
-                                        Section::make('Aplicantes Adicionales')
-                                            ->schema([
-                                                Forms\Components\Repeater::make('additional_applicants')
-                                                    ->hiddenLabel()
-                                                    ->addable(false)
-                                                    ->defaultItems(0)
-                                                    ->schema([
-                                                        Forms\Components\Select::make('relationship')
-                                                            ->label('Parentesco')
-                                                            ->options(FamilyRelationship::class)
-                                                            ->required(),
-                                                        Forms\Components\TextInput::make('age')
-                                                            ->label('Edad')
-                                                            ->numeric()
-                                                            ->required(),
-                                                        Forms\Components\Select::make('gender')
-                                                            ->label('Género')
-                                                            ->options(Gender::class)
-                                                            ->required(),
-                                                        Forms\Components\Toggle::make('is_pregnant')
-                                                            ->label('¿Embarazada?')
-                                                            ->inline(false)
-                                                            ->default(false),
-                                                        Forms\Components\Toggle::make('is_tobacco_user')
-                                                            ->label('¿Fuma?')
-                                                            ->inline(false)
-                                                            ->default(false),
-                                                        Forms\Components\Toggle::make('is_eligible_for_coverage')
-                                                            ->label('¿Elegible Medicare?')
-                                                            ->inline(false)
-                                                            ->default(false),
-                                                        Forms\Components\TextInput::make('income_per_hour')
-                                                            ->numeric()
-                                                            ->label('Hora $')
-                                                            ->live(onBlur: true)
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('additional', $state,
-                                                                $set, $get)),
-                                                        Forms\Components\TextInput::make('hours_per_week')
-                                                            ->numeric()
-                                                            ->label('Horas/Semana')
-                                                            ->live(onBlur: true)
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('additional', $state,
-                                                                $set, $get)),
-                                                        Forms\Components\TextInput::make('income_per_extra_hour')
-                                                            ->numeric()
-                                                            ->label('Hora Extra $')
-                                                            ->live(onBlur: true)
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('additional', $state,
-                                                                $set, $get)),
-                                                        Forms\Components\TextInput::make('extra_hours_per_week')
-                                                            ->numeric()
-                                                            ->label('Extra/Semana')
-                                                            ->live(onBlur: true)
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('additional', $state,
-                                                                $set, $get)),
-                                                        Forms\Components\TextInput::make('weeks_per_year')
-                                                            ->numeric()
-                                                            ->label('Semanas por Año')
-                                                            ->live(onBlur: true)
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('additional', $state,
-                                                                $set, $get)),
-                                                        Forms\Components\TextInput::make('yearly_income')
-                                                            ->numeric()
-                                                            ->label('Ingreso Anual')
-                                                            ->disabled(),
-
-                                                        Forms\Components\Toggle::make('is_self_employed')
-                                                            ->label('¿Self Employeed?')
-                                                            ->inline(false)
-                                                            ->live(onBlur: true)
-                                                            ->columnStart(5)
-                                                            ->afterStateHydrated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('applicant', $state,
-                                                                $set, $get))
-                                                            ->afterStateUpdated(function (
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) {
-                                                                static::lockHourlyIncome('additional', $state, $set,
-                                                                    $get);
-                                                                static::calculateYearlyIncome('additional', $state,
-                                                                    $set, $get);
-                                                            }),
-                                                        Forms\Components\TextInput::make('self_employed_yearly_income')
-                                                            ->numeric()
-                                                            ->live(onBlur: true)
-                                                            ->label('Ingreso Anual')
-                                                            ->columnStart(6)
-                                                            ->afterStateUpdated(fn(
-                                                                $state,
-                                                                Forms\Set $set,
-                                                                Forms\Get $get
-                                                            ) => static::calculateYearlyIncome('additional', $state,
-                                                                $set, $get)),
-                                                    ])->columns(6),
-                                            ]),
-                                    ])->columns(6),
-
-                            ])->columns(3),
-
-                        Wizard\Step::make('Otros')
+                                        $set('applicants', $applicants);
+                                    }),
+                                Forms\Components\TextInput::make('estimated_household_income')
+                                    ->numeric()
+                                    ->label('Ingreso Familiar Estimado')
+                                    ->prefix('$'),
+                                Forms\Components\TextInput::make('kynect_fpl_threshold')
+                                    ->label('Ingresos Requeridos Kynect')
+                                    ->disabled()
+                                    ->prefix('$')
+                                    ->live()
+                                    ->formatStateUsing(function ($state, $get) {
+                                        $memberCount = $get('../../total_family_members') ?? 1;
+                                        $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
+                                            $memberCount));
+                                        return $kinectKPL * 12;
+                                    })
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
+                                        $memberCount = $get('../../total_family_members') ?? 1;
+                                        $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
+                                            $memberCount));
+                                        $set('kynect_fpl_threshold', $kinectKPL * 12);
+                                    }),
+                            ])
+                            ->columns(6),
+                        Section::make('Otros')
                             ->schema([
                                 Split::make([
                                     Section::make([
@@ -624,17 +734,17 @@ class QuoteResource extends Resource
                                                         $options = [];
 
                                                         // Add main applicant
-                                                        $mainApplicant = 'Principal - ' .
-                                                            ($get('../../contact_information.gender') === 'male' ? 'Masculino' : 'Femenino') .
-                                                            ' - ' . $get('../../contact_information.age') . ' años';
+                                                        $mainApplicant = 'Principal - '
+                                                            . ($get('../../contact_information.gender') === 'male' ? 'Masculino' : 'Femenino')
+                                                            . ' - ' . $get('../../contact_information.age') . ' años';
                                                         $options[$mainApplicant] = $mainApplicant;
 
                                                         // Add additional applicants
                                                         $additionalApplicants = $get('../../additional_applicants') ?? [];
                                                         foreach ($additionalApplicants as $applicant) {
-                                                            $formattedName = $applicant['relationship'] . ' - ' .
-                                                                ($applicant['gender'] === 'male' ? 'Masculino' : 'Femenino') . ' - ' .
-                                                                $applicant['age'] . ' años';
+                                                            $formattedName = $applicant['relationship'] . ' - '
+                                                                . ($applicant['gender'] === 'male' ? 'Masculino' : 'Femenino') . ' - '
+                                                                . $applicant['age'] . ' años';
                                                             $options[$formattedName] = $formattedName;
                                                         }
 
@@ -655,17 +765,16 @@ class QuoteResource extends Resource
                                             ->columns(2)
                                             ->addActionLabel('Agregar Medicamento')
                                             ->deleteAction(
-                                                fn(Forms\Components\Actions\Action $action
+                                                fn(
+                                                    Forms\Components\Actions\Action $action
                                                 ) => $action->label('Eliminar Medicamento')
                                             )
                                     ]),
                                     Section::make([
                                         // Add a section to view existing documents and add new ones
-
                                     ]),
                                     Section::make([
                                         // Add a section to view existing documents and add new ones
-
                                         Actions::make([
                                             Action::make('Health Sherpa')
                                                 ->icon('heroicon-m-star')
@@ -673,18 +782,16 @@ class QuoteResource extends Resource
                                             Action::make('Kommo')
                                                 ->icon('heroicon-m-x-mark')
                                                 ->color('success')
-                                                ->url(fn(Forms\Get $get
-                                                ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact_information.kommo_id')),
+                                                ->url(fn(
+                                                    Forms\Get $get
+                                                ) => 'https://ghercys.kommo.com/leads/detail/' . $get('contact_information.kommo_id')),
                                         ])
                                     ])->grow(false)
-                                ])
-                                ,
-                            ])->columns(1),
-
-
-                    ])->columnSpanFull(),
-
-
+                                ]),
+                            ])
+                            ->columns(1),
+                    ])
+                    ->columnSpanFull(),
             ])
             ->statePath('data')
             ->model(Quote::class);
@@ -692,18 +799,17 @@ class QuoteResource extends Resource
 
     protected static function calculateYearlyIncome($applicant, $state, Forms\Set $set, Forms\Get $get): void
     {
-
         $prefix = $applicant === 'main' ? 'main_applicant.' : '';
 
-        $incomePerHour = floatval($get($prefix.'income_per_hour') ?? 0);
-        $hoursPerWeek = floatval($get($prefix.'hours_per_week') ?? 0);
-        $incomePerExtraHour = floatval($get($prefix.'income_per_extra_hour') ?? 0);
-        $extraHoursPerWeek = floatval($get($prefix.'extra_hours_per_week') ?? 0);
-        $weeksPerYear = floatval($get($prefix.'weeks_per_year') ?? 0);
+        $incomePerHour = floatval($get($prefix . 'income_per_hour') ?? 0);
+        $hoursPerWeek = floatval($get($prefix . 'hours_per_week') ?? 0);
+        $incomePerExtraHour = floatval($get($prefix . 'income_per_extra_hour') ?? 0);
+        $extraHoursPerWeek = floatval($get($prefix . 'extra_hours_per_week') ?? 0);
+        $weeksPerYear = floatval($get($prefix . 'weeks_per_year') ?? 0);
 
         $yearlyIncome = ($incomePerHour * $hoursPerWeek + $incomePerExtraHour * $extraHoursPerWeek) * $weeksPerYear;
 
-        $set($prefix.'yearly_income', round($yearlyIncome, 2));
+        $set($prefix . 'yearly_income', round($yearlyIncome, 2));
 
         self::updateYearlyIncome($set, $get);
     }
@@ -712,74 +818,45 @@ class QuoteResource extends Resource
     {
         $prefix = $applicant === 'main' ? 'main_applicant.' : '';
 
-        $set($prefix.'income_per_hour', '');
-        $set($prefix.'hours_per_week', '');
-        $set($prefix.'income_per_extra_hour', '');
-        $set($prefix.'extra_hours_per_week', '');
-        $set($prefix.'weeks_per_year', '');
-        $set($prefix.'yearly_income', '');
-        $set($prefix.'self_employed_yearly_income', '');
+        $set($prefix . 'income_per_hour', '');
+        $set($prefix . 'hours_per_week', '');
+        $set($prefix . 'income_per_extra_hour', '');
+        $set($prefix . 'extra_hours_per_week', '');
+        $set($prefix . 'weeks_per_year', '');
+        $set($prefix . 'yearly_income', '');
+        $set($prefix . 'self_employed_yearly_income', '');
     }
 
     protected static function updateYearlyIncome(Forms\Set $set, Forms\Get $get): void
     {
-
-
         // check if main applicant self employed is null
-        $mainApplicantSelfEmployed = $get('../../main_applicant.is_self_employed');
 
-
-        if ($mainApplicantSelfEmployed === null) {
-            $mainApplicantSelfEmployed = $get('main_applicant.is_self_employed');
-
-            if ($mainApplicantSelfEmployed) {
-                $mainApplicantYearlyIncome = floatval($get('main_applicant.self_employed_yearly_income') ?? 0);
-            } else {
-                $mainApplicantYearlyIncome = floatval($get('main_applicant.yearly_income') ?? 0);
-            }
-        } else {
-            if ($mainApplicantSelfEmployed) {
-                $mainApplicantYearlyIncome = floatval($get('../../main_applicant.self_employed_yearly_income') ?? 0);
-            } else {
-                $mainApplicantYearlyIncome = floatval($get('../../main_applicant.yearly_income') ?? 0);
-            }
-        }
-
-
-        $additionalApplicants = $get('../../additional_applicants') ?? [];
-        if (empty($additionalApplicants)) {
-            $additionalApplicants = $get('additional_applicants') ?? [];
-        }
+        $applicants = $get('../../applicants') ?? [];
 
         $AllApplicantsYearlyIncome = 0;
 
-        foreach ($additionalApplicants as $index => $additionalApplicant) {
-
+        foreach ($applicants as $index => $applicant) {
             $applicantYearlyIncome = 0;
-            if ($additionalApplicant['is_self_employed']) {
-                $applicantYearlyIncome = floatval($additionalApplicant['self_employed_yearly_income'] ?? 0);
+            if ($applicant['is_self_employed']) {
+                $applicantYearlyIncome = floatval($applicant['self_employed_yearly_income'] ?? 0);
             } else {
-                $incomePerHour = floatval($additionalApplicant['income_per_hour'] ?? 0);
-                $hoursPerWeek = floatval($additionalApplicant['hours_per_week'] ?? 0);
-                $incomePerExtraHour = floatval($additionalApplicant['income_per_extra_hour'] ?? 0);
-                $extraHoursPerWeek = floatval($additionalApplicant['extra_hours_per_week'] ?? 0);
-                $weeksPerYear = floatval($additionalApplicant['weeks_per_year'] ?? 0);
+                $incomePerHour = floatval($applicant['income_per_hour'] ?? 0);
+                $hoursPerWeek = floatval($applicant['hours_per_week'] ?? 0);
+                $incomePerExtraHour = floatval($applicant['income_per_extra_hour'] ?? 0);
+                $extraHoursPerWeek = floatval($applicant['extra_hours_per_week'] ?? 0);
+                $weeksPerYear = floatval($applicant['weeks_per_year'] ?? 0);
 
                 $applicantYearlyIncome = ($incomePerHour * $hoursPerWeek + $incomePerExtraHour * $extraHoursPerWeek) * $weeksPerYear;
             }
 
             $AllApplicantsYearlyIncome += $applicantYearlyIncome;
-
-
         }
 
-
-        $totalYearlyIncome = $mainApplicantYearlyIncome + $AllApplicantsYearlyIncome;
+        $totalYearlyIncome = $AllApplicantsYearlyIncome;
 
         $set('../../estimated_household_income', $totalYearlyIncome);
         $set('estimated_household_income', $totalYearlyIncome);
     }
-
 
     public static function table(Table $table): Table
     {
@@ -788,35 +865,35 @@ class QuoteResource extends Resource
                 Tables\Columns\TextColumn::make('agent.name')
                     ->label('Cuenta')
                     ->badge()
-                    ->formatStateUsing(fn( string $state): string => Str::acronym($state))
+                    ->formatStateUsing(fn(string $state): string => Str::acronym($state))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Agente')
                     ->sortable()
                     ->searchable(),
-                    // Tables\Columns\TextColumn::make('contact.full_name')
-                    // ->label('Cliente')
-                    // ->searchable(query: function (Builder $query, string $search): Builder {
-                    //     return $query->where(function (Builder $query) use ($search): Builder {
-                    //         // Search in contact fields
-                    //         $query->whereHas('contact', function (Builder $query) use ($search): Builder {
-                    //             return $query->where('first_name', 'like', "%{$search}%")
-                    //                 ->orWhere('middle_name', 'like', "%{$search}%")
-                    //                 ->orWhere('last_name', 'like', "%{$search}%")
-                    //                 ->orWhere('second_last_name', 'like', "%{$search}%");
-                    //         });
-                    //         return $query;
-                    //     });
-                    // })
-                    // ->sortable(query: function (Builder $query, string $direction): Builder {
-                    //     return $query
-                    //         ->join('contacts', 'quotes.contact_id', '=', 'contacts.id')
-                    //         ->orderBy('contacts.last_name', $direction)
-                    //         ->orderBy('contacts.first_name', $direction)
-                    //         ->select('quotes.*');
-                    // })
-                    // ->description(fn($record) => 'Applicantes: ' . $record->total_applicants),
+                // Tables\Columns\TextColumn::make('contact.full_name')
+                // ->label('Cliente')
+                // ->searchable(query: function (Builder $query, string $search): Builder {
+                //     return $query->where(function (Builder $query) use ($search): Builder {
+                //         // Search in contact fields
+                //         $query->whereHas('contact', function (Builder $query) use ($search): Builder {
+                //             return $query->where('first_name', 'like', "%{$search}%")
+                //                 ->orWhere('middle_name', 'like', "%{$search}%")
+                //                 ->orWhere('last_name', 'like', "%{$search}%")
+                //                 ->orWhere('second_last_name', 'like', "%{$search}%");
+                //         });
+                //         return $query;
+                //     });
+                // })
+                // ->sortable(query: function (Builder $query, string $direction): Builder {
+                //     return $query
+                //         ->join('contacts', 'quotes.contact_id', '=', 'contacts.id')
+                //         ->orderBy('contacts.last_name', $direction)
+                //         ->orderBy('contacts.first_name', $direction)
+                //         ->select('quotes.*');
+                // })
+                // ->description(fn($record) => 'Applicantes: ' . $record->total_applicants),
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
                     ->sortable(['first_name', 'last_name'])
@@ -833,32 +910,30 @@ class QuoteResource extends Resource
                     ->label('Creada')
                     ->dateTime('m/d/Y H:i')
                     ->sortable(),
-
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estatus')
                     ->badge()
                     ->sortable(),
-
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('user_id')
-                   ->label('Usuario')
-                   ->relationship('user', 'name')
-                   ->default(auth()->user()->id),
+                    ->label('Usuario')
+                    ->relationship('user', 'name')
+                    ->default(auth()->user()->id),
                 Tables\Filters\SelectFilter::make('agent.name')
-                   ->label('Agente')
-                   ->relationship('agent', 'name'),
+                    ->label('Agente')
+                    ->relationship('agent', 'name'),
                 Tables\Filters\SelectFilter::make('year')
-                   ->label('Año Efectivo')
-                   ->options(function() {
-                    $startYear = 2018;
-                    $endYear = Carbon::now()->addYears(2)->year;
-                    $years = [];
-                    for ($year = $startYear; $year <= $endYear; $year++) {
-                        $years[$year] = $year;
-                    }
-                    return $years;
-                }),
+                    ->label('Año Efectivo')
+                    ->options(function () {
+                        $startYear = 2018;
+                        $endYear = Carbon::now()->addYears(2)->year;
+                        $years = [];
+                        for ($year = $startYear; $year <= $endYear; $year++) {
+                            $years[$year] = $year;
+                        }
+                        return $years;
+                    }),
                 Tables\Filters\SelectFilter::make('state_province')
                     ->label('Estado')
                     ->options(UsState::class),
@@ -867,31 +942,31 @@ class QuoteResource extends Resource
                     ->options(QuoteStatus::class),
                 Tables\Filters\SelectFilter::make('created_week')
                     ->label('Semana de Creación')
-                    ->options(function() {
+                    ->options(function () {
                         $options = [];
                         $currentWeek = Carbon::now()->startOfWeek();
-                        
+
                         // Current week
                         $weekStart = $currentWeek->copy()->format('Y-m-d');
                         $weekEnd = $currentWeek->copy()->endOfWeek()->format('Y-m-d');
-                        $options["current"] = "Semana Actual ({$weekStart} - {$weekEnd})";
-                        
+                        $options['current'] = "Semana Actual ({$weekStart} - {$weekEnd})";
+
                         // Past 3 weeks
                         for ($i = 1; $i <= 3; $i++) {
                             $weekStart = $currentWeek->copy()->subWeeks($i)->format('Y-m-d');
                             $weekEnd = $currentWeek->copy()->subWeeks($i)->endOfWeek()->format('Y-m-d');
                             $options["week_{$i}"] = "Hace {$i} semana" . ($i > 1 ? 's' : '') . " ({$weekStart} - {$weekEnd})";
                         }
-                        
+
                         return $options;
                     })
                     ->query(function (Builder $query, array $data): Builder {
                         if (empty($data['value'])) {
                             return $query;
                         }
-                        
+
                         $currentWeek = Carbon::now()->startOfWeek();
-                        
+
                         return match ($data['value']) {
                             'current' => $query->whereBetween('created_at', [
                                 $currentWeek->copy()->startOfWeek(),
@@ -913,10 +988,10 @@ class QuoteResource extends Resource
                         };
                     })
                     ->indicateUsing(function (array $data): ?string {
-                        if (! $data['value']) {
+                        if (!$data['value']) {
                             return null;
                         }
-                        
+
                         return match ($data['value']) {
                             'current' => 'Semana Actual',
                             'week_1' => 'Hace 1 semana',
@@ -927,56 +1002,62 @@ class QuoteResource extends Resource
                     }),
                 Tables\Filters\SelectFilter::make('created_month')
                     ->label('Mes de Creación')
-                    ->options(function() {
+                    ->options(function () {
                         $options = [];
                         $currentMonth = Carbon::now();
-                        
+
                         // Current month
-                        $options["current"] = "Mes Actual (" . $currentMonth->format('F Y') . ")";
-                        
+                        $options['current'] = 'Mes Actual (' . $currentMonth->format('F Y') . ')';
+
                         // Past 6 months
                         for ($i = 1; $i <= 6; $i++) {
                             $monthDate = $currentMonth->copy()->subMonths($i);
                             $options["month_{$i}"] = $monthDate->format('F Y');
                         }
-                        
+
                         return $options;
                     })
                     ->query(function (Builder $query, array $data): Builder {
                         if (empty($data['value'])) {
                             return $query;
                         }
-                        
+
                         $currentMonth = Carbon::now();
-                        
+
                         return match ($data['value']) {
-                            'current' => $query->whereMonth('created_at', $currentMonth->month)
-                                              ->whereYear('created_at', $currentMonth->year),
-                            'month_1' => $query->whereMonth('created_at', $currentMonth->copy()->subMonth()->month)
-                                              ->whereYear('created_at', $currentMonth->copy()->subMonth()->year),
-                            'month_2' => $query->whereMonth('created_at', $currentMonth->copy()->subMonths(2)->month)
-                                              ->whereYear('created_at', $currentMonth->copy()->subMonths(2)->year),
-                            'month_3' => $query->whereMonth('created_at', $currentMonth->copy()->subMonths(3)->month)
-                                              ->whereYear('created_at', $currentMonth->copy()->subMonths(3)->year),
-                            'month_4' => $query->whereMonth('created_at', $currentMonth->copy()->subMonths(4)->month)
-                                              ->whereYear('created_at', $currentMonth->copy()->subMonths(4)->year),
-                            'month_5' => $query->whereMonth('created_at', $currentMonth->copy()->subMonths(5)->month)
-                                              ->whereYear('created_at', $currentMonth->copy()->subMonths(5)->year),
-                            'month_6' => $query->whereMonth('created_at', $currentMonth->copy()->subMonths(6)->month)
-                                              ->whereYear('created_at', $currentMonth->copy()->subMonths(6)->year),
+                            'current' => $query
+                                ->whereMonth('created_at', $currentMonth->month)
+                                ->whereYear('created_at', $currentMonth->year),
+                            'month_1' => $query
+                                ->whereMonth('created_at', $currentMonth->copy()->subMonth()->month)
+                                ->whereYear('created_at', $currentMonth->copy()->subMonth()->year),
+                            'month_2' => $query
+                                ->whereMonth('created_at', $currentMonth->copy()->subMonths(2)->month)
+                                ->whereYear('created_at', $currentMonth->copy()->subMonths(2)->year),
+                            'month_3' => $query
+                                ->whereMonth('created_at', $currentMonth->copy()->subMonths(3)->month)
+                                ->whereYear('created_at', $currentMonth->copy()->subMonths(3)->year),
+                            'month_4' => $query
+                                ->whereMonth('created_at', $currentMonth->copy()->subMonths(4)->month)
+                                ->whereYear('created_at', $currentMonth->copy()->subMonths(4)->year),
+                            'month_5' => $query
+                                ->whereMonth('created_at', $currentMonth->copy()->subMonths(5)->month)
+                                ->whereYear('created_at', $currentMonth->copy()->subMonths(5)->year),
+                            'month_6' => $query
+                                ->whereMonth('created_at', $currentMonth->copy()->subMonths(6)->month)
+                                ->whereYear('created_at', $currentMonth->copy()->subMonths(6)->year),
                             default => $query,
                         };
                     }),
-               
             ], layout: FiltersLayout::AboveContent)
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     // Tables\Actions\ViewAction::make()
                     //     ->url(fn (Quote $record): ?string => route('filament.admin.resources.quotes.view', ['record' => $record->id])),
-//                    Tables\Actions\Action::make('print')
-//                        ->url(fn (Quote $record): string => route('filament.app.resources.health-sherpas.print', $record))
-//                        ->label('Imprimir')
-//                        ->icon('iconoir-printing-page'),
+                    //                    Tables\Actions\Action::make('print')
+                    //                        ->url(fn (Quote $record): string => route('filament.app.resources.health-sherpas.print', $record))
+                    //                        ->label('Imprimir')
+                    //                        ->icon('iconoir-printing-page'),
                     Tables\Actions\EditAction::make(),
                     ConvertToPolicy::make('convert_to_policy')
                         ->label('Crear Poliza')
@@ -985,7 +1066,7 @@ class QuoteResource extends Resource
                     ->tooltip('Acciones')
                     ->icon('heroicon-m-ellipsis-vertical'),
                 Tables\Actions\Action::make('print')
-                    ->url(fn (Quote $record): string => QuoteResource::getUrl('print', ['record' => $record]))
+                    ->url(fn(Quote $record): string => QuoteResource::getUrl('print', ['record' => $record]))
                     ->label('Imprimir')
                     ->icon('iconoir-printing-page'),
             ])
@@ -1011,7 +1092,7 @@ class QuoteResource extends Resource
             'index' => Pages\ListQuotes::route('/'),
             'create' => Pages\CreateQuote::route('/create'),
             'edit' => Pages\EditQuote::route('/{record}/edit'),
-//            'view' => Pages\ViewQuote::route('/{record}'),
+            //            'view' => Pages\ViewQuote::route('/{record}'),
             'print' => Pages\PrintQuote::route('/{record}/print'),
         ];
     }
