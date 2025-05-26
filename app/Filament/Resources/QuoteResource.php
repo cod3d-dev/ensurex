@@ -3,50 +3,51 @@
 namespace App\Filament\Resources;
 
 use App\Enums\FamilyRelationship;
+use App\Enums\Gender;
+use App\Enums\PolicyType;
+use App\Enums\QuoteStatus;
+use App\Enums\UsState;
+use App\Filament\Resources\QuoteResource\Actions\ConvertToPolicy;
 use App\Filament\Resources\QuoteResource\Pages;
 use App\Filament\Resources\QuoteResource\RelationManagers;
 use App\Models\Contact;
 use App\Models\Quote;
 use App\Services\GoogleMapsService;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Split;
-use Filament\Forms\Components\Wizard;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables\Table;
+use App\Tables\Columns\PoliciesColumn;
+use Carbon\Carbon;
 use Filament\Forms;
-use Filament\Tables;
-use Illuminate\Contracts\Pagination\Paginator;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Facades\Http;
+use Filament\Forms\Components\Actions;
 // use Filament\Forms\FormEvents;
-use App\Enums\QuoteStatus;
-use App\Filament\Resources\QuoteResource\Actions\ConvertToPolicy;
+use Filament\Forms\Components\Actions\Action;
+use Filament\Forms\Components\Section;
 // use Awcodes\TableRepeater\Components\TableRepeater;
 // use Awcodes\TableRepeater\Header;
 // use App\Actions\ResetStars;
-use Filament\Forms\Components\Actions\Action;
+use Filament\Forms\Components\Split;
 // use App\Actions\Star;
-use App\Enums\Gender;
-use App\Enums\PolicyType;
-use App\Enums\UsState;
-use Carbon\Carbon;
-use Filament\Forms\Components\Actions;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class QuoteResource extends Resource
 {
     protected static ?string $model = Quote::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
     protected static ?string $navigationLabel = 'Cotizaciones';
+
     protected static ?string $modelLabel = 'Cotización';
+
     protected static ?string $pluralModelLabel = 'Cotizaciones';
+
     protected static ?string $navigationGroup = 'Polizas';
+
     protected static ?int $navigationSort = 1;
 
     //    public static function shouldRegisterNavigation(): bool
@@ -101,9 +102,10 @@ class QuoteResource extends Resource
                                                     $details[] = $state;
                                                 }
 
-                                                $detailsText = $details ? ' (' . implode(', ', $details) . ')' : '';
+                                                $detailsText = $details ? ' ('.implode(', ', $details).')' : '';
+
                                                 return [
-                                                    $contact->id => $contact->full_name . $detailsText
+                                                    $contact->id => $contact->full_name.$detailsText,
                                                 ];
                                             })
                                             ->toArray();
@@ -128,12 +130,13 @@ class QuoteResource extends Resource
                                     ])
                                     ->createOptionUsing(function (array $data) {
                                         $contact = Contact::create($data);
+
                                         return $contact->id;
                                     })
                                     ->columnSpan(4)
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $contact = Contact::find($state);
-                                        if (!$contact) {
+                                        if (! $contact) {
                                             return;
                                         }
                                         $set('contact.full_name', $contact->full_name);
@@ -189,7 +192,7 @@ class QuoteResource extends Resource
                                     })
                                     ->afterStateHydrated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $contact = Contact::find($state);
-                                        if (!$contact) {
+                                        if (! $contact) {
                                             return;
                                         }
                                         $set('contact.full_name', $contact->full_name);
@@ -284,13 +287,14 @@ class QuoteResource extends Resource
                                             ->icon('iconoir-privacy-policy')
                                             ->label('Ver Póliza')
                                             ->tooltip('Ver póliza asociada')
-                                            ->visible(fn(Forms\Get $get): bool => $get('policy_id') !== null)
+                                            ->visible(fn (Forms\Get $get): bool => $get('policy_id') !== null)
                                             ->url(function (Forms\Get $get) {
                                                 $policyId = $get('policy_id');
 
                                                 if ($policyId) {
                                                     return PolicyResource::getUrl('view', ['record' => $policyId]);
                                                 }
+
                                                 return '';
                                             })
                                             ->openUrlInNewTab()
@@ -473,6 +477,7 @@ class QuoteResource extends Resource
                                         if ($estimatedHouseholdIncome < $kynectFplThreshold) {
                                             return ['style' => 'background-color: #FEE2E2;'];
                                         }
+
                                         return [];
                                     }),
                                 Forms\Components\TextInput::make('kynect_fpl_threshold')
@@ -485,6 +490,7 @@ class QuoteResource extends Resource
                                         $memberCount = $get('total_family_members') ?? 1;
                                         $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
                                             $memberCount));
+
                                         return $kinectKPL * 12;
                                     }),
                             ])
@@ -499,8 +505,7 @@ class QuoteResource extends Resource
                                 Forms\Components\Select::make('relationship')
                                     ->label('Relación con el Titular')
                                     ->options(FamilyRelationship::class)
-                                    ->disableOptionWhen(fn($state, $value): bool =>
-                                        ($state === null && $value === 'self') ||
+                                    ->disableOptionWhen(fn ($state, $value): bool => ($state === null && $value === 'self') ||
                                         ($state !== null && $value === 'self') ||
                                         $state === 'self')
                                     ->columnSpan(2)
@@ -566,7 +571,7 @@ class QuoteResource extends Resource
                                             ->label('Hora $')
                                             ->live(onBlur: true)
                                             ->columnSpan(2)
-                                            ->afterStateUpdated(fn(
+                                            ->afterStateUpdated(fn (
                                                 $state,
                                                 Forms\Set $set,
                                                 Forms\Get $get
@@ -580,7 +585,7 @@ class QuoteResource extends Resource
                                             ->numeric()
                                             ->label('H/S')
                                             ->live(onBlur: true)
-                                            ->afterStateUpdated(fn(
+                                            ->afterStateUpdated(fn (
                                                 $state,
                                                 Forms\Set $set,
                                                 Forms\Get $get
@@ -595,7 +600,7 @@ class QuoteResource extends Resource
                                             ->label('H/Extra $')
                                             ->columnSpan(2)
                                             ->live(onBlur: true)
-                                            ->afterStateUpdated(fn(
+                                            ->afterStateUpdated(fn (
                                                 $state,
                                                 Forms\Set $set,
                                                 Forms\Get $get
@@ -609,7 +614,7 @@ class QuoteResource extends Resource
                                             ->numeric()
                                             ->label('H/E S')
                                             ->live(onBlur: true)
-                                            ->afterStateUpdated(fn(
+                                            ->afterStateUpdated(fn (
                                                 $state,
                                                 Forms\Set $set,
                                                 Forms\Get $get
@@ -623,7 +628,7 @@ class QuoteResource extends Resource
                                             ->numeric()
                                             ->label('S/Año')
                                             ->live(onBlur: true)
-                                            ->afterStateUpdated(fn(
+                                            ->afterStateUpdated(fn (
                                                 $state,
                                                 Forms\Set $set,
                                                 Forms\Get $get
@@ -644,7 +649,7 @@ class QuoteResource extends Resource
                                             ->live(onBlur: true)
                                             ->columnSpan(2)
                                             ->columnStart(6)
-                                            ->afterStateHydrated(fn(
+                                            ->afterStateHydrated(fn (
                                                 $state,
                                                 Forms\Set $set,
                                                 Forms\Get $get
@@ -677,7 +682,7 @@ class QuoteResource extends Resource
                                             ->live(onBlur: true)
                                             ->label('Ingreso Anual')
                                             ->columnSpan(2)
-                                            ->afterStateUpdated(fn(
+                                            ->afterStateUpdated(fn (
                                                 $state,
                                                 Forms\Set $set,
                                                 Forms\Get $get
@@ -713,11 +718,11 @@ class QuoteResource extends Resource
                                     $label = $relationshipLabel;
 
                                     if ($fullName) {
-                                        $label .= ' - ' . $fullName;
+                                        $label .= ' - '.$fullName;
                                     }
 
                                     if ($age) {
-                                        $label .= ' (' . $age . ' años)';
+                                        $label .= ' ('.$age.' años)';
                                     }
 
                                     return $label;
@@ -792,6 +797,7 @@ class QuoteResource extends Resource
                                         if ($estimatedHouseholdIncome < $kynectFplThreshold) {
                                             return ['style' => 'background-color: #FEE2E2;'];
                                         }
+
                                         return [];
                                     }),
                                 Forms\Components\TextInput::make('kynect_fpl_threshold')
@@ -804,6 +810,7 @@ class QuoteResource extends Resource
                                         $memberCount = $get('total_family_members') ?? 1;
                                         $kinectKPL = floatval(\App\Models\KynectFPL::threshold(2024,
                                             $memberCount));
+
                                         return $kinectKPL * 12;
                                     }),
                             ])
@@ -831,16 +838,16 @@ class QuoteResource extends Resource
 
                                                         // Add main applicant
                                                         $mainApplicant = 'Principal - '
-                                                            . ($get('../../contact_information.gender') === 'male' ? 'Masculino' : 'Femenino')
-                                                            . ' - ' . $get('../../contact_information.age') . ' años';
+                                                            .($get('../../contact_information.gender') === 'male' ? 'Masculino' : 'Femenino')
+                                                            .' - '.$get('../../contact_information.age').' años';
                                                         $options[$mainApplicant] = $mainApplicant;
 
                                                         // Add additional applicants
                                                         $additionalApplicants = $get('../../additional_applicants') ?? [];
                                                         foreach ($additionalApplicants as $applicant) {
-                                                            $formattedName = $applicant['relationship'] . ' - '
-                                                                . ($applicant['gender'] === 'male' ? 'Masculino' : 'Femenino') . ' - '
-                                                                . $applicant['age'] . ' años';
+                                                            $formattedName = $applicant['relationship'].' - '
+                                                                .($applicant['gender'] === 'male' ? 'Masculino' : 'Femenino').' - '
+                                                                .$applicant['age'].' años';
                                                             $options[$formattedName] = $formattedName;
                                                         }
 
@@ -861,10 +868,10 @@ class QuoteResource extends Resource
                                             ->columns(2)
                                             ->addActionLabel('Agregar Medicamento')
                                             ->deleteAction(
-                                                fn(
+                                                fn (
                                                     Forms\Components\Actions\Action $action
                                                 ) => $action->label('Eliminar Medicamento')
-                                            )
+                                            ),
                                     ]),
                                     Section::make([
                                         // Add a section to view existing documents and add new ones
@@ -878,11 +885,11 @@ class QuoteResource extends Resource
                                             Action::make('Kommo')
                                                 ->icon('heroicon-m-x-mark')
                                                 ->color('success')
-                                                ->url(fn(
+                                                ->url(fn (
                                                     Forms\Get $get
-                                                ) => 'https://ghercys.kommo.com/leads/detail/' . $get('contact_information.kommo_id')),
-                                        ])
-                                    ])->grow(false)
+                                                ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact_information.kommo_id')),
+                                        ]),
+                                    ])->grow(false),
                                 ]),
                             ])
                             ->columns(1),
@@ -897,15 +904,15 @@ class QuoteResource extends Resource
     {
         $prefix = $applicant === 'main' ? 'main_applicant.' : '';
 
-        $incomePerHour = floatval($get($prefix . 'income_per_hour') ?? 0);
-        $hoursPerWeek = floatval($get($prefix . 'hours_per_week') ?? 0);
-        $incomePerExtraHour = floatval($get($prefix . 'income_per_extra_hour') ?? 0);
-        $extraHoursPerWeek = floatval($get($prefix . 'extra_hours_per_week') ?? 0);
-        $weeksPerYear = floatval($get($prefix . 'weeks_per_year') ?? 0);
+        $incomePerHour = floatval($get($prefix.'income_per_hour') ?? 0);
+        $hoursPerWeek = floatval($get($prefix.'hours_per_week') ?? 0);
+        $incomePerExtraHour = floatval($get($prefix.'income_per_extra_hour') ?? 0);
+        $extraHoursPerWeek = floatval($get($prefix.'extra_hours_per_week') ?? 0);
+        $weeksPerYear = floatval($get($prefix.'weeks_per_year') ?? 0);
 
         $yearlyIncome = ($incomePerHour * $hoursPerWeek + $incomePerExtraHour * $extraHoursPerWeek) * $weeksPerYear;
 
-        $set($prefix . 'yearly_income', round($yearlyIncome, 2));
+        $set($prefix.'yearly_income', round($yearlyIncome, 2));
 
         self::updateYearlyIncome($set, $get);
     }
@@ -914,13 +921,13 @@ class QuoteResource extends Resource
     {
         $prefix = $applicant === 'main' ? 'main_applicant.' : '';
 
-        $set($prefix . 'income_per_hour', '');
-        $set($prefix . 'hours_per_week', '');
-        $set($prefix . 'income_per_extra_hour', '');
-        $set($prefix . 'extra_hours_per_week', '');
-        $set($prefix . 'weeks_per_year', '');
-        $set($prefix . 'yearly_income', '');
-        $set($prefix . 'self_employed_yearly_income', '');
+        $set($prefix.'income_per_hour', '');
+        $set($prefix.'hours_per_week', '');
+        $set($prefix.'income_per_extra_hour', '');
+        $set($prefix.'extra_hours_per_week', '');
+        $set($prefix.'weeks_per_year', '');
+        $set($prefix.'yearly_income', '');
+        $set($prefix.'self_employed_yearly_income', '');
     }
 
     protected static function updateYearlyIncome(Forms\Set $set, Forms\Get $get): void
@@ -961,50 +968,28 @@ class QuoteResource extends Resource
                 Tables\Columns\TextColumn::make('agent.name')
                     ->label('Cuenta')
                     ->badge()
-                    ->formatStateUsing(fn(string $state): string => Str::acronym($state))
+                    ->formatStateUsing(fn (string $state): string => Str::acronym($state))
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('user.code')
+                    ->label('Asistente')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('user.name')
-                    ->label('Agente')
-                    ->sortable()
-                    ->searchable(),
-                // Tables\Columns\TextColumn::make('contact.full_name')
-                // ->label('Cliente')
-                // ->searchable(query: function (Builder $query, string $search): Builder {
-                //     return $query->where(function (Builder $query) use ($search): Builder {
-                //         // Search in contact fields
-                //         $query->whereHas('contact', function (Builder $query) use ($search): Builder {
-                //             return $query->where('first_name', 'like', "%{$search}%")
-                //                 ->orWhere('middle_name', 'like', "%{$search}%")
-                //                 ->orWhere('last_name', 'like', "%{$search}%")
-                //                 ->orWhere('second_last_name', 'like', "%{$search}%");
-                //         });
-                //         return $query;
-                //     });
-                // })
-                // ->sortable(query: function (Builder $query, string $direction): Builder {
-                //     return $query
-                //         ->join('contacts', 'quotes.contact_id', '=', 'contacts.id')
-                //         ->orderBy('contacts.last_name', $direction)
-                //         ->orderBy('contacts.first_name', $direction)
-                //         ->select('quotes.*');
-                // })
-                // ->description(fn($record) => 'Applicantes: ' . $record->total_applicants),
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
                     ->sortable(['first_name', 'last_name'])
                     ->searchable(['first_name', 'last_name', 'middle_name', 'second_last_name'])
-                    ->description(fn($record) => 'Applicantes: ' . $record->total_applicants),
-                Tables\Columns\TextColumn::make('contact_information.state')
-                    ->label('Estado')
-                    ->searchable()
+                    ->description(fn ($record) => 'Applicantes: '.$record->total_applicants),
+                PoliciesColumn::make('policy_types')
+                    ->label('Polizas')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('year')
                     ->label('Año')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creada')
-                    ->dateTime('m/d/Y H:i')
+                    ->dateTime('m/d/Y')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estatus')
@@ -1028,6 +1013,7 @@ class QuoteResource extends Resource
                         for ($year = $startYear; $year <= $endYear; $year++) {
                             $years[$year] = $year;
                         }
+
                         return $years;
                     }),
                 Tables\Filters\SelectFilter::make('state_province')
@@ -1051,7 +1037,7 @@ class QuoteResource extends Resource
                         for ($i = 1; $i <= 3; $i++) {
                             $weekStart = $currentWeek->copy()->subWeeks($i)->format('Y-m-d');
                             $weekEnd = $currentWeek->copy()->subWeeks($i)->endOfWeek()->format('Y-m-d');
-                            $options["week_{$i}"] = "Hace {$i} semana" . ($i > 1 ? 's' : '') . " ({$weekStart} - {$weekEnd})";
+                            $options["week_{$i}"] = "Hace {$i} semana".($i > 1 ? 's' : '')." ({$weekStart} - {$weekEnd})";
                         }
 
                         return $options;
@@ -1084,7 +1070,7 @@ class QuoteResource extends Resource
                         };
                     })
                     ->indicateUsing(function (array $data): ?string {
-                        if (!$data['value']) {
+                        if (! $data['value']) {
                             return null;
                         }
 
@@ -1103,7 +1089,7 @@ class QuoteResource extends Resource
                         $currentMonth = Carbon::now();
 
                         // Current month
-                        $options['current'] = 'Mes Actual (' . $currentMonth->format('F Y') . ')';
+                        $options['current'] = 'Mes Actual ('.$currentMonth->format('F Y').')';
 
                         // Past 6 months
                         for ($i = 1; $i <= 6; $i++) {
@@ -1162,7 +1148,7 @@ class QuoteResource extends Resource
                     ->tooltip('Acciones')
                     ->icon('heroicon-m-ellipsis-vertical'),
                 Tables\Actions\Action::make('print')
-                    ->url(fn(Quote $record): string => QuoteResource::getUrl('print', ['record' => $record]))
+                    ->url(fn (Quote $record): string => QuoteResource::getUrl('print', ['record' => $record]))
                     ->label('Imprimir')
                     ->icon('iconoir-printing-page'),
             ])
