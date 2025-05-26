@@ -6,6 +6,8 @@ use App\Filament\Resources\QuoteResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Carbon;
+use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Model;
 
 class EditQuote extends EditRecord
 {
@@ -100,6 +102,8 @@ class EditQuote extends EditRecord
             }
         }
     }
+
+  
 
     protected function getRedirectUrl(): string
     {

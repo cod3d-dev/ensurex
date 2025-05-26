@@ -87,20 +87,20 @@ class QuoteResource extends Resource
                                         return Contact::all()
                                             ->mapWithKeys(function ($contact) {
                                                 $details = [];
-                                                
+
                                                 // Calculate age from date_of_birth if available
                                                 if ($contact->date_of_birth) {
                                                     $age = \Carbon\Carbon::parse($contact->date_of_birth)->age;
                                                     $details[] = "{$age} años";
                                                 }
-                                                
+
                                                 if ($contact->state_province) {
-                                                    $state = $contact->state_province instanceof \App\Enums\UsState 
-                                                        ? $contact->state_province->value 
+                                                    $state = $contact->state_province instanceof \App\Enums\UsState
+                                                        ? $contact->state_province->value
                                                         : $contact->state_province;
                                                     $details[] = $state;
                                                 }
-                                                
+
                                                 $detailsText = $details ? ' (' . implode(', ', $details) . ')' : '';
                                                 return [
                                                     $contact->id => $contact->full_name . $detailsText
@@ -150,7 +150,7 @@ class QuoteResource extends Resource
                                         $set('contact.zip_code', $contact->zip_code);
 
                                         $applicants = $get('applicants') ?: [];
-                                        
+
                                         // Create a new applicant entry for the selected contact
                                         $newApplicant = [
                                             'relationship' => FamilyRelationship::Self->value,
@@ -174,7 +174,7 @@ class QuoteResource extends Resource
                                             'yearly_income' => '',
                                             'self_employed_yearly_income' => '',
                                         ];
-                                        
+
                                         // If applicants array is empty, add the new applicant
                                         // Otherwise, update the first applicant with the new data
                                         if (empty($applicants)) {
@@ -184,7 +184,7 @@ class QuoteResource extends Resource
                                             $firstKey = array_key_first($applicants);
                                             $applicants[$firstKey] = array_merge($applicants[$firstKey] ?? [], $newApplicant);
                                         }
-                                        
+
                                         $set('applicants', $applicants);
                                     })
                                     ->afterStateHydrated(function ($state, Forms\Set $set, Forms\Get $get) {
@@ -206,7 +206,7 @@ class QuoteResource extends Resource
                                         $set('contact.zip_code', $contact->zip_code);
 
                                         $applicants = $get('applicants') ?: [];
-                                        
+
                                         // Create a new applicant entry for the selected contact
                                         $newApplicant = [
                                             'relationship' => FamilyRelationship::Self->value,
@@ -230,7 +230,7 @@ class QuoteResource extends Resource
                                             'yearly_income' => '',
                                             'self_employed_yearly_income' => '',
                                         ];
-                                        
+
                                         // If applicants array is empty, add the new applicant
                                         // Otherwise, update the first applicant with the new data
                                         if (empty($applicants)) {
@@ -240,7 +240,7 @@ class QuoteResource extends Resource
                                             $firstKey = array_key_first($applicants);
                                             $applicants[$firstKey] = array_merge($applicants[$firstKey] ?? [], $newApplicant);
                                         }
-                                        
+
                                         $set('applicants', $applicants);
                                     }),
                                 Forms\Components\Select::make('agent_id')
@@ -320,12 +320,14 @@ class QuoteResource extends Resource
                                             $birthDate = \Carbon\Carbon::parse($state);
                                             $age = $birthDate->age;
                                             $set('contact.age', $age);
-                                            
+
                                             // Update the first applicant in the repeater
                                             $applicants = $get('applicants') ?? [];
                                             if (count($applicants) > 0) {
-                                                $applicants[0]['date_of_birth'] = $birthDate->format('Y-m-d');
-                                                $applicants[0]['age'] = $age;
+                                                $firstKey = array_key_first($applicants);
+                                                $applicants[$firstKey]['date_of_birth'] = $birthDate->format('Y-m-d');
+                                                $firstKey = array_key_first($applicants);
+                                                $applicants[$firstKey]['age'] = $age;
                                                 $set('applicants', $applicants);
                                             }
                                         }
@@ -335,12 +337,14 @@ class QuoteResource extends Resource
                                             $birthDate = \Carbon\Carbon::parse($state);
                                             $age = $birthDate->age;
                                             $set('contact.age', $age);
-                                            
+
                                             // Update the first applicant in the repeater
                                             $applicants = $get('applicants') ?? [];
                                             if (count($applicants) > 0) {
-                                                $applicants[0]['date_of_birth'] = $birthDate->format('Y-m-d');
-                                                $applicants[0]['age'] = $age;
+                                                $firstKey = array_key_first($applicants);
+                                                $applicants[$firstKey]['date_of_birth'] = $birthDate->format('Y-m-d');
+                                                $firstKey = array_key_first($applicants);
+                                                $applicants[$firstKey]['age'] = $age;
                                                 $set('applicants', $applicants);
                                             }
                                         }
@@ -406,8 +410,7 @@ class QuoteResource extends Resource
                                     ->required(),
                             ])
                             ->columns(['md' => 10]),
-
-                            Section::make('Aplicantes')
+                        Section::make('Aplicantes')
                             ->schema([
                                 Forms\Components\TextInput::make('total_family_members')
                                     ->numeric()
@@ -463,7 +466,15 @@ class QuoteResource extends Resource
                                 Forms\Components\TextInput::make('estimated_household_income')
                                     ->numeric()
                                     ->label('Ingreso Familiar Estimado')
-                                    ->prefix('$'),
+                                    ->prefix('$')
+                                    ->extraInputAttributes(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $kynectFplThreshold = $get('kynect_fpl_threshold');
+                                        $estimatedHouseholdIncome = $state;
+                                        if ($estimatedHouseholdIncome < $kynectFplThreshold) {
+                                            return ['style' => 'background-color: #FEE2E2;'];
+                                        }
+                                        return [];
+                                    }),
                                 Forms\Components\TextInput::make('kynect_fpl_threshold')
                                     ->label('Ingresos Requeridos Kynect')
                                     ->readOnly()
@@ -478,7 +489,6 @@ class QuoteResource extends Resource
                                     }),
                             ])
                             ->columns(4),
-
                         Forms\Components\Repeater::make('applicants')
                             ->label('Aplicantes')
                             ->addable(false)
@@ -489,11 +499,10 @@ class QuoteResource extends Resource
                                 Forms\Components\Select::make('relationship')
                                     ->label('Relación con el Titular')
                                     ->options(FamilyRelationship::class)
-                                    ->disableOptionWhen(fn ($state, $value): bool => 
-                                                        ($state === null && $value === 'self') || 
-                                                        ($state !== null && $value === 'self') || 
-                                                        $state === 'self'
-                                                    )
+                                    ->disableOptionWhen(fn($state, $value): bool =>
+                                        ($state === null && $value === 'self') ||
+                                        ($state !== null && $value === 'self') ||
+                                        $state === 'self')
                                     ->columnSpan(2)
                                     ->required(),
                                 Forms\Components\TextInput::make('full_name')
@@ -508,7 +517,7 @@ class QuoteResource extends Resource
                                             $birthDate = \Carbon\Carbon::parse($state);
                                             $age = $birthDate->age;
                                             $set('age', $age);
-                                            
+
                                             // Only update contact if this is the 'self' relationship
                                             if (($get('relationship') ?? '') === 'self') {
                                                 $set('../../contact.date_of_birth', $birthDate->format('Y-m-d'));
@@ -517,9 +526,7 @@ class QuoteResource extends Resource
                                         }
                                     }),
                                 Forms\Components\TextInput::make('age')
-                                    ->label('Edad')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->label('Edad'),
                                 Forms\Components\Toggle::make('is_covered')
                                     ->label('Aplicante')
                                     ->inline(false)
@@ -685,9 +692,35 @@ class QuoteResource extends Resource
                             ])
                             ->columns(9)
                             ->itemLabel(function (array $state): ?string {
-                                if (isset($state['first_name']) && isset($state['last_name'])) {
-                                    $isPrimary = isset($state['is_primary']) && $state['is_primary'] ? ' (Principal)' : '';
-                                    return $state['first_name'] . ' ' . $state['last_name'] . $isPrimary;
+                                $relationshipValue = $state['relationship'] ?? null;
+                                $fullName = $state['full_name'] ?? null;
+                                $age = $state['age'] ?? null;
+
+                                if ($relationshipValue) {
+                                    // Get the label from the enum instead of using the raw value
+                                    $relationshipLabel = $relationshipValue;
+
+                                    // Convert the value to enum label if it's a valid enum value
+                                    if ($relationshipValue) {
+                                        try {
+                                            $enum = \App\Enums\FamilyRelationship::from($relationshipValue);
+                                            $relationshipLabel = $enum->getLabel();
+                                        } catch (\ValueError $e) {
+                                            // If not a valid enum value, keep using the raw value
+                                        }
+                                    }
+
+                                    $label = $relationshipLabel;
+
+                                    if ($fullName) {
+                                        $label .= ' - ' . $fullName;
+                                    }
+
+                                    if ($age) {
+                                        $label .= ' (' . $age . ' años)';
+                                    }
+
+                                    return $label;
                                 }
 
                                 return null;
