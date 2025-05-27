@@ -20,6 +20,7 @@ use Filament\Forms\Components\Actions;
 // use Filament\Forms\FormEvents;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Section;
+use Filament\Notifications\Notification;
 // use Awcodes\TableRepeater\Components\TableRepeater;
 // use Awcodes\TableRepeater\Header;
 // use App\Actions\ResetStars;
@@ -375,7 +376,39 @@ class QuoteResource extends Resource
                                     ->columnSpan(2),
                                 Forms\Components\TextInput::make('contact.kommo_id')
                                     ->label('Kommo ID')
-                                    ->columnSpan(2),
+                                    ->columnSpan(2)
+                                    ->suffixAction(
+                                        Action::make('copyCostToPrice')
+                                            ->icon('gmdi-get-app')
+                                            ->form([
+                                                Forms\Components\TextInput::make('url')
+                                                    ->label('URL del Chat')
+                                                    ->required(),
+                                            ])
+                                            ->action(function (Forms\Set $set, $data) {
+                                                    $url = $data['url'] ?? '';
+                                                    
+                                                    // Extract the ID using regex
+                                                    if (preg_match('/\/detail\/([0-9]+)/', $url, $matches)) {
+                                                        $kommoId = $matches[1];
+                                                        $set('contact.kommo_id', $kommoId);
+                                                        
+                                                        // Show success notification
+                                                        Notification::make()
+                                                            ->title('Kommo ID actualizado')
+                                                            ->body('Se extrajo el ID ' . $kommoId . ' de la URL proporcionada.')
+                                                            ->success()
+                                                            ->send();
+                                                    } else {
+                                                        // Show error notification
+                                                        Notification::make()
+                                                            ->title('Error en el formato de URL')
+                                                            ->body('La URL proporcionada no tiene el formato esperado. El ID de Kommo no ha sido actualizado.')
+                                                            ->danger()
+                                                            ->send();
+                                                    }
+                                                })
+                                    ),
                                 Forms\Components\TextInput::make('contact.email_address')
                                     ->label('Correo Electrónico')
                                     ->email()
@@ -982,7 +1015,7 @@ class QuoteResource extends Resource
                     ->searchable(['first_name', 'last_name', 'middle_name', 'second_last_name'])
                     ->description(fn ($record) => 'Applicantes: '.$record->total_applicants),
                 PoliciesColumn::make('policy_types')
-                    ->label('Polizas')
+                    ->label('Tipo')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('year')
                     ->label('Año')

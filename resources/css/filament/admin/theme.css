@@ -7,3 +7,12 @@
 
 @config 'tailwind.config.js';
 
+/* Custom badge styles for policies */
+.policy-badge {
+    @apply bg-amber-500 text-white;
+}
+
+.bg-red {
+    @apply bg-red-500;
+}
+    
