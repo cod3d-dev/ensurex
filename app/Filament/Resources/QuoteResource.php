@@ -20,14 +20,14 @@ use Filament\Forms\Components\Actions;
 // use Filament\Forms\FormEvents;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Section;
-use Filament\Notifications\Notification;
 // use Awcodes\TableRepeater\Components\TableRepeater;
 // use Awcodes\TableRepeater\Header;
 // use App\Actions\ResetStars;
-use Filament\Forms\Components\Split;
-// use App\Actions\Star;
 use Filament\Forms\Form;
+// use App\Actions\Star;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\Alignment;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
@@ -386,28 +386,28 @@ class QuoteResource extends Resource
                                                     ->required(),
                                             ])
                                             ->action(function (Forms\Set $set, $data) {
-                                                    $url = $data['url'] ?? '';
-                                                    
-                                                    // Extract the ID using regex
-                                                    if (preg_match('/\/detail\/([0-9]+)/', $url, $matches)) {
-                                                        $kommoId = $matches[1];
-                                                        $set('contact.kommo_id', $kommoId);
-                                                        
-                                                        // Show success notification
-                                                        Notification::make()
-                                                            ->title('Kommo ID actualizado')
-                                                            ->body('Se extrajo el ID ' . $kommoId . ' de la URL proporcionada.')
-                                                            ->success()
-                                                            ->send();
-                                                    } else {
-                                                        // Show error notification
-                                                        Notification::make()
-                                                            ->title('Error en el formato de URL')
-                                                            ->body('La URL proporcionada no tiene el formato esperado. El ID de Kommo no ha sido actualizado.')
-                                                            ->danger()
-                                                            ->send();
-                                                    }
-                                                })
+                                                $url = $data['url'] ?? '';
+
+                                                // Extract the ID using regex
+                                                if (preg_match('/\/detail\/([0-9]+)/', $url, $matches)) {
+                                                    $kommoId = $matches[1];
+                                                    $set('contact.kommo_id', $kommoId);
+
+                                                    // Show success notification
+                                                    Notification::make()
+                                                        ->title('Kommo ID actualizado')
+                                                        ->body('Se extrajo el ID '.$kommoId.' de la URL proporcionada.')
+                                                        ->success()
+                                                        ->send();
+                                                } else {
+                                                    // Show error notification
+                                                    Notification::make()
+                                                        ->title('Error en el formato de URL')
+                                                        ->body('La URL proporcionada no tiene el formato esperado. El ID de Kommo no ha sido actualizado.')
+                                                        ->danger()
+                                                        ->send();
+                                                }
+                                            })
                                     ),
                                 Forms\Components\TextInput::make('contact.email_address')
                                     ->label('Correo Electrónico')
@@ -451,7 +451,7 @@ class QuoteResource extends Resource
                             ->schema([
                                 Forms\Components\TextInput::make('total_family_members')
                                     ->numeric()
-                                    ->label('Total Miembros Familiares')
+                                    ->label('Total Familiares')
                                     ->required()
                                     ->default(1)
                                     ->live()
@@ -502,7 +502,7 @@ class QuoteResource extends Resource
                                     }),
                                 Forms\Components\TextInput::make('estimated_household_income')
                                     ->numeric()
-                                    ->label('Ingreso Familiar Estimado')
+                                    ->label('Ingresos Estimados')
                                     ->prefix('$')
                                     ->extraInputAttributes(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $kynectFplThreshold = $get('kynect_fpl_threshold');
@@ -514,7 +514,7 @@ class QuoteResource extends Resource
                                         return [];
                                     }),
                                 Forms\Components\TextInput::make('kynect_fpl_threshold')
-                                    ->label('Ingresos Requeridos Kynect')
+                                    ->label('Requerido Kynect')
                                     ->readOnly()
                                     ->dehydrated(false)
                                     ->prefix('$')
@@ -770,7 +770,7 @@ class QuoteResource extends Resource
                             ->schema([
                                 Forms\Components\TextInput::make('total_family_members')
                                     ->numeric()
-                                    ->label('Total Miembros Familiares')
+                                    ->label('Total Familiares')
                                     ->required()
                                     ->columnStart(2)
                                     ->default(1)
@@ -822,7 +822,7 @@ class QuoteResource extends Resource
                                     }),
                                 Forms\Components\TextInput::make('estimated_household_income')
                                     ->numeric()
-                                    ->label('Ingreso Familiar Estimado')
+                                    ->label('Ingresos Estimados')
                                     ->prefix('$')
                                     ->extraInputAttributes(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $kynectFplThreshold = $get('kynect_fpl_threshold');
@@ -834,7 +834,7 @@ class QuoteResource extends Resource
                                         return [];
                                     }),
                                 Forms\Components\TextInput::make('kynect_fpl_threshold')
-                                    ->label('Ingresos Requeridos Kynect')
+                                    ->label('Requerido Kynect')
                                     ->readOnly()
                                     ->dehydrated(false)
                                     ->prefix('$')
@@ -850,82 +850,44 @@ class QuoteResource extends Resource
                             ->columns(6),
                         Section::make('Otros')
                             ->schema([
-                                Split::make([
-                                    Section::make([
-                                        Forms\Components\TextInput::make('preferred_doctor')
-                                            ->label('Doctor Preferido'),
-                                        Forms\Components\Repeater::make('prescription_drugs')
-                                            ->label('')
-                                            ->defaultItems(0)
-                                            ->schema([
-                                                Forms\Components\TextInput::make('name')
-                                                    ->label('Nombre del Medicamento')
-                                                    ->required(),
-                                                Forms\Components\TextInput::make('dosage')
-                                                    ->label('Dosis')
-                                                    ->required(),
-                                                Forms\Components\Select::make('applicant')
-                                                    ->label('Aplicante')
-                                                    ->options(function (Forms\Get $get) {
-                                                        $options = [];
 
-                                                        // Add main applicant
-                                                        $mainApplicant = 'Principal - '
-                                                            .($get('../../contact_information.gender') === 'male' ? 'Masculino' : 'Femenino')
-                                                            .' - '.$get('../../contact_information.age').' años';
-                                                        $options[$mainApplicant] = $mainApplicant;
+                                Forms\Components\Textarea::make('notes')
+                                    ->label('Notas')
+                                    ->readOnly()
+                                    ->rows(5),
+                                Forms\Components\Actions::make([
+                                    Forms\Components\Actions\Action::make('add_note')
+                                        ->label('Agregar Nota')
+                                        ->color('info')
+                                        ->form([
+                                            Forms\Components\Textarea::make('note')
+                                                ->label('Nota')
+                                                ->required(),
+                                        ])
+                                        ->action(function (array $data, Forms\Set $set, array $state) {
+                                            $user = auth()->user();
+                                            $userName = $user ? $user->name : 'Unknown User';
+                                            $dateTime = Carbon::now()->format('Y-m-d H:i:s');
+                                            $formattedNote = "[{$dateTime}] {$userName}:\n{$data['note']}";
+                                            $set('notes', $state['notes']."\n\n".$formattedNote);
+                                        }),
+                                ])->alignment(Alignment::Right),
 
-                                                        // Add additional applicants
-                                                        $additionalApplicants = $get('../../additional_applicants') ?? [];
-                                                        foreach ($additionalApplicants as $applicant) {
-                                                            $formattedName = $applicant['relationship'].' - '
-                                                                .($applicant['gender'] === 'male' ? 'Masculino' : 'Femenino').' - '
-                                                                .$applicant['age'].' años';
-                                                            $options[$formattedName] = $formattedName;
-                                                        }
-
-                                                        return $options;
-                                                    })
-                                                    ->required()
-                                                    ->live(),
-                                                Forms\Components\Select::make('frequency')
-                                                    ->label('Suministro (Meses)')
-                                                    ->options(
-                                                        range(1, 12),
-                                                    )
-                                                    ->required(),
-                                                Forms\Components\Textarea::make('notes')
-                                                    ->label('Notas')
-                                                    ->rows(2),
-                                            ])
-                                            ->columns(2)
-                                            ->addActionLabel('Agregar Medicamento')
-                                            ->deleteAction(
-                                                fn (
-                                                    Forms\Components\Actions\Action $action
-                                                ) => $action->label('Eliminar Medicamento')
-                                            ),
-                                    ]),
-                                    Section::make([
-                                        // Add a section to view existing documents and add new ones
-                                    ]),
-                                    Section::make([
-                                        // Add a section to view existing documents and add new ones
-                                        Actions::make([
-                                            Action::make('Health Sherpa')
-                                                ->icon('heroicon-m-star')
-                                                ->url('https://www.healthsherpa.com/shopping?_agent_id=nil&carrier_id=nil&source=agent-home'),
-                                            Action::make('Kommo')
-                                                ->icon('heroicon-m-x-mark')
-                                                ->color('success')
-                                                ->url(fn (
-                                                    Forms\Get $get
-                                                ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact_information.kommo_id')),
-                                        ]),
-                                    ])->grow(false),
+                                Section::make([
+                                    // Add a section to view existing documents and add new ones
+                                    Actions::make([
+                                        Action::make('Health Sherpa')
+                                            ->icon('heroicon-m-star')
+                                            ->url('https://www.healthsherpa.com/shopping?_agent_id=nil&carrier_id=nil&source=agent-home'),
+                                        Action::make('Kommo')
+                                            ->icon('heroicon-m-x-mark')
+                                            ->color('success')
+                                            ->url(fn (
+                                                Forms\Get $get
+                                            ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact_information.kommo_id')),
+                                    ])->alignment(Alignment::Right),
                                 ]),
-                            ])
-                            ->columns(1),
+                            ]),
                     ])
                     ->columnSpanFull(),
             ])
@@ -1031,9 +993,17 @@ class QuoteResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('user_id')
-                    ->label('Usuario')
+                    ->label('Asistente')
                     ->relationship('user', 'name')
-                    ->default(auth()->user()->id),
+                    ->default(function () {
+                        $user = auth()->user();
+                        // Only set default filter for non-admin users
+                        if ($user->role !== \App\Enums\UserRoles::Admin) {
+                            return $user->id;
+                        }
+
+                        return null;
+                    }),
                 Tables\Filters\SelectFilter::make('agent.name')
                     ->label('Agente')
                     ->relationship('agent', 'name'),
@@ -1053,8 +1023,11 @@ class QuoteResource extends Resource
                     ->label('Estado')
                     ->options(UsState::class),
                 Tables\Filters\SelectFilter::make('status')
+                    ->multiple()
                     ->label('Estatus')
-                    ->options(QuoteStatus::class),
+                    ->columnSpan(2)
+                    ->options(QuoteStatus::class)
+                    ->default([QuoteStatus::Pending->value, QuoteStatus::Accepted->value, QuoteStatus::Sent->value]),
                 Tables\Filters\SelectFilter::make('created_week')
                     ->label('Semana de Creación')
                     ->options(function () {
@@ -1187,12 +1160,16 @@ class QuoteResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->label('Eliminar')
+                        ->hidden(fn () => auth()->user()->role !== \App\Enums\UserRoles::Admin),
+
                 ]),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),
-            ]);
+            ])
+            ->defaultSort('created_at', 'asc');
     }
 
     // public static function getRelations(): array
@@ -1207,7 +1184,7 @@ class QuoteResource extends Resource
             'index' => Pages\ListQuotes::route('/'),
             'create' => Pages\CreateQuote::route('/create'),
             'edit' => Pages\EditQuote::route('/{record}/edit'),
-            //            'view' => Pages\ViewQuote::route('/{record}'),
+            'view' => Pages\ViewQuote::route('/{record}'),
             'print' => Pages\PrintQuote::route('/{record}/print'),
         ];
     }
