@@ -1,21 +1,17 @@
 <?php
 
-
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
 
-
-
-
-enum PolicyType: string implements HasLabel, HasColor
+enum PolicyType: string implements HasColor, HasLabel
 {
     case Health = 'health';
     case Life = 'life';
     case Vision = 'vision';
     case Dental = 'dental';
-    
+    case Accident = 'accident';
 
     public function getLabel(): string
     {
@@ -24,6 +20,7 @@ enum PolicyType: string implements HasLabel, HasColor
             self::Life => 'Vida',
             self::Vision => 'Vision',
             self::Dental => 'Dental',
+            self::Accident => 'Accidente',
 
         };
     }
@@ -35,6 +32,7 @@ enum PolicyType: string implements HasLabel, HasColor
             self::Life => 'success',
             self::Vision => 'warning',
             self::Dental => 'violet',
+            self::Accident => 'danger',
         };
     }
 }

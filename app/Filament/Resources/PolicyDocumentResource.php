@@ -3,21 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Enums\DocumentStatus;
-use App\Enums\PolicyStatus;
-use App\Enums\UsState;
-use App\Enums\PolicyType;
 use App\Filament\Resources\PolicyDocumentResource\Pages;
-use App\Filament\Resources\PolicyDocumentResource\RelationManagers;
-use App\Models\Policy;
 use App\Models\PolicyDocument;
-use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class PolicyDocumentResource extends Resource
 {
@@ -26,61 +19,62 @@ class PolicyDocumentResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     protected static ?string $pluralLabel = 'Documentos';
-    protected static ?string $singularLabel = 'Documento';
 
+    protected static ?string $singularLabel = 'Documento';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
 
-                    Forms\Components\Hidden::make('policy_id'),
-                    Forms\Components\Select::make('user_id')
-                        ->label('Agregado por')
-                        ->relationship('user', 'name')
-                        ->disabled(),
-                    Forms\Components\Select::make('document_type_id')
-                        ->relationship('documentType', 'name')
-                        ->label('Tipo de Documento')
-                        ->required(),
-                    Forms\Components\Select::make('status')
-                        ->label('Estatus')
-                        ->options(DocumentStatus::class),
-                    Forms\Components\DatePicker::make('due_date')
-                        ->label('Vence'),
-                    Forms\Components\TextInput::make('status_updated_by')
-                        ->label('Estatus actualizado por')
-                        ->disabled()
-                        ->formatStateUsing(function ($state) {
-                            if ($state) {
-                                $user = \App\Models\User::find($state);
-                                return $user ? $user->name : 'Unknown';
-                            }
-                            return '';
-                        }),
-                    Forms\Components\TextInput::make('status_updated_at')
-                        ->label('Fecha Actualización')
-                        ->disabled()
-                        ->formatStateUsing(function ($state) {
-                            if ($state) {
-                                return \Carbon\Carbon::parse($state)->format('d/m/Y');
-                            } else {
-                                return '';
-                            }
-                        }),
-                    Forms\Components\DatePicker::make('sent_date')
-                        ->label('Fecha Enviado')
-                        ->disabled()
-                        ->columnStart(4),
-                    Forms\Components\TextInput::make('name')
-                        ->label('Descripción')
-                        ->columnSpanFull()
-                        ->required()
-                        ->maxLength(255),
-                    Forms\Components\Textarea::make('notes')
-                        ->label('Notas')
-                        ->columnSpan(3),
+                Forms\Components\Hidden::make('policy_id'),
+                Forms\Components\Select::make('user_id')
+                    ->label('Agregado por')
+                    ->relationship('user', 'name')
+                    ->disabled(),
+                Forms\Components\Select::make('document_type_id')
+                    ->relationship('documentType', 'name')
+                    ->label('Tipo de Documento')
+                    ->required(),
+                Forms\Components\Select::make('status')
+                    ->label('Estatus')
+                    ->options(DocumentStatus::class),
+                Forms\Components\DatePicker::make('due_date')
+                    ->label('Vence'),
+                Forms\Components\TextInput::make('status_updated_by')
+                    ->label('Estatus actualizado por')
+                    ->disabled()
+                    ->formatStateUsing(function ($state) {
+                        if ($state) {
+                            $user = \App\Models\User::find($state);
 
+                            return $user ? $user->name : 'Unknown';
+                        }
+
+                        return '';
+                    }),
+                Forms\Components\TextInput::make('status_updated_at')
+                    ->label('Fecha Actualización')
+                    ->disabled()
+                    ->formatStateUsing(function ($state) {
+                        if ($state) {
+                            return \Carbon\Carbon::parse($state)->format('d/m/Y');
+                        } else {
+                            return '';
+                        }
+                    }),
+                Forms\Components\DatePicker::make('sent_date')
+                    ->label('Fecha Enviado')
+                    ->disabled()
+                    ->columnStart(4),
+                Forms\Components\TextInput::make('name')
+                    ->label('Descripción')
+                    ->columnSpanFull()
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\Textarea::make('notes')
+                    ->label('Notas')
+                    ->columnSpan(3),
 
             ])->columns([
                 'sm' => 4,
@@ -104,7 +98,8 @@ class PolicyDocumentResource extends Resource
                                 ->orWhere('second_last_name', 'like', "%{$search}%");
                         });
                     })
-                    ->description(fn(PolicyDocument $record): string => $record->policy->policy_type->getLabel() . ': ' . $record->policy->insuranceCompany?->name ?? '' ),
+                    ->description(fn (PolicyDocument $record): string => $record->policy->policy_type->getLabel().': '.$record->policy->insuranceCompany?->name ?? '')
+                    ->url(fn (PolicyDocument $record): string => PolicyResource::getUrl('view', ['record' => $record->policy])),
                 Tables\Columns\TextColumn::make('documentType.name')
                     ->label('Tipo')
                     ->sortable(),
@@ -118,18 +113,18 @@ class PolicyDocumentResource extends Resource
                             ->form([
                                 Forms\Components\Select::make('status')
                                     ->options(DocumentStatus::class)
-                                    ->required()
+                                    ->required(),
                             ])
                             ->modalWidth('md')
                             ->action(function (PolicyDocument $record, array $data): void {
                                 $record->update([
                                     'status' => $data['status'],
                                     'status_updated_by' => auth()->user()->id,
-                                    'status_updated_at' => now()
+                                    'status_updated_at' => now(),
                                 ]);
                                 if ($data['status'] == DocumentStatus::Sent->value) {
                                     $record->update([
-                                        'sent_date' => now()
+                                        'sent_date' => now(),
                                     ]);
                                 }
                             })
@@ -178,7 +173,7 @@ class PolicyDocumentResource extends Resource
         return [
             'index' => Pages\ListPolicyDocuments::route('/'),
             'create' => Pages\CreatePolicyDocument::route('/create'),
-//            'edit' => Pages\EditPolicyDocument::route('/{record}/edit'),
+            'edit' => Pages\EditPolicyDocument::route('/{record}/edit'),
         ];
     }
 }

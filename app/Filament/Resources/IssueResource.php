@@ -4,19 +4,16 @@ namespace App\Filament\Resources;
 
 use App\Enums\IssueStatus;
 use App\Filament\Resources\IssueResource\Pages;
-use App\Filament\Resources\IssueResource\RelationManagers;
-use App\Filament\Resources\PolicyResource\Pages\EditPolicy;
 use App\Models\Issue;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class IssueResource extends Resource
 {
@@ -24,6 +21,7 @@ class IssueResource extends Resource
 
     // change model name
     protected static ?string $pluralLabel = 'Problemas';
+
     protected static ?string $singularLabel = 'Problema';
 
     protected static ?string $navigationIcon = 'iconoir-warning-hexagon';
@@ -71,11 +69,11 @@ class IssueResource extends Resource
                                         ->label('Agregar Nota')
                                         ->action(function (Forms\Set $set, Forms\Get $get) {
                                             $newNote = $get('new_note');
-                                            $set('notes', $get('notes') . "\n" . auth()->user()->name . ': ' . now()->toDateTimeString() . "\n"  . $newNote . "\n");
+                                            $set('notes', $get('notes')."\n".auth()->user()->name.': '.now()->toDateTimeString()."\n".$newNote."\n");
                                             $set('new_note', '');
-                                        })
+                                        }),
                                 ]),
-                            ])->columns(1)->columnSpan(1)
+                            ])->columns(1)->columnSpan(1),
                     ])->columnSpanFull()->columns(2),
             ])->columns(3);
     }
@@ -132,6 +130,7 @@ class IssueResource extends Resource
                     ->using(function (Issue $record, array $data): Issue {
                         unset($data['new_note']);
                         $record->update($data);
+
                         return $record;
                     }),
             ])
@@ -148,11 +147,11 @@ class IssueResource extends Resource
                         return view('filament.resources.issue.views.view-messages', [
                             'messages' => $records->map(function ($record) {
                                 return "Case #: {$record->policy->kynect_case_number}: {$record->email_message}";
-                            })->filter()->join("\n\n---\n\n")
+                            })->filter()->join("\n\n---\n\n"),
                         ]);
                     }) // Message
                     ->modalSubmitAction(false)
-                    ->modalCancelAction(false)
+                    ->modalCancelAction(false),
             ]);
     }
 
@@ -168,7 +167,7 @@ class IssueResource extends Resource
         return [
             'index' => Pages\ListIssues::route('/'),
             'create' => Pages\CreateIssue::route('/create'),
-//            'edit' => Pages\EditIssue::route('/{record}/edit'),
+            //            'edit' => Pages\EditIssue::route('/{record}/edit'),
         ];
     }
 }

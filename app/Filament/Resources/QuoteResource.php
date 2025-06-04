@@ -134,7 +134,7 @@ class QuoteResource extends Resource
 
                                         return $contact->id;
                                     })
-                                    ->columnSpan(4)
+                                    ->columnSpan(6)
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $contact = Contact::find($state);
                                         if (! $contact) {
@@ -209,50 +209,50 @@ class QuoteResource extends Resource
                                         $set('contact.state_province', $contact->state_province);
                                         $set('contact.zip_code', $contact->zip_code);
 
-                                        $applicants = $get('applicants') ?: [];
+                                        // $applicants = $get('applicants') ?: [];
 
-                                        // Create a new applicant entry for the selected contact
-                                        $newApplicant = [
-                                            'relationship' => FamilyRelationship::Self->value,
-                                            'full_name' => $contact->full_name,
-                                            'date_of_birth' => $contact->date_of_birth,
-                                            'age' => $contact->age,
-                                            'is_covered' => true,
-                                            'gender' => $contact->gender,
-                                            'is_pregnant' => false,
-                                            'is_tobacco_user' => false,
-                                            'is_self_employed' => false,
-                                            'is_eligible_for_coverage' => false,
-                                            'employeer_name' => '',
-                                            'employement_role' => '',
-                                            'employeer_phone' => '',
-                                            'income_per_hour' => '',
-                                            'hours_per_week' => '',
-                                            'income_per_extra_hour' => '',
-                                            'extra_hours_per_week' => '',
-                                            'weeks_per_year' => '',
-                                            'yearly_income' => '',
-                                            'self_employed_yearly_income' => '',
-                                        ];
+                                        // // Create a new applicant entry for the selected contact
+                                        // $newApplicant = [
+                                        //     'relationship' => FamilyRelationship::Self->value,
+                                        //     'full_name' => $contact->full_name,
+                                        //     'date_of_birth' => $contact->date_of_birth,
+                                        //     'age' => $contact->age,
+                                        //     'is_covered' => true,
+                                        //     'gender' => $contact->gender,
+                                        //     'is_pregnant' => false,
+                                        //     'is_tobacco_user' => false,
+                                        //     'is_self_employed' => false,
+                                        //     'is_eligible_for_coverage' => false,
+                                        //     'employeer_name' => '',
+                                        //     'employement_role' => '',
+                                        //     'employeer_phone' => '',
+                                        //     'income_per_hour' => '',
+                                        //     'hours_per_week' => '',
+                                        //     'income_per_extra_hour' => '',
+                                        //     'extra_hours_per_week' => '',
+                                        //     'weeks_per_year' => '',
+                                        //     'yearly_income' => '',
+                                        //     'self_employed_yearly_income' => '',
+                                        // ];
 
-                                        // If applicants array is empty, add the new applicant
-                                        // Otherwise, update the first applicant with the new data
-                                        if (empty($applicants)) {
-                                            $applicants[] = $newApplicant;
-                                        } else {
-                                            // Get the first key in the array (could be any string/number)
-                                            $firstKey = array_key_first($applicants);
-                                            $applicants[$firstKey] = array_merge($applicants[$firstKey] ?? [], $newApplicant);
-                                        }
+                                        // // If applicants array is empty, add the new applicant
+                                        // // Otherwise, update the first applicant with the new data
+                                        // if (empty($applicants)) {
+                                        //     $applicants[] = $newApplicant;
+                                        // } else {
+                                        //     // Get the first key in the array (could be any string/number)
+                                        //     $firstKey = array_key_first($applicants);
+                                        //     $applicants[$firstKey] = array_merge($applicants[$firstKey] ?? [], $newApplicant);
+                                        // }
 
-                                        $set('applicants', $applicants);
+                                        // $set('applicants', $applicants);
                                     }),
                                 Forms\Components\Select::make('agent_id')
                                     ->relationship('Agent', 'name')
                                     ->required()
                                     ->label('Cuenta')
                                     ->default(1)
-                                    ->columnSpan(2),
+                                    ->columnSpan(3),
                                 Forms\Components\Select::make('user_id')
                                     ->relationship('user', 'name')
                                     ->required()
@@ -260,7 +260,15 @@ class QuoteResource extends Resource
                                     ->searchable()
                                     ->preload()
                                     ->default(auth()->user()->id)
-                                    ->columnSpan(2),
+                                    ->columnSpan(3),
+                                Forms\Components\CheckboxList::make('policy_types')
+                                    ->options(PolicyType::class)
+                                    ->extraInputAttributes(['class' => 'text-left'])
+                                    ->inlineLabel()
+                                    ->required()
+                                    ->label('Tipo de Póliza')
+                                    ->columns(['md' => 3])
+                                    ->columnSpan(8),
                                 Forms\Components\Select::make('year')
                                     ->required()
                                     ->columnSpan(2)
@@ -288,7 +296,7 @@ class QuoteResource extends Resource
                                             ->icon('iconoir-privacy-policy')
                                             ->label('Ver Póliza')
                                             ->tooltip('Ver póliza asociada')
-                                            ->visible(fn (Forms\Get $get): bool => $get('policy_id') !== null)
+                                            ->visible(fn (Forms\Get $get): bool => $get('status') === QuoteStatus::Converted->value)
                                             ->url(function (Forms\Get $get) {
                                                 $policyId = $get('policy_id');
 
@@ -300,16 +308,6 @@ class QuoteResource extends Resource
                                             })
                                             ->openUrlInNewTab()
                                     ),
-                                Forms\Components\CheckboxList::make('policy_types')
-                                    ->options(PolicyType::class)
-                                    ->extraInputAttributes(['class' => 'text-left'])
-                                    ->columnStart(5)
-                                    ->inlineLabel()
-                                    ->required()
-                                    ->columnStart(1)
-                                    ->label('Tipo de Póliza')
-                                    ->columns(['md' => 6])
-                                    ->columnSpanFull(),
                             ])
                             ->columns(['md' => 12, 'lg' => 12, 'xl' => 12]),
                         Section::make('Datos del Titular')
@@ -357,12 +355,36 @@ class QuoteResource extends Resource
                                     ->columnSpan(2),
                                 Forms\Components\TextInput::make('contact.age')
                                     ->dehydrated(false)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
+                                        if ($state) {
+                                            // Update the first applicant in the repeater
+                                            $applicants = $get('applicants') ?? [];
+                                            if (count($applicants) > 0) {
+                                                $firstKey = array_key_first($applicants);
+                                                $applicants[$firstKey]['age'] = $state;
+                                                $set('applicants', $applicants);
+                                            }
+                                        }
+                                    })
                                     ->label('Edad'),
                                 Forms\Components\Select::make('contact.gender')
                                     ->label('Género')
                                     ->placeholder('Genero')
                                     ->options(Gender::class)
                                     ->required()
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
+                                        if ($state) {
+                                            // Update the first applicant in the repeater
+                                            $applicants = $get('applicants') ?? [];
+                                            if (count($applicants) > 0) {
+                                                $firstKey = array_key_first($applicants);
+                                                $applicants[$firstKey]['gender'] = $state;
+                                                $set('applicants', $applicants);
+                                            }
+                                        }
+                                    })
                                     ->columnSpan(2),
                                 Forms\Components\TextInput::make('contact.phone')
                                     ->label('Teléfono')
@@ -378,7 +400,7 @@ class QuoteResource extends Resource
                                     ->label('Kommo ID')
                                     ->columnSpan(2)
                                     ->suffixAction(
-                                        Action::make('copyCostToPrice')
+                                        Action::make('getKommoId')
                                             ->icon('gmdi-get-app')
                                             ->form([
                                                 Forms\Components\TextInput::make('url')
@@ -878,13 +900,15 @@ class QuoteResource extends Resource
                                     Actions::make([
                                         Action::make('Health Sherpa')
                                             ->icon('heroicon-m-star')
-                                            ->url('https://www.healthsherpa.com/shopping?_agent_id=nil&carrier_id=nil&source=agent-home'),
+                                            ->url('https://www.healthsherpa.com/shopping?_agent_id=nil&carrier_id=nil&source=agent-home')
+                                            ->openUrlInNewTab(),
                                         Action::make('Kommo')
                                             ->icon('heroicon-m-x-mark')
                                             ->color('success')
                                             ->url(fn (
                                                 Forms\Get $get
-                                            ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact_information.kommo_id')),
+                                            ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact.kommo_id'))
+                                            ->openUrlInNewTab(),
                                     ])->alignment(Alignment::Right),
                                 ]),
                             ]),

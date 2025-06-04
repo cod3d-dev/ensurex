@@ -2,12 +2,18 @@
 
 namespace App\Filament\Resources\QuoteResource\Pages;
 
+use App\Enums\DocumentStatus;
+use App\Enums\PolicyStatus;
+use App\Enums\PolicyType;
+use App\Enums\QuoteStatus;
+use App\Filament\Resources\PolicyResource;
 use App\Filament\Resources\QuoteResource;
+use App\Models\Policy;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Support\Carbon;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class EditQuote extends EditRecord
 {
@@ -16,11 +22,128 @@ class EditQuote extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\Action::make('convert_to_policy')
+                ->label('Crear Poliza')
+                ->icon('heroicon-o-document-duplicate')
+                ->color('success')
+                // ->form([
+                //     Forms\Components\Select::make('policy_type')
+                //         ->label('Tipo de Poliza')
+                //         ->options(PolicyType::class)
+                //         ->required()
+                //         ->preload(),
+                // ])
+                ->requiresConfirmation()
+                ->modalHeading('Crear Poliza')
+                ->modalDescription('Se creara una poliza a partir de esta cotización.')
+                ->modalSubmitActionLabel('Crear y Editar')
+                ->action(function (Model $record, array $data) {
+                    // Get the selected policy type
+                    $policyType = PolicyType::Life;
+
+                    // Import required classes
+                    $policy = Policy::create([
+                        'contact_id' => $record->contact_id,
+                        'user_id' => auth()->id(),
+                        'insurance_company_id' => $record->insurance_company_id,
+                        'policy_type' => $policyType,
+                        'agent_id' => $record->agent_id,
+                        'quote_id' => $record->id,
+                        'policy_total_cost' => $record->premium_amount,
+                        'premium_amount' => $record->premium_amount,
+                        'coverage_amount' => $record->coverage_amount,
+                        'main_applicant' => $record->main_applicant,
+                        'additional_applicants' => $record->additional_applicants,
+                        'total_family_members' => $record->total_family_members,
+                        'total_applicants' => $record->total_applicants,
+                        'total_applicants_with_medicaid' => (function () use ($record) {
+                            $count = 0;
+
+                            // Check additional applicants
+                            if (is_array($record->applicants)) {
+                                foreach ($record->applicants as $applicant) {
+                                    if (isset($applicant['is_eligible_for_coverage']) && $applicant['is_eligible_for_coverage'] === true) {
+                                        $count++;
+                                    }
+                                }
+                            }
+
+                            // dd($count);
+
+                            return $count;
+                        })(),
+                        'estimated_household_income' => $record->estimated_household_income,
+                        'preferred_doctor' => $record->preferred_doctor,
+                        'prescription_drugs' => $record->prescription_drugs ?? null,
+                        'contact_information' => $record->contact_information ?? null,
+                        'status' => PolicyStatus::Draft,
+                        'document_status' => DocumentStatus::ToAdd,
+                        'policy_year' => $record->year,
+                        'policy_zipcode' => $record->contact->zip_code,
+                        'policy_us_county' => $record->contact->county,
+                        'policy_city' => $record->contact->city,
+                        'policy_us_state' => $record->contact->state_province,
+                        'effective_date' => (function () use ($record) {
+                            $currentYear = (int) date('Y');
+                            $quoteYear = (int) $record->year;
+
+                            if ($quoteYear === $currentYear) {
+                                // First day of the next month if quote year is current year
+                                return Carbon::now()->addMonth()->startOfMonth()->format('Y-m-d');
+                            } else {
+                                // First day of the year if quote year is next year
+                                return Carbon::createFromDate($quoteYear, 1, 1)->format('Y-m-d');
+                            }
+                        })(),
+
+                    ]);
+
+                    // Update the quote status to Converted and add policy reference
+                    $record->update([
+                        'status' => QuoteStatus::Converted->value,
+                        'policy_id' => $policy->id,
+                    ]);
+
+                    // Fill the applicants data from quote applicants to policy_applicants pivot table
+                    if (is_array($record->applicants) && count($record->applicants) > 0) {
+                        $sortOrder = 1;
+
+                        foreach ($record->applicants as $key => $applicant) {
+                            // For the first applicant, use the contact_id from the quote
+                            $contactId = ($sortOrder === 1) ? $record->contact_id : null;
+
+                            // Create the policy applicant record
+                            \DB::table('policy_applicants')->insert([
+                                'policy_id' => $policy->id,
+                                'sort_order' => $sortOrder,
+                                'contact_id' => $contactId,
+                                'relationship_with_policy_owner' => $applicant['relationship'] ?? null,
+                                'is_covered_by_policy' => $applicant['is_covered'] ?? true,
+                                'medicaid_client' => $applicant['is_eligible_for_coverage'] ?? false,
+                                'employer_1_name' => $applicant['employeer_name'] ?? null,
+                                'employer_1_role' => $applicant['employement_role'] ?? null,
+                                'employer_1_phone' => $applicant['employeer_phone'] ?? null,
+                                'income_per_hour' => $applicant['income_per_hour'] ?? null,
+                                'hours_per_week' => $applicant['hours_per_week'] ?? null,
+                                'income_per_extra_hour' => $applicant['income_per_extra_hour'] ?? null,
+                                'extra_hours_per_week' => $applicant['extra_hours_per_week'] ?? null,
+                                'weeks_per_year' => $applicant['weeks_per_year'] ?? null,
+                                'yearly_income' => $applicant['yearly_income'] ?? null,
+                                'is_self_employed' => $applicant['is_self_employed'] ?? false,
+                                'self_employed_yearly_income' => $applicant['self_employed_yearly_income'] ?? null,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+
+                            $sortOrder++;
+                        }
+                    }
+
+                    // Redirect to edit the policy
+                    $this->redirect(PolicyResource::getUrl('edit', ['record' => $policy->id]));
+                }),
         ];
     }
-
-
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -58,7 +181,8 @@ class EditQuote extends EditRecord
         // // Remove the separate applicant fields as they're not part of the Quote model
 
         // unset($data['create_new_client']);
-       unset($data['contact']);
+        unset($data['contact']);
+
         return $data;
     }
 
@@ -67,43 +191,81 @@ class EditQuote extends EditRecord
         $data = $this->form->getRawState();
         $record = $this->record;
 
-        // dd($record->main_applicant);
-
         \Log::info('Raw form data after save:', $data);
         \Log::info('Saved record data:', $record->toArray());
 
-        if (isset($record->contact_id) && isset($record->contact_information)) {
-            $contact = \App\Models\Contact::find($record->contact_id);
-            if ($contact) {
+        // Check if contact data exists in the form data
+        if (isset($data['contact'])) {
+            // If the quote has a contact_id, update the contact
+            if ($record->contact_id) {
+                $contact = \App\Models\Contact::find($record->contact_id);
+                if ($contact) {
+                    try {
+                        $contact->update([
+                            'full_name' => $data['contact']['full_name'] ?? $contact->full_name,
+                            'date_of_birth' => $data['contact']['date_of_birth'] ?? $contact->date_of_birth,
+                            'gender' => $data['contact']['gender'] ?? $contact->gender,
+                            'phone' => $data['contact']['phone'] ?? $contact->phone,
+                            'phone2' => $data['contact']['phone2'] ?? $contact->phone2,
+                            'email_address' => $data['contact']['email_address'] ?? $contact->email_address,
+                            'zip_code' => $data['contact']['zip_code'] ?? $contact->zip_code,
+                            'county' => $data['contact']['county'] ?? $contact->county,
+                            'city' => $data['contact']['city'] ?? $contact->city,
+                            'state_province' => $data['contact']['state_province'] ?? $contact->state_province,
+                            'kommo_id' => $data['contact']['kommo_id'] ?? $contact->kommo_id,
+                            'updated_by' => auth()->user()->id,
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('Contacto actualizado')
+                            ->success()
+                            ->send();
+                        \Log::info('Contact updated successfully');
+                    } catch (\Exception $e) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Error al actualizar contacto')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                        \Log::error('Error updating contact: '.$e->getMessage());
+                    }
+                }
+            } else {
+                // If the quote doesn't have a contact_id, create a new contact
                 try {
-                    $contact->update([
-                        'first_name' => $record->contact_information['first_name'] ?? $contact->first_name,
-                        'middle_name' => $record->contact_information['middle_name'] ?? $contact->middle_name,
-                        'last_name' => $record->contact_information['last_name'] ?? $contact->last_name,
-                        'second_last_name' => $record->contact_information['second_last_name'] ?? $contact->second_last_name,
-                        'date_of_birth' => $record->contact_information['date_of_birth'] ?? $contact->date_of_birth,
-                        'gender' => $record->contact_information['gender'] ?? $contact->gender,
-                        'phone' => $record->contact_information['phone'] ?? $contact->phone,
-                        'whatsapp' => $record->contact_information['whatsapp'] ?? $contact->whatsapp,
-                        'email_address' => $record->contact_information['email_address'] ?? $contact->email_address,
-                        'zip_code' => $record->contact_information['zip_code'] ?? $contact->zip_code,
-                        'county' => $record->contact_information['county'] ?? $contact->county,
-                        'city' => $record->contact_information['city'] ?? $contact->city,
-                        'state_province' => $record->contact_information['state'] ?? $contact->state_province,
-                        'is_tobacco_user' => $record->contact_information['is_tobacco_user'] ?? $contact->is_tobacco_user,
-                        'is_pregnant' => $record->contact_information['is_pregnant'] ?? $contact->is_pregnant,
-                        'is_eligible_for_coverage' => $record->contact_information['is_eligible_for_coverage'] ?? $contact->is_eligible_for_coverage,
-                        'kommo_id' => $record->contact_information['kommo_id'] ?? $contact->kommo_id,
+                    $contact = \App\Models\Contact::create([
+                        'full_name' => $data['contact']['full_name'] ?? null,
+                        'date_of_birth' => $data['contact']['date_of_birth'] ?? null,
+                        'gender' => $data['contact']['gender'] ?? null,
+                        'phone' => $data['contact']['phone'] ?? null,
+                        'phone2' => $data['contact']['phone2'] ?? null,
+                        'email_address' => $data['contact']['email_address'] ?? null,
+                        'zip_code' => $data['contact']['zip_code'] ?? null,
+                        'county' => $data['contact']['county'] ?? null,
+                        'city' => $data['contact']['city'] ?? null,
+                        'state_province' => $data['contact']['state_province'] ?? null,
+                        'kommo_id' => $data['contact']['kommo_id'] ?? null,
+                        'created_by' => auth()->user()->id,
                     ]);
-                    \Log::info('Contact updated successfully');
+
+                    // Update the quote with the new contact_id
+                    $record->update(['contact_id' => $contact->id]);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Contacto creado')
+                        ->success()
+                        ->send();
+                    \Log::info('New contact created successfully');
                 } catch (\Exception $e) {
-                    \Log::error('Error updating contact: ' . $e->getMessage());
+                    \Filament\Notifications\Notification::make()
+                        ->title('Error al crear contacto')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+                    \Log::error('Error creating contact: '.$e->getMessage());
                 }
             }
         }
     }
-
-  
 
     protected function getRedirectUrl(): string
     {

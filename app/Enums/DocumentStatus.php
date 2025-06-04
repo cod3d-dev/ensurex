@@ -1,14 +1,12 @@
 <?php
 
-
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
 
-enum DocumentStatus: string implements HasLabel, HasColor
+enum DocumentStatus: string implements HasColor, HasLabel
 {
-
     case ToAdd = 'to_add';
     case Pending = 'pending';
     case Sent = 'sent';
@@ -27,8 +25,6 @@ enum DocumentStatus: string implements HasLabel, HasColor
             self::Rejected => 'Rechazado',
         };
     }
-
-
 
     public function getColor(): string
     {

@@ -7,17 +7,18 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class DocumentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'documents';
 
+    protected static ?string $title = 'Documentos';
+
     public function isReadOnly(): bool
     {
         return false;
     }
+
     public function form(Form $form): Form
     {
         return $form

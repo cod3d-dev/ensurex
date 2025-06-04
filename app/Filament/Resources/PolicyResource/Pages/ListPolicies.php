@@ -4,11 +4,11 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Filament\Resources\PolicyResource;
 use Filament\Actions;
+use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Resources\Pages\ListRecords\Tab;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Pages\Concerns\ExposesTableToWidgets;
 
 class ListPolicies extends ListRecords
 {
@@ -37,17 +37,16 @@ class ListPolicies extends ListRecords
     {
         // pending', 'active', 'inactive', 'cancelled', 'expired'
         return [
-            'all' => Tab::make('Todos')
-                ->badge(fn () => static::getModel()::count()),
+            'pending' => Tab::make('Pendiente')
+                ->query(fn ($query) => $query->whereIn('status', ['pending', 'draft']))
+                ->badge(fn () => static::getModel()::whereIn('status', ['pending', 'draft'])->count()),
             'past_year' => Tab::make(date('Y', strtotime('-1 year')))
                 ->query(fn ($query) => $query->whereYear('effective_date', date('Y', strtotime('-1 year'))))
                 ->badge(fn () => static::getModel()::whereYear('effective_date', date('Y', strtotime('-1 year')))->count()),
             'this_year' => Tab::make(date('Y'))
                 ->query(fn ($query) => $query->whereYear('effective_date', date('Y')))
                 ->badge(fn () => static::getModel()::whereYear('effective_date', date('Y'))->count()),
-            'pending' => Tab::make('Pendiente')
-                ->query(fn ($query) => $query->where('status', 'pending'))
-                ->badge(fn () => static::getModel()::where('status', 'pending')->count()),
+
             'active' => Tab::make('Activa')
                 ->query(fn ($query) => $query->where('status', 'active'))
                 ->badge(fn () => static::getModel()::where('status', 'active')->count()),
@@ -60,6 +59,8 @@ class ListPolicies extends ListRecords
             'expired' => Tab::make('Vencida')
                 ->query(fn ($query) => $query->where('status', 'expired'))
                 ->badge(fn () => static::getModel()::where('status', 'expired')->count()),
+            'all' => Tab::make('Todos')
+                ->badge(fn () => static::getModel()::count()),
         ];
     }
 }

@@ -116,7 +116,76 @@ class CreateQuote extends CreateRecord
 
     protected function afterCreate(): void
     {
-        // No longer need to handle contact updates here as they're handled in mutateFormDataBeforeCreate
+        $data = $this->form->getRawState();
+        $record = $this->record;
+        
+        // Check if contact data exists in the form data
+        if (isset($data['contact'])) {
+            // If the quote has a contact_id, update the contact
+            if ($record->contact_id) {
+                $contact = \App\Models\Contact::find($record->contact_id);
+                if ($contact) {
+                    try {
+                        $contact->update([
+                            'full_name' => $data['contact']['full_name'] ?? $contact->full_name,
+                            'date_of_birth' => $data['contact']['date_of_birth'] ?? $contact->date_of_birth,
+                            'gender' => $data['contact']['gender'] ?? $contact->gender,
+                            'phone' => $data['contact']['phone'] ?? $contact->phone,
+                            'phone2' => $data['contact']['phone2'] ?? $contact->phone2,
+                            'email_address' => $data['contact']['email_address'] ?? $contact->email_address,
+                            'zip_code' => $data['contact']['zip_code'] ?? $contact->zip_code,
+                            'county' => $data['contact']['county'] ?? $contact->county,
+                            'city' => $data['contact']['city'] ?? $contact->city,
+                            'state_province' => $data['contact']['state_province'] ?? $contact->state_province,
+                            'kommo_id' => $data['contact']['kommo_id'] ?? $contact->kommo_id,
+                            'updated_by' => auth()->user()->id
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('Contacto actualizado')
+                            ->success()
+                            ->send();
+                    } catch (\Exception $e) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Error al actualizar contacto')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }
+            } else {
+                // If the quote doesn't have a contact_id, create a new contact
+                try {
+                    $contact = \App\Models\Contact::create([
+                        'full_name' => $data['contact']['full_name'] ?? null,
+                        'date_of_birth' => $data['contact']['date_of_birth'] ?? null,
+                        'gender' => $data['contact']['gender'] ?? null,
+                        'phone' => $data['contact']['phone'] ?? null,
+                        'phone2' => $data['contact']['phone2'] ?? null,
+                        'email_address' => $data['contact']['email_address'] ?? null,
+                        'zip_code' => $data['contact']['zip_code'] ?? null,
+                        'county' => $data['contact']['county'] ?? null,
+                        'city' => $data['contact']['city'] ?? null,
+                        'state_province' => $data['contact']['state_province'] ?? null,
+                        'kommo_id' => $data['contact']['kommo_id'] ?? null,
+                        'created_by' => auth()->user()->id
+                    ]);
+                    
+                    // Update the quote with the new contact_id
+                    $record->update(['contact_id' => $contact->id]);
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title('Contacto creado')
+                        ->success()
+                        ->send();
+                } catch (\Exception $e) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Error al crear contacto')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            }
+        }
     }
     
 

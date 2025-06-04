@@ -4,16 +4,11 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\IssueStatus;
 use App\Filament\Resources\PolicyResource;
-use App\Models\Issue;
-use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ManagePolicyIssues extends ManageRelatedRecords
 {
@@ -22,6 +17,8 @@ class ManagePolicyIssues extends ManageRelatedRecords
     protected static string $relationship = 'issues';
 
     protected static ?string $navigationIcon = 'gmdi-report-problem-o';
+
+    protected static ?string $title = 'Problemas';
 
     public static function getNavigationLabel(): string
     {
@@ -69,11 +66,11 @@ class ManagePolicyIssues extends ManageRelatedRecords
                                         ->label('Agregar Nota')
                                         ->action(function (Forms\Set $set, Forms\Get $get) {
                                             $newNote = $get('new_note');
-                                            $set('notes', $get('notes') . "\n" . auth()->user()->name . ': ' . now()->toDateTimeString() . "\n"  . $newNote . "\n");
+                                            $set('notes', $get('notes')."\n".auth()->user()->name.': '.now()->toDateTimeString()."\n".$newNote."\n");
                                             $set('new_note', '');
-                                        })
+                                        }),
                                 ]),
-                            ])->columns(1)->columnSpan(1)
+                            ])->columns(1)->columnSpan(1),
                     ])->columnSpanFull()->columns(2),
             ])->columns(3);
     }
@@ -92,8 +89,10 @@ class ManagePolicyIssues extends ManageRelatedRecords
                 Tables\Actions\CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
                         unset($data['new_note']);
+
                         return $data;
-                    }),
+                    })
+                    ->label('Agregar Problema'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

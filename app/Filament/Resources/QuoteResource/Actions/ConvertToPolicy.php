@@ -1,15 +1,15 @@
 <?php
 
-
 namespace App\Filament\Resources\QuoteResource\Actions;
 
+use App\Enums\DocumentStatus;
 use App\Enums\PolicyStatus;
+use App\Enums\PolicyType;
 use App\Enums\QuoteStatus;
+use App\Filament\Resources\PolicyResource;
 use App\Models\Policy;
 use Filament\Tables\Actions\Action;
 use Illuminate\Database\Eloquent\Model;
-use App\Filament\Resources\PolicyResource;
-use App\Enums\DocumentStatus;
 
 class ConvertToPolicy extends Action
 {
@@ -21,14 +21,14 @@ class ConvertToPolicy extends Action
             ->label('Convert to Policy')
             ->icon('heroicon-o-document-duplicate')
             ->color('success')
-            ->action(function (ConvertToPolicy $action, Model $record): void {
+            ->action(function (ConvertToPolicy $action, Model $record, PolicyType $policyType): void {
                 // Create new policy from the quote
                 // dd($record);
                 $action->policy = Policy::create([
                     'contact_id' => $record->contact_id,
                     'user_id' => auth()->id(),
                     'insurance_company_id' => $record->insurance_company_id,
-                    'policy_type' => $record->policy_type,
+                    'policy_type' => $policyType,
                     'agent_id' => $record->agent_id,
                     'quote_id' => $record->id,
                     'policy_total_cost' => $record->premium_amount,

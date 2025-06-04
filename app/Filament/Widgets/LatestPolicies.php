@@ -2,27 +2,25 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Resources\QuoteResource;
-use App\Models\Quote;
+use App\Filament\Resources\PolicyResource;
+use App\Models\Policy;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 
-class LatestQuotes extends BaseWidget
+class LatestPolicies extends BaseWidget
 {
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 2;
 
-    protected static ?string $heading = 'Cotizaciones Pendientes';
+    protected static ?string $heading = 'Polizas Pendientes';
 
     public function table(Table $table): Table
     {
-
         return $table
             ->query(
-                fn () => Quote::query()->whereIn('status', [
-                    \App\Enums\QuoteStatus::Pending->value,
-                    \App\Enums\QuoteStatus::Sent->value,
-                    \App\Enums\QuoteStatus::Accepted->value,
+                fn () => Policy::query()->whereIn('status', [
+                    \App\Enums\PolicyStatus::Draft->value,
+                    \App\Enums\PolicyStatus::Pending->value,
                 ]),
             )
             ->columns([
@@ -36,7 +34,7 @@ class LatestQuotes extends BaseWidget
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estatus')
                     ->badge()
-                    ->color(function (\App\Enums\QuoteStatus $state): string {
+                    ->color(function (\App\Enums\PolicyStatus $state): string {
                         return match ($state->value) {
                             'pending' => 'warning',
                             'sent' => 'info',
@@ -47,24 +45,15 @@ class LatestQuotes extends BaseWidget
                         };
                     }),
             ])
-            // ->actions([
-            //     Tables\Actions\Action::make('abrir')
-            //         ->url(fn (Quote $record): string => QuoteResource::getUrl('view', ['record' => $record])),
-            // ])
             ->headerActions([
-                Tables\Actions\Action::make('view_quotes')
-                    ->label('Abrir')
-                    ->color('success')
-                    ->url(fn (): string => QuoteResource::getUrl('index')),
-                Tables\Actions\Action::make('create_quote')
-                    ->label('Cotizar')
-                    ->color('info')
-                    ->url(fn (): string => QuoteResource::getUrl('create')),
+                Tables\Actions\Action::make('view_policies')
+                    ->label('Ver')
+                    ->url(fn (): string => PolicyResource::getUrl('index')),
             ])
             ->defaultSort('created_at', 'asc')
             ->paginated(['5'])
             ->recordUrl(
-                fn (Quote $record): string => QuoteResource::getUrl('view', ['record' => $record]),
+                fn (Policy $record): string => PolicyResource::getUrl('view', ['record' => $record]),
             );
     }
 }

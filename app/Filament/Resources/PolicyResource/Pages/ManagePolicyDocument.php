@@ -4,16 +4,11 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\DocumentStatus;
 use App\Filament\Resources\PolicyResource;
-use App\Models\PolicyDocument;
-use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ManagePolicyDocument extends ManageRelatedRecords
 {
@@ -23,17 +18,17 @@ class ManagePolicyDocument extends ManageRelatedRecords
 
     protected static ?string $navigationIcon = 'tni-documents-o';
 
-
+    protected static ?string $title = 'Documentos';
 
     public static function getNavigationLabel(): string
     {
         return 'Documentos';
     }
 
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
-        dd($data);
-    }
+    // protected function mutateFormDataBeforeSave(array $data): array
+    // {
+    //     // dd($data);
+    // }
 
     public function form(Form $form): Form
     {
@@ -47,10 +42,10 @@ class ManagePolicyDocument extends ManageRelatedRecords
                     ->label('Tipo de Documento')
                     ->relationship('documentType', 'name')
                     ->required(),
-//                Forms\Components\Select::make('user_id')
-//                    ->label('Subido por')
-//                    ->relationship('user', 'name')
-//                    ->required(),
+                //                Forms\Components\Select::make('user_id')
+                //                    ->label('Subido por')
+                //                    ->relationship('user', 'name')
+                //                    ->required(),
                 Forms\Components\Hidden::make('user_id')
                     ->default(auth()->user()->id),
                 Forms\Components\Select::make('status')
@@ -104,8 +99,9 @@ class ManagePolicyDocument extends ManageRelatedRecords
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
-                Tables\Actions\AssociateAction::make(),
+                Tables\Actions\CreateAction::make()
+                    ->label('Agregar Documento'),
+                // Tables\Actions\AssociateAction::make(),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

@@ -11,12 +11,14 @@ class ListPolicyDocuments extends ListRecords
 {
     protected static string $resource = PolicyDocumentResource::class;
 
-//    protected function getHeaderActions(): array
-//    {
-//        return [
-//            Actions\CreateAction::make(),
-//        ];
-//    }
+    protected static ?string $title = 'Documentos';
+
+    //    protected function getHeaderActions(): array
+    //    {
+    //        return [
+    //            Actions\CreateAction::make(),
+    //        ];
+    //    }
 
     public function getTabs(): array
     {

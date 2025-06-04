@@ -9,14 +9,12 @@ use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Enums\RenewalStatus;
 use App\Enums\UsState;
-use App\Models\KynectFPL;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Policy extends Model
 {
@@ -84,30 +82,30 @@ class Policy extends Model
             // Only generate a code if one isn't already set or is null
             if (empty($policy->code) || is_null($policy->code)) {
                 // Get the policy type prefix
-                $typePrefix = match($policy->policy_type?->value) {
+                $typePrefix = match ($policy->policy_type?->value) {
                     'health' => 'H',
                     'vision' => 'V',
                     'dental' => 'D',
                     'life' => 'L',
                     default => 'H'
                 };
-                
+
                 // Find the highest policy number with this prefix
-                $highestPolicy = self::where('code', 'like', $typePrefix . '%')
+                $highestPolicy = self::where('code', 'like', $typePrefix.'%')
                     ->orderByRaw('CAST(SUBSTRING(code, 2) AS UNSIGNED) DESC')
                     ->first();
-                
+
                 $nextNumber = 1;
                 if ($highestPolicy) {
                     // Extract the number part and increment
                     $currentNumber = (int) substr($highestPolicy->code, 1);
                     $nextNumber = $currentNumber + 1;
                 }
-                
+
                 // Format the policy number with leading zeros (5 digits)
                 $policyNumber = str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
-                $policy->code = $typePrefix . $policyNumber;
-                
+                $policy->code = $typePrefix.$policyNumber;
+
                 Log::info('Generated policy code', [
                     'policy_type' => $policy->policy_type?->value,
                     'code' => $policy->code,
@@ -165,7 +163,7 @@ class Policy extends Model
                 'yearly_income',
                 'is_self_employed',
                 'self_employed_profession',
-                'self_employed_yearly_income'
+                'self_employed_yearly_income',
             ])
             ->withTimestamps();
     }
@@ -242,7 +240,7 @@ class Policy extends Model
     // Helper methods for renewal
     public function isRenewable(): bool
     {
-        return !$this->renewed_to_policy_id &&
+        return ! $this->renewed_to_policy_id &&
             $this->end_date &&
             $this->end_date->isFuture() &&
             $this->end_date->subMonths(3)->isPast();
@@ -251,6 +249,7 @@ class Policy extends Model
     public function getRenewalPeriod(): array
     {
         $startDate = $this->end_date?->addDay();
+
         return [
             'start_date' => $startDate,
             'end_date' => $startDate?->addYear()->subDay(),
@@ -285,7 +284,7 @@ class Policy extends Model
         }
 
         // Check if the monthly income is less than or equal to the threshold
-        return $annualIncome >= $threshold*12;
+        return $annualIncome >= $threshold * 12;
     }
 
     public function getTotalMembersAttribute(): int

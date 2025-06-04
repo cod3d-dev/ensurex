@@ -5,11 +5,9 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 use App\Enums\FamilyRelationship;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Contact;
-use Filament\Actions;
-use Filament\Forms\Form;
 use Filament\Forms;
+use Filament\Forms\Form;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Support\Carbon;
 
 class EditPolicyIncome extends EditRecord
 {
@@ -19,7 +17,7 @@ class EditPolicyIncome extends EditRecord
 
     protected static ?string $navigationIcon = 'iconoir-money-square';
 
-    public  function form(Form $form): Form
+    public function form(Form $form): Form
     {
         return $form
             ->schema([
@@ -61,7 +59,7 @@ class EditPolicyIncome extends EditRecord
 
                         return ['class' => $classes];
                     })
-                    ->formatStateUsing(fn ($state) => number_format($state , 2, '.', ',')),
+                    ->numeric(),
                 Forms\Components\TextInput::make('kynect_fpl_threshold')
                     ->label('Ingresos Requeridos Kynect')
                     ->disabled()
@@ -71,6 +69,7 @@ class EditPolicyIncome extends EditRecord
                     ->formatStateUsing(function ($state, $get) {
                         $memberCount = $get('total_family_members') ?? 1;
                         $kinectKPL = floatval(\App\Models\KynectFPL::getCurrentThreshold($memberCount));
+
                         return number_format($kinectKPL * 12, 2, '.', ',');
                     })
                     ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
@@ -78,7 +77,6 @@ class EditPolicyIncome extends EditRecord
                         $kinectKPL = floatval(\App\Models\KynectFPL::getCurrentThreshold($memberCount));
                         $set('kynect_fpl_threshold', $kinectKPL * 12);
                     }),
-
 
                 Forms\Components\Repeater::make('policyApplicants')
                     ->relationship()
@@ -91,12 +89,13 @@ class EditPolicyIncome extends EditRecord
                     ->itemLabel(function (array $state): ?string {
                         if (isset($state['contact_id'])) {
                             $contact = Contact::find($state['contact_id']);
-                            $relationship = isset($state['relationship_with_policy_owner']) ? " - ". FamilyRelationship::tryFrom($state['relationship_with_policy_owner'])->getLabel() : '';
+                            $relationship = isset($state['relationship_with_policy_owner']) ? ' - '.FamilyRelationship::tryFrom($state['relationship_with_policy_owner'])->getLabel() : '';
                             $covered = isset($state['is_covered_by_policy']) && $state['is_covered_by_policy'] ? ' - Cubierto' : ' - No Cubierto';
                             $medicaid = isset($state['medicaid_client']) && $state['medicaid_client'] ? ' - Cliente Medicaid' : '';
 
-                            return $contact->full_name . $relationship . $covered . $medicaid;
+                            return $contact->full_name.$relationship.$covered.$medicaid;
                         }
+
                         return null;
                     })
                     ->schema([
@@ -114,9 +113,9 @@ class EditPolicyIncome extends EditRecord
                             ->label('Hora $')
                             ->live(onBlur: true)
                             ->formatStateUsing(fn ($state) => number_format($state, 2, '.', ','))
-                            ->disabled(fn(Forms\Get $get
+                            ->disabled(fn (Forms\Get $get
                             ): bool => $get('is_self_employed') ?? false)
-                            ->afterStateUpdated(fn(
+                            ->afterStateUpdated(fn (
                                 $state,
                                 Forms\Set $set,
                                 Forms\Get $get
@@ -126,9 +125,9 @@ class EditPolicyIncome extends EditRecord
                             ->numeric()
                             ->label('Horas/Semana')
                             ->live(onBlur: true)
-                            ->disabled(fn(Forms\Get $get
+                            ->disabled(fn (Forms\Get $get
                             ): bool => $get('is_self_employed') ?? false)
-                            ->afterStateUpdated(fn(
+                            ->afterStateUpdated(fn (
                                 $state,
                                 Forms\Set $set,
                                 Forms\Get $get
@@ -138,9 +137,9 @@ class EditPolicyIncome extends EditRecord
                             ->numeric()
                             ->label('Hora Extra $')
                             ->live(onBlur: true)
-                            ->disabled(fn(Forms\Get $get
+                            ->disabled(fn (Forms\Get $get
                             ): bool => $get('is_self_employed') ?? false)
-                            ->afterStateUpdated(fn(
+                            ->afterStateUpdated(fn (
                                 $state,
                                 Forms\Set $set,
                                 Forms\Get $get
@@ -150,9 +149,9 @@ class EditPolicyIncome extends EditRecord
                             ->numeric()
                             ->label('Extra/Semana')
                             ->live(onBlur: true)
-                            ->disabled(fn(Forms\Get $get
+                            ->disabled(fn (Forms\Get $get
                             ): bool => $get('is_self_employed') ?? false)
-                            ->afterStateUpdated(fn(
+                            ->afterStateUpdated(fn (
                                 $state,
                                 Forms\Set $set,
                                 Forms\Get $get
@@ -162,9 +161,9 @@ class EditPolicyIncome extends EditRecord
                             ->numeric()
                             ->label('Semanas por Año')
                             ->live(onBlur: true)
-                            ->disabled(fn(Forms\Get $get
+                            ->disabled(fn (Forms\Get $get
                             ): bool => $get('is_self_employed') ?? false)
-                            ->afterStateUpdated(fn(
+                            ->afterStateUpdated(fn (
                                 $state,
                                 Forms\Set $set,
                                 Forms\Get $get
@@ -196,16 +195,16 @@ class EditPolicyIncome extends EditRecord
                             }),
                         Forms\Components\TextInput::make('self_employed_profession')
                             ->label('Profesión')
-                            ->disabled(fn(Forms\Get $get
-                            ): bool => !$get('is_self_employed')),
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => ! $get('is_self_employed')),
                         Forms\Components\TextInput::make('self_employed_yearly_income')
                             ->numeric()
                             ->label('Ingreso Anual')
                             ->live(onBlur: true)
                             ->columnStart(6)
-                            ->disabled(fn(Forms\Get $get
-                            ): bool => !$get('is_self_employed'))
-                            ->afterStateUpdated(fn(
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => ! $get('is_self_employed'))
+                            ->afterStateUpdated(fn (
                                 $state,
                                 Forms\Set $set,
                                 Forms\Get $get
@@ -276,9 +275,7 @@ class EditPolicyIncome extends EditRecord
 
             $AllApplicantsYearlyIncome += $applicantYearlyIncome;
 
-
         }
-
 
         $totalYearlyIncome = $AllApplicantsYearlyIncome;
 
