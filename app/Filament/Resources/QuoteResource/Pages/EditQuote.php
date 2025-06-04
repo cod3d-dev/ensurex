@@ -38,15 +38,48 @@ class EditQuote extends EditRecord
                 ->modalDescription('Se creara una poliza a partir de esta cotización.')
                 ->modalSubmitActionLabel('Crear y Editar')
                 ->action(function (Model $record, array $data) {
-                    // Get the selected policy type
-                    $policyType = PolicyType::Life;
+                    // Determine the main policy type from the quote's policy_type array
+                    $quotePolicyTypesData = $data['policy_type'] ?? []; // Assuming $data['policy_type'] is the array from the quote
+
+                    // Priority list for policy types. These should be the string values
+                    // that PolicyType::from() can accept (e.g., 'Life', 'Vision').
+                    $policyPriorityOrder = ['Life', 'Vision', 'Dental', 'Accident'];
+
+                    $mainPolicyValue = null;
+                    if (is_array($quotePolicyTypesData) && ! empty($quotePolicyTypesData)) {
+                        foreach ($policyPriorityOrder as $priority) {
+                            // Assuming $quotePolicyTypesData contains strings like 'Life', 'Vision', etc.
+                            if (in_array($priority, array_map('strval', $quotePolicyTypesData))) {
+                                $mainPolicyValue = $priority;
+                                break; // Found the highest priority type
+                            }
+                        }
+                    }
+
+                    $finalPolicyType = PolicyType::Life; // Default to Life as a fallback
+                    if ($mainPolicyValue !== null) {
+                        try {
+                            $finalPolicyType = PolicyType::from($mainPolicyValue);
+                        } catch (\ValueError $e) {
+                            \Illuminate\Support\Facades\Log::warning("Quote to Policy: Could not create PolicyType from '{$mainPolicyValue}'. Defaulting to Life. Quote ID: {$record->id}");
+                        }
+                    } elseif (is_array($quotePolicyTypesData) && ! empty($quotePolicyTypesData) && isset($quotePolicyTypesData[0])) {
+                        // Fallback: If no priority match, but there are types, try the first one from the quote.
+                        try {
+                            $finalPolicyType = PolicyType::from(strval($quotePolicyTypesData[0]));
+                        } catch (\ValueError $e) {
+                            \Illuminate\Support\Facades\Log::warning("Quote to Policy: Could not create PolicyType from first item '{$quotePolicyTypesData[0]}'. Defaulting to Life. Quote ID: {$record->id}");
+                        }
+                    }
+                    // $finalPolicyType is now the main PolicyType enum instance
 
                     // Import required classes
                     $policy = Policy::create([
                         'contact_id' => $record->contact_id,
                         'user_id' => auth()->id(),
                         'insurance_company_id' => $record->insurance_company_id,
-                        'policy_type' => $policyType,
+                        'policy_type' => $finalPolicyType,
+                        'quote_policy_types' => $record->policy_types, // Persist the original array of policy types
                         'agent_id' => $record->agent_id,
                         'quote_id' => $record->id,
                         'policy_total_cost' => $record->premium_amount,

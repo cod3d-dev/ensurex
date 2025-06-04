@@ -99,7 +99,7 @@ class PolicyResource extends Resource
             Pages\EditPolicyApplicantsData::class,
             Pages\EditPolicyIncome::class,
             Pages\EditPolicyPayments::class,
-            Pages\EditPolicyLife::class,
+            Pages\EditOtherPolicies::class,
             Pages\ManagePolicyDocument::class,
             Pages\ManagePolicyIssues::class,
 
@@ -891,7 +891,7 @@ class PolicyResource extends Resource
             'edit-applicants' => Pages\EditPolicyApplicants::route('/{record}/edit/applicants'),
             'edit-applicants-data' => Pages\EditPolicyApplicantsData::route('/{record}/edit/applicants/data'),
             'edit-income' => Pages\EditPolicyIncome::route('/{record}/edit/income'),
-            'edit-life' => Pages\EditPolicyLife::route('/{record}/edit/life'),
+            'edit-others' => Pages\EditOtherPolicies::route('/{record}/edit/others'),
             'documents' => Pages\ManagePolicyDocument::route('/{record}/documents'),
             'issues' => Pages\ManagePolicyIssues::route('/{record}/issues'),
             'payments' => Pages\EditPolicyPayments::route('/{record}/payments'),

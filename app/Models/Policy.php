@@ -57,6 +57,7 @@ class Policy extends Model
         'renewal_status' => RenewalStatus::class,
         'policy_type' => PolicyType::class,
         'state' => UsState::class,
+        'quote_policy_types' => 'array',
     ];
 
     protected function casts(): array

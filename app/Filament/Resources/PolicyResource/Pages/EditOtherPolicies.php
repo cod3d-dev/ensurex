@@ -3,13 +3,14 @@
 namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\FamilyRelationship;
+use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Filament\Resources\PolicyResource;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\EditRecord;
 
-class EditPolicyLife extends EditRecord
+class EditOtherPolicies extends EditRecord
 {
     protected static string $resource = PolicyResource::class;
 
@@ -29,6 +30,7 @@ class EditPolicyLife extends EditRecord
                             ->options(PolicyType::class)
                             ->required()
                             ->live()
+                            ->disabled(fn ($record) => $record->status !== PolicyStatus::Draft)
                             ->columns(8),
                     ]),
 

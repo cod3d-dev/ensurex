@@ -3,8 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Enums\PolicyStatus;
-use App\Enums\DocumentStatus;
 
 return new class extends Migration
 {
@@ -21,6 +19,7 @@ return new class extends Migration
             $table->foreignId('insurance_company_id')->default(1)->nullable()->constrained()->nullOnDelete();
             $table->string('policy_type')->nullable();
             $table->foreignId('quote_id')->nullable()->constrained()->nullOnDelete();
+            $table->json('quote_policy_types')->nullable();
             $table->foreignId('agent_id')->nullable()->constrained()->nullOnDelete();
             $table->string('policy_number')->nullable();
             $table->integer('policy_year')->nullable();
@@ -70,8 +69,7 @@ return new class extends Migration
             $table->string('emergency_contact')->nullable();
             $table->string('emergency_contact_phone')->nullable();
             $table->string('emergency_contact_relationship')->nullable();
-            
-            
+
             // Policy Status and Dates
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
