@@ -16,6 +16,12 @@ class EditPolicyIncome extends EditRecord
     protected static ?string $navigationLabel = 'Ingresos';
 
     protected static ?string $navigationIcon = 'iconoir-money-square';
+    
+    protected function afterSave(): void
+    {
+        // Mark this page as completed
+        $this->record->markPageCompleted('edit_policy_income');
+    }
 
     public function form(Form $form): Form
     {

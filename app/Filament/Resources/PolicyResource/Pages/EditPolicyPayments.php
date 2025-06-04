@@ -17,6 +17,12 @@ class EditPolicyPayments extends EditRecord
     protected static ?string $navigationLabel = 'Pago';
 
     protected static ?string $navigationIcon = 'iconoir-bank';
+    
+    protected function afterSave(): void
+    {
+        // Mark this page as completed
+        $this->record->markPageCompleted('edit_policy_payments');
+    }
 
     public  function form(Form $form): Form
     {

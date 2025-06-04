@@ -40,10 +40,13 @@ class EditPolicy extends EditRecord
             $data['contact_information'] = [];
         }
 
-        $data['contact_information']['first_name'] = $data->contact->first_name ?? null;
-        $data['contact_information']['middle_name'] = $data->contact->middle_name ?? null;
-        $data['contact_information']['last_name'] = $data->contact->last_name ?? null;
-        $data['contact_information']['second_last_name'] = $data->contact->second_last_name ?? null;
+        // Get the contact relation through the record
+        $contact = $this->record->contact;
+        
+        $data['contact_information']['first_name'] = $contact->first_name ?? null;
+        $data['contact_information']['middle_name'] = $contact->middle_name ?? null;
+        $data['contact_information']['last_name'] = $contact->last_name ?? null;
+        $data['contact_information']['second_last_name'] = $contact->second_last_name ?? null;
 
         $data['main_applicant']['fullname'] = $data['contact_information']['first_name'] . ' ' . $data['contact_information']['middle_name'] . $data['contact_information']['last_name'] . $data['contact_information']['second_last_name'];
 
@@ -78,5 +81,8 @@ class EditPolicy extends EditRecord
                 ]);
             }
         }
+        
+        // Mark this page as completed
+        $policy->markPageCompleted('edit_policy');
     }
 }

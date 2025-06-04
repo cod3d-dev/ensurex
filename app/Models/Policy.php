@@ -58,6 +58,7 @@ class Policy extends Model
         'policy_type' => PolicyType::class,
         'state' => UsState::class,
         'quote_policy_types' => 'array',
+        'completed_pages' => 'array',
     ];
 
     protected function casts(): array
@@ -195,6 +196,70 @@ class Policy extends Model
     public function insuranceCompany(): BelongsTo
     {
         return $this->belongsTo(InsuranceCompany::class);
+    }
+
+    /**
+     * Mark a specific policy page as completed
+     *
+     * @param  string  $pageName  The name of the page that was completed
+     */
+    public function markPageCompleted(string $pageName): void
+    {
+        $completedPages = $this->completed_pages ?? [];
+
+        if (! in_array($pageName, $completedPages)) {
+            $completedPages[] = $pageName;
+            $this->completed_pages = $completedPages;
+            $this->save();
+        }
+    }
+
+    /**
+     * Check if a specific page has been completed
+     *
+     * @param  string  $pageName  The name of the page to check
+     */
+    public function isPageCompleted(string $pageName): bool
+    {
+        return in_array($pageName, $this->completed_pages ?? []);
+    }
+
+    /**
+     * Check if all required pages have been completed
+     */
+    public function areRequiredPagesCompleted(): bool
+    {
+        $requiredPages = [
+            'edit_policy',
+            'edit_policy_contact',
+            'edit_policy_applicants',
+            'edit_policy_applicants_data',
+            'edit_policy_income',
+            'edit_policy_payments',
+        ];
+
+        $completedPages = $this->completed_pages ?? [];
+
+        return empty(array_diff($requiredPages, $completedPages));
+    }
+
+    /**
+     * Get a list of incomplete required pages
+     */
+    public function getIncompletePages(): array
+    {
+        $requiredPages = [
+            'edit_policy',
+            'edit_policy_contact',
+            'edit_policy_applicants',
+            'edit_policy_applicants_data',
+            'edit_policy_income',
+            'edit_policy_payments',
+        ];
+
+        $completedPages = $this->completed_pages ?? [];
+
+        return array_diff($requiredPages, $completedPages);
     }
 
     public function initialVerificationPerformedBy(): BelongsTo

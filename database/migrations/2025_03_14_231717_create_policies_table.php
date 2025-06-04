@@ -113,6 +113,9 @@ return new class extends Migration
             $table->string('renewal_status')->nullable(); // pending, completed, cancelled
             $table->text('renewal_notes')->nullable();
 
+            // Page Completion Tracking
+            $table->json('completed_pages')->nullable()->comment('Tracks which policy edit pages have been completed');
+            
             // Audit Information
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->foreignId('updated_by')->nullable()->constrained('users');

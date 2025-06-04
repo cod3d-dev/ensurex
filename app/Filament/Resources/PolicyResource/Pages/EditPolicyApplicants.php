@@ -57,6 +57,9 @@ class EditPolicyApplicants extends EditRecord
             'total_applicants' => $totalCoveredApplicants,
             'total_applicants_with_medicaid' => $totalMedicaidApplicants,
         ]);
+        
+        // Mark this page as completed
+        $policy->markPageCompleted('edit_policy_applicants');
     }
 
     public  function form(Form $form): Form

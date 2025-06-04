@@ -41,6 +41,12 @@ class EditPolicyApplicantsData extends EditRecord
 
         return $data;
     }
+    
+    protected function afterSave(): void
+    {
+        // Mark this page as completed
+        $this->record->markPageCompleted('edit_policy_applicants_data');
+    }
 
     public  function form(Form $form): Form
     {

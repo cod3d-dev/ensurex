@@ -8,6 +8,7 @@ use App\Enums\PolicyType;
 use App\Filament\Resources\PolicyResource;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditOtherPolicies extends EditRecord
@@ -17,6 +18,36 @@ class EditOtherPolicies extends EditRecord
     protected static ?string $navigationLabel = 'Otras Polizas';
 
     protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';
+
+    protected function beforeSave(): void
+    {
+
+        // Check if all required pages have been completed
+        if (! $this->record->areRequiredPagesCompleted()) {
+            // Get incomplete pages
+            $incompletePages = $this->record->getIncompletePages();
+
+            // Create readable page names for the notification
+            $readablePageNames = array_map(function ($pageName) {
+                return ucwords(str_replace('_', ' ', str_replace('edit_policy_', '', $pageName)));
+            }, $incompletePages);
+
+            // Stop the save operation and display a notification
+
+            // Show notification with incomplete pages
+
+            Notification::make()
+                ->warning()
+                ->title('Información de póliza incompleta')
+                ->body('Por favor, complete las siguientes secciones antes de continuar: '.implode(', ', $readablePageNames))
+                ->persistent()
+                ->send();
+
+            $this->halt();
+
+        }
+
+    }
 
     public function form(Form $form): Form
     {
