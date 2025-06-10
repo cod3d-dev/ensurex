@@ -36,6 +36,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Illuminate\View\View as IlluminateView;
 
 class PolicyResource extends Resource
 {
@@ -356,6 +357,20 @@ class PolicyResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->actions([
+                Tables\Actions\Action::make('view_documents')
+                    ->label('Ver Documentos')
+                    ->modalHeading('Documentos de la Póliza')
+                    ->modalContent(function (Policy $record): IlluminateView {
+                        return view('filament.resources.policy-resource.documents-modal', [
+                            'documents' => $record->documents,
+                        ]);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelAction(false)
+                    ->button()
+                    ->modalWidth('lg'),
+            ])
             ->columns([
                 // Insurance Account name
                 Tables\Columns\TextColumn::make('contact.id')
@@ -420,15 +435,11 @@ class PolicyResource extends Resource
                         // Add horizontal line
                         $customers .= '<div style="border-top: 1px solid #e5e7eb; margin-top: 8px; margin-bottom: 6px;"></div>';
 
-                        // Add enrollment type
                         $enrollmentType = $record->policy_inscription_type->getLabel() ?? 'N/A';
                         $customers .= '<div style="display: flex; align-items: center;">
                             <span style="font-size: 0.75rem; color: #374151; font-weight: 500;">Tipo de Inscripción:</span>
                             <span style="font-size: 0.75rem; color: #6b7280; margin-left: 4px;">'.$enrollmentType.'</span>
                         </div>';
-
-                        // // Add another horizontal line
-                        // $customers .= '<div style="border-top: 1px solid #e5e7eb; margin-top: 8px; margin-bottom: 6px;"></div>';
 
                         // Add status indicators
                         $customers .= '<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">';
@@ -540,7 +551,33 @@ class PolicyResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('document_status')
                     ->label('Documentos')
+                    ->formatStateUsing(function (DocumentStatus $state, Policy $record): string {
+                        // Only show date for document statuses that require attention
+                        if ($state === DocumentStatus::Approved || $state === DocumentStatus::ToAdd) {
+                            return $state->getLabel();
+                        }
+
+                        // For other statuses (pending, sent, expired, rejected), show the date
+                        if ($record->next_document_expiration_date) {
+                            $date = date('m-d-Y', strtotime($record->next_document_expiration_date));
+
+                            return $date;
+                        }
+
+                        // If no date available
+                        return $state->getLabel();
+                    })
                     ->badge()
+                    ->color(fn (DocumentStatus $state): string => match ($state) {
+                        DocumentStatus::Rejected => 'danger',
+                        DocumentStatus::Expired => 'danger',
+                        DocumentStatus::Pending => 'warning',
+                        DocumentStatus::Sent => 'info',
+                        DocumentStatus::Approved => 'success',
+                        DocumentStatus::ToAdd => 'danger',
+                        default => 'gray',
+                    })
+                    ->url(fn (Policy $record): string => static::getUrl('documents', ['record' => $record]))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('effective_date')
                     ->label('Fecha de inicio')

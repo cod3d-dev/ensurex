@@ -25,11 +25,6 @@ class ManagePolicyDocument extends ManageRelatedRecords
         return 'Documentos';
     }
 
-    // protected function mutateFormDataBeforeSave(array $data): array
-    // {
-    //     // dd($data);
-    // }
-
     public function form(Form $form): Form
     {
         return $form
@@ -68,6 +63,76 @@ class ManagePolicyDocument extends ManageRelatedRecords
             ]);
     }
 
+    /**
+     * Update the policy document_status based on the priority of document statuses
+     * and set the next_document_expiration_date field
+     * 
+     * Priority order:
+     * 1. rejected - highest priority
+     * 2. expired
+     * 3. pending
+     * 4. sent
+     * 5. approved - lowest priority
+     */
+    private function updatePolicyDocumentStatus(): void
+    {
+        // Get the parent policy
+        $policy = $this->getOwnerRecord();
+
+        // Get all documents for this policy
+        $documents = $policy->documents;
+
+        // Default status is ToAdd if no documents, otherwise Approved
+        $statusToSet = $documents->isEmpty()
+            ? DocumentStatus::ToAdd
+            : DocumentStatus::Approved;
+            
+        // Reset next expiration date if no documents
+        $nextExpirationDate = null;
+
+        // Define priority of statuses (from highest to lowest priority)
+        $statusPriority = [
+            DocumentStatus::Rejected,
+            DocumentStatus::Expired,
+            DocumentStatus::Pending,
+            DocumentStatus::Sent,
+            DocumentStatus::Approved,
+        ];
+
+        // Find the highest priority status and its document
+        $documentWithHighestPriority = null;
+        
+        foreach ($statusPriority as $status) {
+            $matchingDocument = $documents->first(function ($document) use ($status) {
+                return $document->status === $status;
+            });
+            
+            if ($matchingDocument) {
+                $statusToSet = $status;
+                $documentWithHighestPriority = $matchingDocument;
+                break;
+            }
+        }
+
+        // Update the policy's document_status
+        $policy->document_status = $statusToSet->value;
+        
+        // Set the next_document_expiration_date to the due date of the document with highest priority status
+        if ($documentWithHighestPriority && $documentWithHighestPriority->due_date) {
+            $policy->next_document_expiration_date = $documentWithHighestPriority->due_date;
+        } else {
+            // If no priority document found or it has no due date, find the earliest due date of any document
+            $documentWithEarliestDueDate = $documents->whereNotNull('due_date')->sortBy('due_date')->first();
+            if ($documentWithEarliestDueDate) {
+                $policy->next_document_expiration_date = $documentWithEarliestDueDate->due_date;
+            } else {
+                $policy->next_document_expiration_date = null;
+            }
+        }
+        
+        $policy->save();
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -100,7 +165,8 @@ class ManagePolicyDocument extends ManageRelatedRecords
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
-                    ->label('Agregar Documento'),
+                    ->label('Agregar Documento')
+                    ->after($this->updatePolicyDocumentStatus()),
                 // Tables\Actions\AssociateAction::make(),
             ])
             ->actions([
