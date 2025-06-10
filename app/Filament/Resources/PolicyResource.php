@@ -14,7 +14,6 @@ use App\Filament\Resources\PolicyResource\RelationManagers;
 use App\Filament\Resources\PolicyResource\Widgets\PolicyStats;
 use App\Models\Contact;
 use App\Models\Policy;
-use App\Tables\Columns\StatusColumn;
 // use App\Filament\Resources\PolicyResource\RelationManagers\IssuesRelationManager;
 use Filament\Forms;
 use Filament\Forms\Components\Actions;
@@ -29,7 +28,6 @@ use Filament\Support\Enums\ActionSize;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
@@ -380,11 +378,9 @@ class PolicyResource extends Resource
 
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
-                    ->searchable()
-                    ->extraAttributes(['style' => 'width:320px'])
-                    ->html()
                     ->grow(false)
-                    ->size(TextColumn\TextColumnSize::Small)
+                    ->searchable()
+                    ->html()
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query
                             ->whereHas('contact', function (Builder $query) use ($search) {
@@ -431,6 +427,62 @@ class PolicyResource extends Resource
                             <span style="font-size: 0.75rem; color: #6b7280; margin-left: 4px;">'.$enrollmentType.'</span>
                         </div>';
 
+                        // // Add another horizontal line
+                        // $customers .= '<div style="border-top: 1px solid #e5e7eb; margin-top: 8px; margin-bottom: 6px;"></div>';
+
+                        // Add status indicators
+                        $customers .= '<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">';
+
+                        // Define badge styles to exactly match Filament's design from screenshot
+                        $successBadgeStyle = 'display: inline-block; background-color: rgb(240, 253, 244); color: rgb(22, 163, 74); border-radius: 0.375rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; font-weight: 500; line-height: 1;';
+                        $dangerBadgeStyle = 'display: inline-block; background-color: rgb(254, 242, 242); color: rgb(220, 38, 38); border-radius: 0.375rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; font-weight: 500; line-height: 1;';
+
+                        // Client notified indicator
+                        $badgeStyle = $record->client_notified ? $successBadgeStyle : $dangerBadgeStyle;
+                        $customers .= '<span style="'.$badgeStyle.'">Informado</span>';
+
+                        // Autopay indicator
+                        $badgeStyle = $record->autopay ? $successBadgeStyle : $dangerBadgeStyle;
+                        $customers .= '<span style="'.$badgeStyle.'">Autopay</span>';
+
+                        // Initial paid indicator
+                        $badgeStyle = $record->initial_paid ? $successBadgeStyle : $dangerBadgeStyle;
+                        $customers .= '<span style="'.$badgeStyle.'">Inicial</span>';
+
+                        // ACA indicator (only if requires_aca is true)
+                        if ($record->requires_aca) {
+                            $badgeStyle = $record->aca ? $successBadgeStyle : $dangerBadgeStyle;
+                            $customers .= '<span style="'.$badgeStyle.'">ACA</span>';
+                        }
+
+                        // FPL indicator
+                        $latestFPL = \App\Models\KynectFPL::latest()->first();
+                        $meetsFPL = false;
+
+                        if ($latestFPL) {
+                            $householdSize = $record->total_family_members;
+                            $annualIncome = (float) $record->estimated_household_income;
+
+                            // Calculate threshold based on household size
+                            $threshold = null;
+                            if ($householdSize <= 8) {
+                                $memberField = "members_{$householdSize}";
+                                $threshold = $latestFPL->{$memberField} * 12;
+                            } else {
+                                $baseAmount = $latestFPL->members_8;
+                                $extraMembers = $householdSize - 8;
+                                $threshold = ($baseAmount + ($latestFPL->additional_member * $extraMembers)) * 12;
+                            }
+
+                            // Check if meets requirement
+                            $meetsFPL = $annualIncome >= $threshold;
+                        }
+
+                        $badgeStyle = $meetsFPL ? $successBadgeStyle : $dangerBadgeStyle;
+                        $customers .= '<span style="'.$badgeStyle.'">Ingresos</span>';
+
+                        $customers .= '</div>';
+
                         return $customers;
                     }),
                 Tables\Columns\TextColumn::make('policy_type')
@@ -459,7 +511,7 @@ class PolicyResource extends Resource
                         });
                     }),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->date('d-m-Y')
+                    ->date('m-d-Y')
                     ->label('Fecha')
                     ->sortable()
                     ->toggleable(),
@@ -482,16 +534,22 @@ class PolicyResource extends Resource
                         'AG' => 'danger',
                     })
                     ->toggleable(),
-                StatusColumn::make('document_status')
-                    ->label('Estatus'),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Estatus')
+                    ->badge()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('document_status')
+                    ->label('Documentos')
+                    ->badge()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('effective_date')
                     ->label('Fecha de inicio')
-                    ->date('d/m/Y')
+                    ->date('m-d-Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('end_date')
                     ->label('Válida hasta')
-                    ->date('d-m-Y')
+                    ->date('m-d-Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_renewal')
@@ -800,8 +858,9 @@ class PolicyResource extends Resource
                     //     })
                     //     ->requiresConfirmation()
                 ])
-                    ->label('Acciones')
-                    ->icon('heroicon-m-ellipsis-vertical')
+                    // ->label('Acciones')
+                    ->hiddenLabel()
+                    ->icon('heroicon-m-ellipsis-horizontal')
                     ->size(ActionSize::Small)
                     ->color('primary')
                     ->button(),
