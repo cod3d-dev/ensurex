@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\ApplicantCast;
 use App\Casts\ApplicantCollectionCast;
 use App\Enums\DocumentStatus;
+use App\Enums\PolicyInscriptionType;
 use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Enums\RenewalStatus;
@@ -59,6 +60,7 @@ class Policy extends Model
         'state' => UsState::class,
         'quote_policy_types' => 'array',
         'completed_pages' => 'array',
+        'policy_inscription_type' => PolicyInscriptionType::class,
     ];
 
     protected function casts(): array
@@ -86,6 +88,7 @@ class Policy extends Model
                 // Get the policy type prefix
                 $typePrefix = match ($policy->policy_type?->value) {
                     'health' => 'H',
+                    'accident' => 'A',
                     'vision' => 'V',
                     'dental' => 'D',
                     'life' => 'L',

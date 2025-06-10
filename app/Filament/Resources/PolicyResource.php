@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\DocumentStatus;
+use App\Enums\PolicyInscriptionType;
 use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Enums\RenewalStatus;
@@ -14,9 +15,9 @@ use App\Filament\Resources\PolicyResource\Widgets\PolicyStats;
 use App\Models\Contact;
 use App\Models\Policy;
 use App\Tables\Columns\StatusColumn;
+// use App\Filament\Resources\PolicyResource\RelationManagers\IssuesRelationManager;
 use Filament\Forms;
 use Filament\Forms\Components\Actions;
-// use App\Filament\Resources\PolicyResource\RelationManagers\IssuesRelationManager;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
@@ -91,7 +92,9 @@ class PolicyResource extends Resource
 
     public static function getRecordSubNavigation(Page $page): array
     {
-        return $page->generateNavigationItems([
+        $record = $page->getRecord();
+
+        $pages = [
             //            Pages\ViewPolicy::class,
             Pages\EditPolicy::class,
             Pages\EditPolicyContact::class,
@@ -99,11 +102,17 @@ class PolicyResource extends Resource
             Pages\EditPolicyApplicantsData::class,
             Pages\EditPolicyIncome::class,
             Pages\EditPolicyPayments::class,
-            Pages\EditOtherPolicies::class,
             Pages\ManagePolicyDocument::class,
             Pages\ManagePolicyIssues::class,
+            Pages\EditCompletePolicyCreation::class,
 
-        ]);
+        ];
+
+        // if ($record->areRequiredPagesCompleted() === true) {
+        //     $pages[] = Pages\EditCompletePolicyCreation::class;
+        // }
+
+        return $page->generateNavigationItems($pages);
     }
 
     public static function form(Form $form): Form
@@ -157,6 +166,10 @@ class PolicyResource extends Resource
                             ->extraInputAttributes([
                                 'class' => 'text-center',
                             ]),
+                        Forms\Components\Select::make('policy_inscription_type')
+                            ->options(PolicyInscriptionType::class)
+                            ->label('Tipo de Inscripción')
+                            ->columnSpan(2),
 
                         Forms\Components\Grid::make('')
                             ->schema([
@@ -407,6 +420,16 @@ class PolicyResource extends Resource
                                 '.$medicaidBadge.'
                             </div>';
                         }
+
+                        // Add horizontal line
+                        $customers .= '<div style="border-top: 1px solid #e5e7eb; margin-top: 8px; margin-bottom: 6px;"></div>';
+
+                        // Add enrollment type
+                        $enrollmentType = $record->policy_inscription_type->getLabel() ?? 'N/A';
+                        $customers .= '<div style="display: flex; align-items: center;">
+                            <span style="font-size: 0.75rem; color: #374151; font-weight: 500;">Tipo de Inscripción:</span>
+                            <span style="font-size: 0.75rem; color: #6b7280; margin-left: 4px;">'.$enrollmentType.'</span>
+                        </div>';
 
                         return $customers;
                     }),
@@ -892,6 +915,7 @@ class PolicyResource extends Resource
             'edit-applicants-data' => Pages\EditPolicyApplicantsData::route('/{record}/edit/applicants/data'),
             'edit-income' => Pages\EditPolicyIncome::route('/{record}/edit/income'),
             'edit-others' => Pages\EditOtherPolicies::route('/{record}/edit/others'),
+            'edit-complete' => Pages\EditCompletePolicyCreation::route('/{record}/edit/complete'),
             'documents' => Pages\ManagePolicyDocument::route('/{record}/documents'),
             'issues' => Pages\ManagePolicyIssues::route('/{record}/issues'),
             'payments' => Pages\EditPolicyPayments::route('/{record}/payments'),

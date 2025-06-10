@@ -11,8 +11,10 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
-class EditOtherPolicies extends EditRecord
+class EditCompletePolicyCreation extends EditRecord
 {
     protected static string $resource = PolicyResource::class;
 
@@ -28,9 +30,19 @@ class EditOtherPolicies extends EditRecord
             // Get incomplete pages
             $incompletePages = $this->record->getIncompletePages();
 
-            // Create readable page names for the notification
-            $readablePageNames = array_map(function ($pageName) {
-                return ucwords(str_replace('_', ' ', str_replace('edit_policy_', '', $pageName)));
+            // Define custom page names for each page
+            $pageNameMapping = [
+                'edit_policy' => 'Póliza',
+                'edit_policy_contact' => 'Titular',
+                'edit_policy_applicants' => 'Miembros',
+                'edit_policy_applicants_data' => 'Datos',
+                'edit_policy_income' => 'Ingresos',
+                'edit_policy_payments' => 'Pago',
+            ];
+
+            // Map incomplete pages to their custom names
+            $readablePageNames = array_map(function ($pageName) use ($pageNameMapping) {
+                return $pageNameMapping[$pageName] ?? ucwords(str_replace('_', ' ', $pageName));
             }, $incompletePages);
 
             // Stop the save operation and display a notification
@@ -50,14 +62,14 @@ class EditOtherPolicies extends EditRecord
 
     }
 
-    protected function getSaveFormAction(): Action
-    {
-        return parent::getSaveFormAction()
-            ->hidden(fn () => ! $this->record->areRequiredPagesCompleted())
-            ->tooltip(fn () => ! $this->record->areRequiredPagesCompleted()
-                ? 'Complete todas las páginas requeridas primero'
-                : 'Guardar cambios');
-    }
+    // protected function getSaveFormAction(): Action
+    // {
+    //     return parent::getSaveFormAction()
+    //         ->hidden(fn () => ! $this->record->areRequiredPagesCompleted())
+    //         ->tooltip(fn () => ! $this->record->areRequiredPagesCompleted()
+    //             ? 'Complete todas las páginas requeridas primero'
+    //             : 'Guardar cambios');
+    // }
 
     public function form(Form $form): Form
     {
@@ -73,6 +85,148 @@ class EditOtherPolicies extends EditRecord
                             ->live()
                             ->disabled(fn ($record) => $record->status !== PolicyStatus::Draft)
                             ->columns(8),
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('Crear Polizas')
+                                ->color('success')
+                                ->action(function ($record) {
+                                    // Check if all required pages have been completed
+                                    if (!$record->areRequiredPagesCompleted()) {
+                                        // Get incomplete pages
+                                        $incompletePages = $record->getIncompletePages();
+                                        
+                                        // Define custom page names for each page
+                                        $pageNameMapping = [
+                                            'edit_policy' => 'Póliza',
+                                            'edit_policy_contact' => 'Titular',
+                                            'edit_policy_applicants' => 'Miembros',
+                                            'edit_policy_applicants_data' => 'Datos',
+                                            'edit_policy_income' => 'Ingresos',
+                                            'edit_policy_payments' => 'Pago',
+                                        ];
+                                        
+                                        // Map incomplete pages to their custom names
+                                        $readablePageNames = array_map(function ($pageName) use ($pageNameMapping) {
+                                            return $pageNameMapping[$pageName] ?? ucwords(str_replace('_', ' ', $pageName));
+                                        }, $incompletePages);
+                                        
+                                        // Show notification with incomplete pages
+                                        Notification::make()
+                                            ->warning()
+                                            ->title('Información de póliza incompleta')
+                                            ->body('Por favor, complete las siguientes secciones antes de continuar: '.implode(', ', $readablePageNames))
+                                            ->persistent()
+                                            ->send();
+                                            
+                                        return;
+                                    }
+                                    
+                                    // Begin transaction for bulk operations
+                                    \DB::beginTransaction();
+                                    
+                                    try {
+                                        // 1. First, update the existing policy to 'Created' status
+                                        $currentPolicy = $record;
+                                        $currentPolicy->status = \App\Enums\PolicyStatus::Created;
+                                        $currentPolicy->save();
+                                        
+                                        // 2. Get the policy types selected for creation
+                                        $selectedPolicyTypes = $currentPolicy->quote_policy_types ?? [];
+                                        
+                                        // Check if there are policy types selected
+                                        if (empty($selectedPolicyTypes)) {
+                                            throw new \Exception('No se han seleccionado tipos de póliza para crear.');
+                                        }
+                                        
+                                        $createdPolicies = 1; // Count the current policy that was updated
+                                        
+                                        // 3. Create new policies for each selected type (except the current one)
+                                        foreach ($selectedPolicyTypes as $policyTypeValue) {
+                                            // Skip if this is the current policy's type
+                                            $policyType = \App\Enums\PolicyType::from($policyTypeValue);
+                                            if ($policyType === $currentPolicy->policy_type) {
+                                                continue;
+                                            }
+                                            
+                                            // Create a new policy with the same data but different type
+                                            $newPolicy = $currentPolicy->replicate(['id']);
+                                            $newPolicy->policy_type = $policyType;
+                                            $newPolicy->status = \App\Enums\PolicyStatus::Created;
+                                            $newPolicy->policy_number = null; // Generate a new policy number if needed
+                                            
+                                            // We don't need to set the code manually
+                                            // The Policy model's boot() method will automatically generate a unique code
+                                            // based on the policy type and existing sequence numbers
+                                            $newPolicy->code = null; // Force the model to generate a new code
+                                            $newPolicy->save();
+                                            
+                                            // Copy related data systematically
+                                            
+                                            // 1. Copy policy applicants
+                                            foreach ($currentPolicy->policyApplicants as $applicant) {
+                                                $newApplicant = $applicant->replicate(['id']);
+                                                $newApplicant->policy_id = $newPolicy->id;
+                                                $newApplicant->save();
+                                            }
+                                            
+                                            // 2. Copy contact information if it exists separately from the main contact
+                                            if (method_exists($currentPolicy, 'policyContacts') && $currentPolicy->policyContacts()->exists()) {
+                                                foreach ($currentPolicy->policyContacts as $contact) {
+                                                    $newContact = $contact->replicate(['id']);
+                                                    $newContact->policy_id = $newPolicy->id;
+                                                    $newContact->save();
+                                                }
+                                            }
+                                            
+                                            // 3. Copy policy documents (if appropriate)
+                                            // Only copy documents that should be shared across all policy types
+                                            if (method_exists($currentPolicy, 'documents') && $currentPolicy->documents()->exists()) {
+                                                foreach ($currentPolicy->documents as $document) {
+                                                    // You may want to selectively copy documents
+                                                    // For example, only copy documents that are marked as "shared"
+                                                    $newDocument = $document->replicate(['id']);
+                                                    $newDocument->policy_id = $newPolicy->id;
+                                                    $newDocument->save();
+                                                }
+                                            }
+                                            
+                                            $createdPolicies++;
+                                        }
+                                        
+                                        // Commit the transaction
+                                        \DB::commit();
+                                        
+                                        // Show success notification
+                                        Notification::make()
+                                            ->success()
+                                            ->title('Pólizas creadas')
+                                            ->body("Se han creado {$createdPolicies} póliza(s) exitosamente")
+                                            ->send();
+                                        
+                                        // Redirect to policies list after successful creation
+                                        $this->redirect(PolicyResource::getUrl('index'));
+                                            
+                                    } catch (\Exception $e) {
+                                        // Roll back in case of error
+                                        DB::rollBack();
+                                        
+                                        // Log the error for debugging
+                                        Log::error('Error creating policies: ' . $e->getMessage(), [
+                                            'exception' => $e,
+                                            'policy_id' => $record->id,
+                                            'selected_types' => $record->quote_policy_types ?? [],
+                                        ]);
+                                        
+                                        // Show error notification
+                                        Notification::make()
+                                            ->danger()
+                                            ->title('Error al crear pólizas')
+                                            ->body('Ha ocurrido un error: ' . $e->getMessage())
+                                            ->persistent()
+                                            ->send();
+                                    }
+                                }),
+                        ])->columnStart(1)
+                            ->alignment('left'),
                     ]),
 
                 Forms\Components\Section::make('Poliza de Vida')

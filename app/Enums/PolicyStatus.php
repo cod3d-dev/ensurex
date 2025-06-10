@@ -1,30 +1,28 @@
 <?php
 
-
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
 
-
-
-
-enum PolicyStatus: string implements HasLabel, HasColor
+enum PolicyStatus: string implements HasColor, HasLabel
 {
     case ToVerify = 'to_verify';
     case Draft = 'draft';
+
+    case Created = 'created';
     case Pending = 'pending';
     case Rejected = 'rejected';
     case Active = 'active';
     case Inactive = 'inactive';
     case Cancelled = 'cancelled';
 
-
     public function getLabel(): string
     {
         return match ($this) {
             self::ToVerify => 'Por Verificar',
             self::Draft => 'Borrador',
+            self::Created => 'Creada',
             self::Pending => 'En Proceso',
             self::Rejected => 'Rechazada',
             self::Active => 'Activa',
@@ -39,6 +37,7 @@ enum PolicyStatus: string implements HasLabel, HasColor
         return match ($this) {
             self::ToVerify => 'danger',
             self::Draft => 'info',
+            self::Created => 'success',
             self::Pending => 'warning',
             self::Rejected => 'danger',
             self::Active => 'success',

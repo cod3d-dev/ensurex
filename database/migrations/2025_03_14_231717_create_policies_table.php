@@ -32,6 +32,7 @@ return new class extends Migration
             $table->string('insurance_company_policy_number')->nullable(); // Policy number in insurance company system
             $table->string('policy_plan')->nullable();
             $table->string('policy_level')->nullable();
+            $table->string('policy_inscription_type')->nullable(); // Enum PolicyInscriptionType
             $table->decimal('policy_total_cost', 10, 2)->nullable();
             $table->decimal('policy_total_subsidy', 10, 2)->nullable();
             $table->decimal('premium_amount', 10, 2)->nullable();
@@ -115,7 +116,7 @@ return new class extends Migration
 
             // Page Completion Tracking
             $table->json('completed_pages')->nullable()->comment('Tracks which policy edit pages have been completed');
-            
+
             // Audit Information
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->foreignId('updated_by')->nullable()->constrained('users');
