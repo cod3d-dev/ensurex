@@ -12,6 +12,14 @@ use Illuminate\Database\Eloquent\Builder;
 class ListQuotes extends ListRecords
 {
     protected static string $resource = QuoteResource::class;
+    
+    public function mount(): void
+    {
+        parent::mount();
+        
+        // Store the current URL in the session for redirecting back after edit
+        session()->put('filament.resources.quotes.list-page-url', url()->current() . '?' . http_build_query(request()->query()));
+    }
 
     protected function getHeaderActions(): array
     {
@@ -29,19 +37,19 @@ class ListQuotes extends ListRecords
     {
         // pending', 'active', 'inactive', 'cancelled', 'expired'
         return [
-            'pending' => Tab::make('Pendiente')
-                ->query(fn ($query) => $query->where('status', 'pending'))
-                ->badge(fn () => static::getModel()::where('status', 'pending')->count()),
-            'sent' => Tab::make('Enviada')
+            'pending' => Tab::make('Pendientes')
+                ->query(fn ($query) => $query->whereIn('status', ['pending']))
+                ->badge(fn () => static::getModel()::whereIn('status', ['pending'])->count()),
+            'sent' => Tab::make('Enviadas')
                 ->query(fn ($query) => $query->where('status', 'sent'))
                 ->badge(fn () => static::getModel()::where('status', 'sent')->count()),
-            'accepted' => Tab::make('Aceptada')
+            'accepted' => Tab::make('Aceptadas')
                 ->query(fn ($query) => $query->where('status', 'accepted'))
                 ->badge(fn () => static::getModel()::where('status', 'accepted')->count()),
-            'converted' => Tab::make('Convertida')
+            'converted' => Tab::make('Convertidas')
                 ->query(fn ($query) => $query->where('status', 'converted'))
                 ->badge(fn () => static::getModel()::where('status', 'converted')->count()),
-            'rejected' => Tab::make('Rechazada')
+            'rejected' => Tab::make('Rechazadas')
                 ->query(fn ($query) => $query->where('status', 'rejected'))
                 ->badge(fn () => static::getModel()::where('status', 'rejected')->count()),
             'all' => Tab::make('Todas')

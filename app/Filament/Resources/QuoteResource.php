@@ -637,7 +637,7 @@ class QuoteResource extends Resource
                                                 $get
                                             )),
                                         Forms\Components\TextInput::make('hours_per_week')
-                                            ->numeric()
+                                            ->integer()
                                             ->label('H/S')
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(fn (
@@ -666,7 +666,7 @@ class QuoteResource extends Resource
                                                 $get
                                             )),
                                         Forms\Components\TextInput::make('extra_hours_per_week')
-                                            ->numeric()
+                                            ->integer()
                                             ->label('H/E S')
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(fn (
@@ -680,7 +680,7 @@ class QuoteResource extends Resource
                                                 $get
                                             )),
                                         Forms\Components\TextInput::make('weeks_per_year')
-                                            ->numeric()
+                                            ->integer()
                                             ->label('S/Año')
                                             ->live(onBlur: true)
                                             ->afterStateUpdated(fn (
@@ -891,7 +891,8 @@ class QuoteResource extends Resource
                                             $userName = $user ? $user->name : 'Unknown User';
                                             $dateTime = Carbon::now()->format('Y-m-d H:i:s');
                                             $formattedNote = "[{$dateTime}] {$userName}:\n{$data['note']}";
-                                            $set('notes', $state['notes']."\n\n".$formattedNote);
+                                            $separator = ! empty(trim($state['notes'] ?? '')) ? "\n\n" : '';
+                                            $set('notes', $state['notes'].$separator.$formattedNote);
                                         }),
                                 ])->alignment(Alignment::Right),
 
@@ -997,9 +998,8 @@ class QuoteResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
-                    ->sortable(['first_name', 'last_name'])
-                    ->searchable(['first_name', 'last_name', 'middle_name', 'second_last_name'])
-                    ->description(fn ($record) => 'Applicantes: '.$record->total_applicants),
+                    ->sortable()
+                    ->searchable(),
                 PoliciesColumn::make('policy_types')
                     ->label('Tipo')
                     ->sortable(),
@@ -1046,12 +1046,12 @@ class QuoteResource extends Resource
                 Tables\Filters\SelectFilter::make('state_province')
                     ->label('Estado')
                     ->options(UsState::class),
-                Tables\Filters\SelectFilter::make('status')
-                    ->multiple()
-                    ->label('Estatus')
-                    ->columnSpan(2)
-                    ->options(QuoteStatus::class)
-                    ->default([QuoteStatus::Pending->value, QuoteStatus::Accepted->value, QuoteStatus::Sent->value]),
+                // Tables\Filters\SelectFilter::make('status')
+                //     ->multiple()
+                //     ->label('Estatus')
+                //     ->columnSpan(2)
+                //     ->options(QuoteStatus::class)
+                //     ->default([QuoteStatus::Pending->value, QuoteStatus::Accepted->value, QuoteStatus::Sent->value]),
                 Tables\Filters\SelectFilter::make('created_week')
                     ->label('Semana de Creación')
                     ->options(function () {
