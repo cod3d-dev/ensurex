@@ -11,6 +11,7 @@ use App\Filament\Resources\QuoteResource;
 use App\Models\Policy;
 use Filament\Actions;
 use Filament\Forms;
+use Filament\Notifications\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -234,7 +235,8 @@ class EditQuote extends EditRecord
                 $contact = \App\Models\Contact::find($record->contact_id);
                 if ($contact) {
                     try {
-                        $contact->update([
+                        // Create update data array
+                        $updateData = [
                             'full_name' => $data['contact']['full_name'] ?? $contact->full_name,
                             'date_of_birth' => $data['contact']['date_of_birth'] ?? $contact->date_of_birth,
                             'gender' => $data['contact']['gender'] ?? $contact->gender,
@@ -247,12 +249,30 @@ class EditQuote extends EditRecord
                             'state_province' => $data['contact']['state_province'] ?? $contact->state_province,
                             'kommo_id' => $data['contact']['kommo_id'] ?? $contact->kommo_id,
                             'updated_by' => auth()->user()->id,
-                        ]);
-                        \Filament\Notifications\Notification::make()
-                            ->title('Contacto actualizado')
-                            ->success()
-                            ->send();
-                        \Log::info('Contact updated successfully');
+                        ];
+                        
+                        // Check if any fields were actually changed
+                        $hasChanges = false;
+                        foreach ($updateData as $field => $value) {
+                            if ($field !== 'updated_by' && $contact->$field != $value) {
+                                $hasChanges = true;
+                                break;
+                            }
+                        }
+                        
+                        // Update the contact
+                        $contact->update($updateData);
+                        
+                        // Only show notification if changes were made
+                        if ($hasChanges) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Contacto actualizado')
+                                ->success()
+                                ->send();
+                            \Log::info('Contact updated successfully with changes');
+                        } else {
+                            \Log::info('Contact update called but no changes were made');
+                        }
                     } catch (\Exception $e) {
                         \Filament\Notifications\Notification::make()
                             ->title('Error al actualizar contacto')
@@ -304,4 +324,6 @@ class EditQuote extends EditRecord
     {
         return $this->previousUrl ?? $this->getResource()::getUrl('index');
     }
+
+    // TODO: Implement custom action for income threshold confirmation in the future
 }
