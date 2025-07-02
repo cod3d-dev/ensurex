@@ -2,7 +2,14 @@
 
 namespace App\Filament\Resources\QuoteResource\Pages;
 
+use App\Enums\DocumentStatus;
+use App\Enums\PolicyStatus;
+use App\Enums\PolicyType;
+use App\Enums\QuoteStatus;
+use App\Filament\Resources\PolicyResource;
 use App\Filament\Resources\QuoteResource;
+use App\Models\Policy;
+use App\Models\Quote;
 use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
@@ -21,18 +28,11 @@ class ViewQuote extends ViewRecord
                 ->label('Crear Poliza')
                 ->icon('heroicon-o-document-duplicate')
                 ->color('success')
-                // ->form([
-                //     Forms\Components\Select::make('policy_type')
-                //         ->label('Tipo de Poliza')
-                //         ->options(PolicyType::class)
-                //         ->required()
-                //         ->preload(),
-                // ])
                 ->requiresConfirmation()
                 ->modalHeading('Crear Poliza')
                 ->modalDescription('Se creara una poliza a partir de esta cotización.')
                 ->modalSubmitActionLabel('Crear y Editar')
-                ->action(function (Model $record, array $data) {
+                ->action(function (Quote $record, array $data) {
                     // Determine the main policy type from the quote's policy_type array
                     $quotePolicyTypesData = $data['policy_type'] ?? []; // Assuming $data['policy_type'] is the array from the quote
 

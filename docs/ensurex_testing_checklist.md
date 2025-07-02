@@ -8,16 +8,19 @@
 -   [x] Test searching and filtering quotes
 -   [x] Test updating quote status
 -   [x] Test adding notes to quotes
--   [ ] **Missing Feature**: Add a "Compact View" button to quotes for Health Sherpa data entry
--   [ ] Bug: Required field error message is in English
+-   [x] **Missing Feature**: Add a "Compact View" button to quotes for Health Sherpa data entry
+-   [x] Bug: Required field error message is in English
+-   [x] Todo: Convert to Policy in View Mode
+-   [x] Bug: Convert to Policy should only appear in View Mode
 -   [x] Bug: Phone field should have verifications
 -   [x] Bug: H/S H/E S S Año should be integers
--   [ ] Bug: Contact updated message should only show if there are changes in the contact data
+-   [x] Bug: Contact updated message should only show if there are changes in the contact data
 -   [x] Bug: Search by contact name not working
 -   [x] Bug: Table filters are distruptive with Estatus Filters. Should have just the types that I need and group by utility.
 -   [x] Bug: When adding a new note, a blank line is first.
+-   [x] Todo: View Mode in same tab a change status button
+-   [ ] Todo: Button to change quote status with a note like in policies
 -   [ ] Todo: Message should show if Income is lower to what is required by Kynect
--   [ ] Todo: Compact view with a change status button
 
 ## 2. Quote-to-Policy Conversion Testing
 

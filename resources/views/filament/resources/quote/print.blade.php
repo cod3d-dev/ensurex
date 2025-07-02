@@ -1,6 +1,11 @@
 @php use App\Enums\FamilyRelationship; @endphp
 <x-filament-panels::page>
 
+<x-filament::breadcrumbs :breadcrumbs="[
+    '/quotes' => 'Cotizaciones',
+    '/quotes/' . $record->id => 'Cotización',
+]" />
+
     <div class="grid grid-cols-4 gap-4">
         <div class="col-span-4">
             <x-filament::section>

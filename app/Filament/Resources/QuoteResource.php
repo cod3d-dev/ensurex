@@ -912,15 +912,11 @@ class QuoteResource extends Resource
                                                 Forms\Get $get
                                             ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact.kommo_id'))
                                             ->openUrlInNewTab(),
-                                        Action::make('Vista Compacta')
-                                            // ->action(function (Model $record): void {
-                                            //     dd($record);
-                                            // })
+                                        Action::make('Ver')
                                             ->icon('heroicon-m-document-magnifying-glass')
                                             ->color('info')
                                             ->visible(fn (string $operation): bool => $operation === 'view')
-                                            ->url(fn (Forms\Get $get): ?string => route('filament.admin.resources.quotes.print', ['record' => $get('id')]))
-                                            ->openUrlInNewTab(),
+                                            ->url(fn (Forms\Get $get): ?string => route('filament.admin.resources.quotes.print', ['record' => $get('id')])),
                                     ])->alignment(Alignment::Right),
                                 ]),
                             ]),

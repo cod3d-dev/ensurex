@@ -7,15 +7,12 @@ use App\Enums\ImmigrationStatus;
 use App\Enums\MaritialStatus;
 use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
-use App\Models\PolicyApplicant;
-use Filament\Actions;
+use App\Models\Contact;
+use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
-use Filament\Resources\Pages\EditRecord;
-use Filament\Forms;
-use App\Models\Contact;
-use Illuminate\Support\Carbon;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditPolicyContact extends EditRecord
 {
@@ -25,17 +22,14 @@ class EditPolicyContact extends EditRecord
 
     protected static ?string $navigationIcon = 'eos-perm-contact-calendar-o';
 
-
-
     public function form(Form $form): Form
     {
         return $form
             ->schema([
 
-
                 Forms\Components\Section::make('Datos del Titular')
                     ->schema([
-                        Forms\Components\Select::make('contact_id')
+                        Forms\Components\Select::make('policyApplicants.contact_id')
                             ->label('Cliente')
                             ->relationship('contact', 'full_name')
                             ->searchable()
@@ -54,21 +48,21 @@ class EditPolicyContact extends EditRecord
                             ->createOptionUsing(function (array $data) {
                                 // Create the new contact
                                 $contact = Contact::create($data);
-                                
+
                                 // Update the policy with the new contact
                                 $policy = $this->record;
                                 $policy->update(['contact_id' => $contact->id]);
-                                
+
                                 // Update the policy applicant with relationship 'self'
                                 $selfApplicant = $policy->policyApplicants()
                                     ->where('relationship_with_policy_owner', 'self')
                                     ->first();
-                                
+
                                 if ($selfApplicant) {
                                     // Update the existing 'self' applicant with the new contact_id
                                     $selfApplicant->update([
-                                        'contact_id' => $contact->id, 
-                                        'is_covered_by_policy' => $policy->contact_is_applicant
+                                        'contact_id' => $contact->id,
+                                        'is_covered_by_policy' => $policy->contact_is_applicant,
                                     ]);
                                 } else {
                                     // Create a new 'self' applicant if none exists
@@ -78,17 +72,18 @@ class EditPolicyContact extends EditRecord
                                         'is_covered_by_policy' => $policy->contact_is_applicant,
                                     ]);
                                 }
-                                
+
                                 // Show a success notification
                                 Notification::make()
                                     ->title('Contacto creado')
                                     ->body('El nuevo contacto ha sido creado y asignado a la póliza.')
                                     ->success()
                                     ->send();
-                                
+
                                 // Return the contact ID without redirecting
                                 // The Filament form will handle the update automatically
                                 $this->fillForm();
+
                                 return $contact->id;
                             })
                             ->suffixAction(
@@ -99,15 +94,15 @@ class EditPolicyContact extends EditRecord
                                         // Get the current policy record
                                         $policy = $this->record;
                                         $newContactId = $data['new_contact_id'];
-                                        
+
                                         // Update the contact_id directly in the database
                                         $policy->update(['contact_id' => $newContactId]);
-                                        
+
                                         // Update the policy applicant with relationship 'self'
                                         $selfApplicant = $policy->policyApplicants()
                                             ->where('relationship_with_policy_owner', 'self')
                                             ->first();
-                                        
+
                                         if ($selfApplicant) {
                                             // Update the existing 'self' applicant with the new contact_id
                                             $selfApplicant->update(['contact_id' => $newContactId, 'is_covered_by_policy' => $policy->contact_is_applicant]);
@@ -119,14 +114,14 @@ class EditPolicyContact extends EditRecord
                                                 'is_covered_by_policy' => $policy->contact_is_applicant,
                                             ]);
                                         }
-                                        
+
                                         // Show a success notification
                                         Notification::make()
                                             ->title('Contacto actualizado')
                                             ->body('El contacto ha sido actualizado y se ha actualizado el aplicante principal.')
                                             ->success()
                                             ->send();
-                                        
+
                                         // Refresh the form data
                                         $this->fillForm();
                                     })
@@ -272,7 +267,6 @@ class EditPolicyContact extends EditRecord
                         //                 ->label('Vencimiento'),
                         //         ])->columns(3),
 
-
                     ])
                     ->columns(5),
             ]);
@@ -282,16 +276,16 @@ class EditPolicyContact extends EditRecord
     // protected function afterSave(): void
     // {
     //     $policy = $this->record;
-        
+
     //     // Check if the contact_id has changed
     //     if ($policy->contact_is_applicant) {
     //         $contactId = $policy->contact_id;
-            
+
     //         // Find the existing 'self' applicant
     //         $selfApplicant = $policy->policyApplicants()
     //             ->where('relationship_with_policy_owner', 'self')
     //             ->first();
-            
+
     //         if ($selfApplicant) {
     //             // Update the existing 'self' applicant with the new contact_id
     //             $selfApplicant->update(['is_covered_by_policy' => true]);
@@ -302,25 +296,25 @@ class EditPolicyContact extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Handle the add_as_applicant toggle
-            $policy = $this->record;
-            $contact = $policy->contact;
+        $policy = $this->record;
+        $contact = $policy->contact;
 
-            // Add the contact as an applicant if not already added
-            $existingApplicant = $policy->policyApplicants()
-                ->where('contact_id', $contact->id)
-                ->where('relationship_with_policy_owner', 'self')
-                ->first();
+        // Add the contact as an applicant if not already added
+        $existingApplicant = $policy->policyApplicants()
+            ->where('contact_id', $contact->id)
+            ->where('relationship_with_policy_owner', 'self')
+            ->first();
 
-            if (!$existingApplicant) {
-                $policy->policyApplicants()->create([
-                    'contact_id' => $contact->id,
-                    'relationship_with_policy_owner' => 'self',
-                    'sort_order' => 0,
-                    'is_covered_by_policy' => $data['contact_is_applicant']
-                ]);
-            } else {
-                $existingApplicant->update(['is_covered_by_policy' => $data['contact_is_applicant']]);
-            }
+        if (! $existingApplicant) {
+            $policy->policyApplicants()->create([
+                'contact_id' => $contact->id,
+                'relationship_with_policy_owner' => 'self',
+                'sort_order' => 0,
+                'is_covered_by_policy' => $data['contact_is_applicant'],
+            ]);
+        } else {
+            $existingApplicant->update(['is_covered_by_policy' => $data['contact_is_applicant']]);
+        }
 
         // Remove the field from the data as it's not a database field
 
@@ -333,15 +327,15 @@ class EditPolicyContact extends EditRecord
         $this->record->markPageCompleted('edit_policy_contact');
     }
 
-//     protected function mutateFormDataBeforeSave(array $data): array
-//     {
-//         dd($data);
-//         if(isset($data['has_existing_kynect_case'])) {
-//             $policy = $this->record;
-//             $policy->has_kinect_case  = $data['has_existing_kynect_case'];
-//             $policy->save();
-//         }
-//         unset($data['has_existing_kynect_case']);
-//         return $data;
-//     }
+    //     protected function mutateFormDataBeforeSave(array $data): array
+    //     {
+    //         dd($data);
+    //         if(isset($data['has_existing_kynect_case'])) {
+    //             $policy = $this->record;
+    //             $policy->has_kinect_case  = $data['has_existing_kynect_case'];
+    //             $policy->save();
+    //         }
+    //         unset($data['has_existing_kynect_case']);
+    //         return $data;
+    //     }
 }

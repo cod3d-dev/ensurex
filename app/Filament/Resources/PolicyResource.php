@@ -122,14 +122,17 @@ class PolicyResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('policy_type')
                             ->options(PolicyType::class)
+                            ->required()
                             ->columnSpan(2)
                             ->label('Tipo'),
                         Forms\Components\Select::make('agent_id')
                             ->relationship('agent', 'name')
+                            ->required()
                             ->label('Cuenta')
                             ->columnSpan(2),
                         Forms\Components\Select::make('user_id')
                             ->relationship('user', 'name')
+                            ->required()
                             ->label('Asistente')
                             // Disable is not admin or supervisor the policy doesn't belong to the user
                             ->disabled(fn (Get $get): bool => ! auth()->user()->role->isAdmin() && ! auth()->user()->role->isSupervisor() && $get('user_id') != auth()->user()->id)
@@ -141,11 +144,13 @@ class PolicyResource extends Resource
 
                         Forms\Components\Select::make('insurance_company_id')
                             ->relationship('insuranceCompany', 'name')
+                            ->required()
                             ->preload()
                             ->label('Aseguradora')
                             ->searchable()
                             ->columnSpan(2),
                         Forms\Components\Select::make('policy_year')
+                            ->required()
                             ->label('Año')
                             ->options(function () {
                                 $startYear = 2018;
@@ -160,12 +165,14 @@ class PolicyResource extends Resource
                             })
                             ->default(Carbon::now()->year),
                         Forms\Components\DatePicker::make('effective_date')
+                            ->required()
                             ->label('Inicio')
                             ->columnSpan(2)
                             ->extraInputAttributes([
                                 'class' => 'text-center',
                             ]),
                         Forms\Components\Select::make('policy_inscription_type')
+                            ->required()
                             ->options(PolicyInscriptionType::class)
                             ->label('Tipo de Inscripción')
                             ->columnSpan(2),
@@ -173,6 +180,7 @@ class PolicyResource extends Resource
                         Forms\Components\Grid::make('')
                             ->schema([
                                 Forms\Components\TextInput::make('policy_plan')
+                                    ->required()
                                     ->label('Plan')
                                     ->columnSpan(5),
                                 Forms\Components\TextInput::make('policy_total_cost')
@@ -196,17 +204,21 @@ class PolicyResource extends Resource
                                     ->columnSpan(3),
                                 Forms\Components\TextInput::make('policy_zipcode')
                                     ->label('Código Postal')
+                                    ->required()
                                     ->columnSpan(1),
                                 Forms\Components\TextInput::make('policy_city')
                                     ->label('Ciudad')
+                                    ->required()
                                     ->columnSpan(1),
                                 Forms\Components\TextInput::make('policy_us_county')
                                     ->label('Condado')
+                                    ->required()
                                     ->columnSpan(1),
                                 Forms\Components\Select::make('policy_us_state')
                                     ->label('Estado')
                                     ->live()
                                     ->options(UsState::class)
+                                    ->required()
                                     ->columnSpan(2),
                                 Forms\Components\TextInput::make('kynect_case_number')
                                     ->label('Caso Kynect')
@@ -217,18 +229,21 @@ class PolicyResource extends Resource
                                     ->label('Pedir Caso Kynect'),
                                 Forms\Components\TextInput::make('total_family_members')
                                     ->label('Familiares')
+                                    ->required()
                                     ->extraInputAttributes([
                                         'class' => 'text-center',
                                     ])
                                     ->columnSpan(1),
                                 Forms\Components\TextInput::make('total_applicants')
                                     ->label('Aplicantes')
+                                    ->required()
                                     ->extraInputAttributes([
                                         'class' => 'text-center',
                                     ])
                                     ->columnSpan(1),
                                 Forms\Components\TextInput::make('total_applicants_with_medicaid')
                                     ->label('Medicaid')
+                                    ->required()
                                     ->extraInputAttributes([
                                         'class' => 'text-center',
                                     ])
@@ -259,17 +274,22 @@ class PolicyResource extends Resource
                                     ->options(DocumentStatus::class),
                                 Forms\Components\Toggle::make('client_notified')
                                     ->inline(false)
+                                    ->disabled(fn (Forms\Get $get): string => $get('status') != PolicyStatus::Draft)
                                     ->label('Notificado'),
                                 Forms\Components\Toggle::make('autopay')
                                     ->inline(false)
+                                    ->disabled(fn (Forms\Get $get): string => $get('status') != PolicyStatus::Draft)
                                     ->label('Cotizacion'),
                                 Forms\Components\Toggle::make('initial_paid')
                                     ->inline(false)
+                                    ->disabled(fn (Forms\Get $get): string => $get('status') != PolicyStatus::Draft)
                                     ->label('Pagada'),
                                 Forms\Components\Toggle::make('aca')
                                     ->inline(false)
                                     ->label('ACA')
-                                    ->disabled(fn (Forms\Get $get): bool => $get('policy_us_state') != UsState::KENTUCKY->value),
+                                    ->disabled(fn (Forms\Get $get): bool => $get('status') != PolicyStatus::Draft ||
+                                        $get('policy_us_state') != UsState::KENTUCKY->value
+                                    ),
                                 Forms\Components\Toggle::make('is_initial_verification_complete')
                                     ->inline(false)
                                     ->disabled()
