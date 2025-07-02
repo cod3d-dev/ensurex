@@ -35,7 +35,17 @@
                         </div>
                         <div class="col-span-1">
                             <p class="text-sm font-medium text-gray-500">Tipo</p>
-                            <p class="mt-1">{{ $record->policy_type->getLabel() }}</p>
+                            <p class="mt-1">
+    @if(is_array($record->policy_types) && count($record->policy_types) > 0)
+        @foreach($record->policy_types as $policy_type)
+            {{ \App\Enums\PolicyType::from($policy_type)->getLabel() }}@if(!$loop->last), @endif
+        @endforeach
+    @elseif($record->policy_types)
+        {{ \App\Enums\PolicyType::from($record->policy_types)->getLabel() }}
+    @else
+        N/A
+    @endif
+</p>
                         </div>
                         <div class="col-span-1">
                             <p class="text-sm font-medium">Estado</p>
@@ -82,15 +92,15 @@
                         </div>
                         <div class="col-span-1">
                             <p class="text-sm font-medium text-gray-500">Código Postal</p>
-                            <p class="mt-1">{{ $record->contact_information['zip_code'] }}</p>
+                            <p class="mt-1">{{ $record->contact->zip_code }}</p>
                         </div>
                         <div class="col-span-1">
                             <p class="text-sm font-medium text-gray-500">Condado</p>
-                            <p class="mt-1">{{ $record->contact_information['county'] }}</p>
+                            <p class="mt-1">{{ $record->contact->county }}</p>
                         </div>
                         <div class="col-span-1">
                             <p class="text-sm font-medium text-gray-500">Estado</p>
-                            <p class="mt-1">{{ \App\Enums\UsState::tryFrom($record->contact_information['state'])?->getLabel() ?? $record->contact_information['state'] }}</p>
+                            <p class="mt-1">{{ $record->contact->state_province->getLabel() }}</p>
                         </div>
                     </div>
                 </x-filament::section>
@@ -105,9 +115,7 @@
 
                     @php
                         // Get all applicants from the applicants collection
-                        $main_applicant = $record->main_applicant;
-                        $additional_applicants = $record->additional_applicants;
-                        $applicants = collect([$main_applicant, ...$additional_applicants]);
+                        $applicants = collect($record->applicants ?? []);
                     @endphp
 
                     @if($applicants->isNotEmpty())
@@ -126,12 +134,12 @@
                                 <tbody class="bg-white divide-y divide-gray-200">
                                 @foreach($applicants as $applicant)
                                     <tr>
-                                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $applicant->relationship }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->age ?? 'N/A' }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->gender === 'male' ? 'Masculino' : 'Femenino' }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->is_tobacco_user ? 'Sí' : 'No' }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->is_pregnant ? 'Sí' : 'No' }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->is_eligible_for_coverage ? 'Sí' : 'No' }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ \App\Enums\FamilyRelationship::from($applicant['relationship'])->getLabel() ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['age'] ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ ($applicant['gender'] ?? '') === 'male' ? 'Masculino' : 'Femenino' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ ($applicant['is_tobacco_user'] ?? false) ? 'Sí' : 'No' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ ($applicant['is_pregnant'] ?? false) ? 'Sí' : 'No' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ ($applicant['is_eligible_for_coverage'] ?? false) ? 'Sí' : 'No' }}</td>
                                     </tr>
                                 @endforeach
                                 </tbody>
@@ -149,7 +157,7 @@
                     @php
                         // Filter applicants to only show those with income
                         $applicantsIncome = $applicants->filter(function ($applicant) {
-                            return ($applicant->yearly_income > 0) || ($applicant->self_employed_yearly_income > 0);
+                            return (($applicant['yearly_income'] ?? 0) > 0) || (($applicant['self_employed_yearly_income'] ?? 0) > 0);
                         });
                     @endphp
 
@@ -170,23 +178,23 @@
                                 <tbody class="bg-white divide-y divide-gray-200">
                                 @foreach($applicantsIncome as $applicant)
                                     <tr>
-                                        @if(!$applicant->is_self_employed)
-                                            <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $applicant->relationship }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->income_per_hour ?? 'N/A' }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->hours_per_week }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->income_per_extra_hour }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->extra_hours_per_week }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant->weeks_per_year }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ number_format($applicant->yearly_income, 2) }}</td>
+                                        @if(!($applicant['is_self_employed'] ?? false))
+                                            <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $applicant['relationship']->getLabel() ?? 'N/A' }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['income_per_hour'] ?? 'N/A' }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['hours_per_week'] ?? 'N/A' }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['income_per_extra_hour'] ?? 'N/A' }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['extra_hours_per_week'] ?? 'N/A' }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['weeks_per_year'] ?? 'N/A' }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">{{ number_format($applicant['yearly_income'] ?? 0, 2) }}</td>
                                         @else
                                             @php
-                                                $relation = FamilyRelationship::from($applicant->relationship)->getLabel();
+                                                $relation = isset($applicant['relationship']) ? \App\Enums\FamilyRelationship::from($applicant['relationship'])->getLabel() : 'N/A';
                                             @endphp
 
                                             <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $relation }}</td>
                                             <td class="px-6 py-4 text-sm text-gray-900 text-right pe-10" colSpan="4">Self-Employed</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900 text-right pe-10">{{ $applicant->self_employed_profession ?? 'N/A' }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ number_format($applicant->self_employed_yearly_income, 2) }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900 text-right pe-10">{{ $applicant['self_employed_profession'] ?? 'N/A' }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">{{ number_format($applicant['self_employed_yearly_income'] ?? 0, 2) }}</td>
                                         @endif
                                     </tr>
                                 @endforeach

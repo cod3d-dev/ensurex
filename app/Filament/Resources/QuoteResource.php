@@ -901,14 +901,25 @@ class QuoteResource extends Resource
                                     Actions::make([
                                         Action::make('Health Sherpa')
                                             ->icon('heroicon-m-star')
+                                            ->visible(fn (string $operation): bool => $operation === 'view')
                                             ->url('https://www.healthsherpa.com/shopping?_agent_id=nil&carrier_id=nil&source=agent-home')
                                             ->openUrlInNewTab(),
                                         Action::make('Kommo')
                                             ->icon('heroicon-m-x-mark')
                                             ->color('success')
+                                            ->visible(fn (string $operation): bool => $operation === 'view')
                                             ->url(fn (
                                                 Forms\Get $get
                                             ) => 'https://ghercys.kommo.com/leads/detail/'.$get('contact.kommo_id'))
+                                            ->openUrlInNewTab(),
+                                        Action::make('Vista Compacta')
+                                            // ->action(function (Model $record): void {
+                                            //     dd($record);
+                                            // })
+                                            ->icon('heroicon-m-document-magnifying-glass')
+                                            ->color('info')
+                                            ->visible(fn (string $operation): bool => $operation === 'view')
+                                            ->url(fn (Forms\Get $get): ?string => route('filament.admin.resources.quotes.print', ['record' => $get('id')]))
                                             ->openUrlInNewTab(),
                                     ])->alignment(Alignment::Right),
                                 ]),
@@ -1171,6 +1182,7 @@ class QuoteResource extends Resource
                     //                        ->label('Imprimir')
                     //                        ->icon('iconoir-printing-page'),
                     Tables\Actions\EditAction::make(),
+                    Tables\Actions\ViewAction::make(),
                     ConvertToPolicy::make('convert_to_policy')
                         ->label('Crear Poliza')
                         ->icon('iconoir-privacy-policy'),

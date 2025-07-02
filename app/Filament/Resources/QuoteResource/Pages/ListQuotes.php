@@ -12,14 +12,6 @@ use Illuminate\Database\Eloquent\Builder;
 class ListQuotes extends ListRecords
 {
     protected static string $resource = QuoteResource::class;
-    
-    public function mount(): void
-    {
-        parent::mount();
-        
-        // Store the current URL in the session for redirecting back after edit
-        session()->put('filament.resources.quotes.list-page-url', url()->current() . '?' . http_build_query(request()->query()));
-    }
 
     protected function getHeaderActions(): array
     {
