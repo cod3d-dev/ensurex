@@ -2,13 +2,12 @@
 
 namespace App\Filament\Resources\PolicyResource\Pages;
 
+use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Policy;
-use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Database\Eloquent\Model;
 
 class EditPolicyPayments extends EditRecord
 {
@@ -17,14 +16,14 @@ class EditPolicyPayments extends EditRecord
     protected static ?string $navigationLabel = 'Pago';
 
     protected static ?string $navigationIcon = 'iconoir-bank';
-    
+
     protected function afterSave(): void
     {
         // Mark this page as completed
         $this->record->markPageCompleted('edit_policy_payments');
     }
 
-    public  function form(Form $form): Form
+    public function form(Form $form): Form
     {
         return $form
             ->schema([
@@ -34,9 +33,11 @@ class EditPolicyPayments extends EditRecord
                             ->label('Pago Recurrente?')
                             ->default(true)
                             ->required()
+                            ->live()
                             ->inline(false)
                             ->columnStart(2),
                         Forms\Components\DatePicker::make('first_payment_date')
+                            ->required(fn (Forms\Get $get): bool => $get('recurring_payment'))
                             ->label('Fecha del Primer Pago')
                             ->date(),
                         Forms\Components\Select::make('preferred_payment_day')
@@ -67,12 +68,13 @@ class EditPolicyPayments extends EditRecord
                                     ->revealable()
                                     ->mask('9999-9999-9999-9999')
                                     ->maxLength(255)
-                                    ->dehydrateStateUsing(fn($state) => str_replace('-', '', $state))
+                                    ->dehydrateStateUsing(fn ($state) => str_replace('-', '', $state))
                                     ->formatStateUsing(function ($state) {
-                                        if (!$state) {
+                                        if (! $state) {
                                             return '';
                                         }
                                         $number = str_replace('-', '', $state);
+
                                         return implode('-', str_split($number, 4));
                                     }),
                                 Forms\Components\Select::make('payment_card_exp_month')
@@ -123,32 +125,35 @@ class EditPolicyPayments extends EditRecord
                                     }),
                                 Forms\Components\TextInput::make('billing_address_1')
                                     ->label('Direccion 1')
-                                    ->disabled(fn(Forms\Get $get) => $get('copy_home_address'))
+                                    ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
                                     ->dehydrated(true)
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('billing_address_2')
                                     ->label('Direccion 2')
-                                    ->disabled(fn(Forms\Get $get) => $get('copy_home_address'))
+                                    ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
                                     ->dehydrated(true)
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('billing_address_city')
                                     ->label('Ciudad')
-                                    ->disabled(fn(Forms\Get $get) => $get('copy_home_address'))
+                                    ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
                                     ->dehydrated(true)
                                     ->maxLength(255),
-                                Forms\Components\TextInput::make('billing_address_state')
+                                Forms\Components\Select::make('billing_address_state')
                                     ->label('Estado')
-                                    ->disabled(fn(Forms\Get $get) => $get('copy_home_address'))
-                                    ->dehydrated(true)
-                                    ->maxLength(255),
+                                    ->live()
+                                    ->options(UsState::class)
+                                    ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
+                                    ->required()
+                                    ->columnSpan(2)
+                                    ->dehydrated(true),
                                 Forms\Components\TextInput::make('billing_address_zip')
                                     ->label('Código Postal')
-                                    ->disabled(fn(Forms\Get $get) => $get('copy_home_address'))
+                                    ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
                                     ->dehydrated(true)
                                     ->maxLength(255),
                             ])->columns(3),
                     ])
-                    ->columns(4)
+                    ->columns(4),
             ]);
 
     }

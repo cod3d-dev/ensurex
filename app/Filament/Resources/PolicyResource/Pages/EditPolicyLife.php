@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\FamilyRelationship;
-use App\Enums\PolicyType;
 use App\Filament\Resources\PolicyResource;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,7 +12,7 @@ class EditPolicyLife extends EditRecord
 {
     protected static string $resource = PolicyResource::class;
 
-    protected static ?string $navigationLabel = 'Otras Polizas';
+    protected static ?string $navigationLabel = 'Poliza de Vida';
 
     protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';
 
@@ -22,20 +21,7 @@ class EditPolicyLife extends EditRecord
         return $form
             ->schema([
 
-                Forms\Components\Section::make()
-                    ->schema([
-                        Forms\Components\CheckboxList::make('quote_policy_types')
-                            ->label('Polizas a crear')
-                            ->options(PolicyType::class)
-                            ->required()
-                            ->live()
-                            ->columns(8),
-                    ]),
-
                 Forms\Components\Section::make('Poliza de Vida')
-                    ->visible(function (Forms\Get $get) {
-                        return in_array(PolicyType::Life->value, $get('quote_policy_types'));
-                    })
                     ->schema([
                         Forms\Components\Fieldset::make()
                             ->schema([

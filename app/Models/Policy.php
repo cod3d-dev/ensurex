@@ -58,6 +58,7 @@ class Policy extends Model
         'renewal_status' => RenewalStatus::class,
         'policy_type' => PolicyType::class,
         'state' => UsState::class,
+        'billing_address_state' => UsState::class,
         'quote_policy_types' => 'array',
         'completed_pages' => 'array',
         'policy_inscription_type' => PolicyInscriptionType::class,

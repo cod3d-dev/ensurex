@@ -7,15 +7,12 @@ use App\Enums\Gender;
 use App\Enums\ImmigrationStatus;
 use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
-use App\Models\Contact;
-use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Carbon;
-
 
 class EditPolicyApplicantsData extends EditRecord
 {
@@ -41,14 +38,38 @@ class EditPolicyApplicantsData extends EditRecord
 
         return $data;
     }
-    
+
     protected function afterSave(): void
     {
+
+        // Get the policy model
+        $policy = $this->record;
+
+        // Count the total family members (all applicants in the pivot table)
+        $totalFamilyMembers = $policy->policyApplicants()->count();
+
+        // Count applicants where is_covered_by_policy is true
+        $totalCoveredApplicants = $policy->policyApplicants()
+            ->where('is_covered_by_policy', true)
+            ->count();
+
+        // Count applicants where medicaid_client is true
+        $totalMedicaidApplicants = $policy->policyApplicants()
+            ->where('medicaid_client', true)
+            ->count();
+
+        // Update the policy with the new counts
+        $policy->update([
+            'total_family_members' => $totalFamilyMembers,
+            'total_applicants' => $totalCoveredApplicants,
+            'total_applicants_with_medicaid' => $totalMedicaidApplicants,
+        ]);
+
         // Mark this page as completed
         $this->record->markPageCompleted('edit_policy_applicants_data');
     }
 
-    public  function form(Form $form): Form
+    public function form(Form $form): Form
     {
         return $form
             ->schema([
@@ -80,11 +101,23 @@ class EditPolicyApplicantsData extends EditRecord
                                                     ->required(),
                                                 Forms\Components\Toggle::make('is_covered_by_policy')
                                                     ->inline(false)
+                                                    ->live()
+                                                    ->afterStateUpdated(function (Set $set, Get $get, ?bool $state): void {
+                                                        if ($state) {
+                                                            $set('medicaid_client', false);
+                                                        }
+                                                    })
                                                     ->columnSpan(1)
                                                     ->label('¿Aplicante?')
                                                     ->required(),
                                                 Forms\Components\Toggle::make('medicaid_client')
                                                     ->inline(false)
+                                                    ->live()
+                                                    ->afterStateUpdated(function (Set $set, Get $get, ?bool $state): void {
+                                                        if ($state) {
+                                                            $set('is_covered_by_policy', false);
+                                                        }
+                                                    })
                                                     ->label('¿Medicaid?'),
                                                 // Section to show and edit Member data
                                                 Forms\Components\Section::make()
@@ -126,6 +159,7 @@ class EditPolicyApplicantsData extends EditRecord
                                                             ->columnSpan(2),
                                                         Forms\Components\TextInput::make('phone')
                                                             ->label('Teléfono')
+                                                            ->required(fn (Get $get) => $get('../relationship_with_policy_owner') == FamilyRelationship::Self->value)
                                                             ->tel()
                                                             ->columnSpan(2),
                                                         Forms\Components\TextInput::make('phone2')
@@ -134,6 +168,7 @@ class EditPolicyApplicantsData extends EditRecord
                                                             ->columnSpan(2),
                                                         Forms\Components\TextInput::make('email_address')
                                                             ->columnSpan(3)
+                                                            ->required(fn (Get $get) => $get('../relationship_with_policy_owner') === FamilyRelationship::Self->value)
                                                             ->label('Email')
                                                             ->email(),
                                                         Forms\Components\Toggle::make('is_tobacco_user')
@@ -147,11 +182,18 @@ class EditPolicyApplicantsData extends EditRecord
                                                             ->schema([
                                                                 Forms\Components\Select::make('immigration_status')
                                                                     ->label('Estatus migratorio')
+                                                                    ->required()
                                                                     ->columnSpan(3)
                                                                     ->options(ImmigrationStatus::class)
+                                                                    ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                                                                        if ($state) {
+                                                                            $set('immigration_status_category', null);
+                                                                        }
+                                                                    })
                                                                     ->live(),
                                                                 Forms\Components\TextInput::make('immigration_status_category')
                                                                     ->label('Descripción')
+                                                                    ->required(fn (Get $get) => $get('immigration_status') == ImmigrationStatus::Other->value)
                                                                     ->columnSpan(4)
                                                                     ->disabled(fn (Get $get) => $get('immigration_status') != ImmigrationStatus::Other->value),
                                                                 Forms\Components\TextInput::make('ssn')
@@ -184,35 +226,29 @@ class EditPolicyApplicantsData extends EditRecord
                                                                     ->options(UsState::class)
                                                                     ->label('Estado Emisión')
                                                                     ->columnSpan(2),
-                                                                    
+
                                                             ])->columns(7),
                                                     ])->columns(9),
 
-//                                                Forms\Components\Select::make('immigration_status')
-//                                                    ->columnSpan(2)
-//                                                    ->label('Estado de Inmigración')
-//                                                    ->options(ImmigrationStatus::class)
-//                                                    ->required(),
-//                                                Forms\Components\TextInput::make('code')
-//                                                    ->label('Código')
-//                                                    ->readonly(),
-//
+                                                //                                                Forms\Components\Select::make('immigration_status')
+                                                //                                                    ->columnSpan(2)
+                                                //                                                    ->label('Estado de Inmigración')
+                                                //                                                    ->options(ImmigrationStatus::class)
+                                                //                                                    ->required(),
+                                                //                                                Forms\Components\TextInput::make('code')
+                                                //                                                    ->label('Código')
+                                                //                                                    ->readonly(),
+                                                //
 
-
-
-                                                ])
+                                            ])
                                             ->columns(7)
                                             ->columnSpanFull(),
 
-//
+                                        //
 
-//
-
-
+                                        //
 
                                     ])->columns(4),
-
-
 
                             ])
                             ->reorderable(false)
@@ -221,10 +257,8 @@ class EditPolicyApplicantsData extends EditRecord
                             ->collapsible(false)
                             ->defaultItems(0)
                             ->reorderable(false)
-                            ->columns(3)
-                        ])
+                            ->columns(3),
+                    ]),
             ]);
     }
-
-
 }

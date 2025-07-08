@@ -54,19 +54,18 @@ class ManagePolicyDocument extends ManageRelatedRecords
                 Forms\Components\DatePicker::make('sent_date')
                     ->label('Fecha de envio')
                     ->live()
-                    ->hidden(fn (Forms\Get $get): bool => $get('status') == DocumentStatus::Pending->value)
-                    ->required(),
+                    ->hidden(fn (Forms\Get $get): bool => empty($get('status')) || in_array($get('status'), [DocumentStatus::Pending->value, DocumentStatus::ToAdd->value])),
 
-                Forms\Components\FileUpload::make('file_name')
-                    ->label('Archivo')
-                    ->columnSpanFull(),
+                // Forms\Components\FileUpload::make('file_name')
+                //     ->label('Archivo')
+                //     ->columnSpanFull(),
             ]);
     }
 
     /**
      * Update the policy document_status based on the priority of document statuses
      * and set the next_document_expiration_date field
-     * 
+     *
      * Priority order:
      * 1. rejected - highest priority
      * 2. expired
@@ -86,7 +85,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
         $statusToSet = $documents->isEmpty()
             ? DocumentStatus::ToAdd
             : DocumentStatus::Approved;
-            
+
         // Reset next expiration date if no documents
         $nextExpirationDate = null;
 
@@ -101,12 +100,12 @@ class ManagePolicyDocument extends ManageRelatedRecords
 
         // Find the highest priority status and its document
         $documentWithHighestPriority = null;
-        
+
         foreach ($statusPriority as $status) {
             $matchingDocument = $documents->first(function ($document) use ($status) {
                 return $document->status === $status;
             });
-            
+
             if ($matchingDocument) {
                 $statusToSet = $status;
                 $documentWithHighestPriority = $matchingDocument;
@@ -116,7 +115,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
 
         // Update the policy's document_status
         $policy->document_status = $statusToSet->value;
-        
+
         // Set the next_document_expiration_date to the due date of the document with highest priority status
         if ($documentWithHighestPriority && $documentWithHighestPriority->due_date) {
             $policy->next_document_expiration_date = $documentWithHighestPriority->due_date;
@@ -129,7 +128,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
                 $policy->next_document_expiration_date = null;
             }
         }
-        
+
         $policy->save();
     }
 

@@ -2,39 +2,40 @@
 
 namespace App\Filament\Resources\QuoteResource\Pages;
 
-use App\Filament\Resources\QuoteResource;
-use Filament\Actions;
-use Filament\Resources\Pages\EditRecord;
-use Filament\Forms\Form;
-use Filament\Forms;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
-use Filament\Notifications\Notification;
-use App\Models\QuoteDocument;
 use App\Enums\QuoteStatus;
+use App\Filament\Resources\PolicyResource;
+use App\Filament\Resources\QuoteResource;
+use App\Models\QuoteDocument;
+use App\Services\QuoteConversionService;
+use Filament\Actions\Action;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class PrintQuote extends EditRecord
 {
     protected static string $resource = QuoteResource::class;
 
     protected static string $view = 'filament.resources.quote.print';
+
     protected ?string $heading = '';
 
     public ?array $data = [];
 
     public $mode = 'view';
 
-
-
     public function mount(string|int $record): void
     {
         parent::mount($record);
-        
+
         // Ensure documents are loaded
         if ($this->record) {
             $this->record->load('quoteDocuments');
         }
-        
+
         $this->form->fill();
     }
 
@@ -51,11 +52,11 @@ class PrintQuote extends EditRecord
                     ->live()
                     ->label('Documento')
                     ->disk('public')
-                    ->directory('quote-documents/' . $this->record->id)
+                    ->directory('quote-documents/'.$this->record->id)
                     ->acceptedFileTypes(['application/pdf', 'image/*'])
                     ->maxSize(5120)
                     ->imagePreviewHeight('100')
-                    ->downloadable()
+                    ->downloadable(),
             ])
             ->statePath('data');
     }
@@ -100,13 +101,26 @@ class PrintQuote extends EditRecord
 
     public function changeQuoteStatusToSent(): void
     {
-        $this->record->status = QuoteStatus::SENT;
+        $this->record->status = QuoteStatus::Sent;
         $this->record->save();
 
         Notification::make()
             ->success()
             ->title('Estado de la cotización actualizado a Enviada')
             ->send();
+    }
+    
+    public function convertToPolicy(): void
+    {
+        $conversionService = app(QuoteConversionService::class);
+        $policy = $conversionService->convertQuoteToPolicy($this->record);
+        
+        Notification::make()
+            ->success()
+            ->title('Cotización convertida a póliza exitosamente')
+            ->send();
+            
+        $this->redirect(PolicyResource::getUrl('edit', ['record' => $policy->id]));
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
@@ -116,13 +130,13 @@ class PrintQuote extends EditRecord
             $applicants = collect($data['applicants']);
 
             // Get main applicant (first one with is_main = true, or fallback to first)
-            $data['main_applicant'] = $applicants->first(fn($a) => $a['is_main'] ?? false)
+            $data['main_applicant'] = $applicants->first(fn ($a) => $a['is_main'] ?? false)
                 ?? $applicants->first()
                 ?? [];
 
             // Get additional applicants (all except main)
             $data['additional_applicants'] = $applicants
-                ->filter(fn($a) => !($a['is_main'] ?? false))
+                ->filter(fn ($a) => ! ($a['is_main'] ?? false))
                 ->values()
                 ->all();
         }

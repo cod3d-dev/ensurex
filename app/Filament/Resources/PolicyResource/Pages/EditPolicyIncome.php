@@ -16,7 +16,7 @@ class EditPolicyIncome extends EditRecord
     protected static ?string $navigationLabel = 'Ingresos';
 
     protected static ?string $navigationIcon = 'iconoir-money-square';
-    
+
     protected function afterSave(): void
     {
         // Mark this page as completed
@@ -30,7 +30,7 @@ class EditPolicyIncome extends EditRecord
                 Forms\Components\TextInput::make('total_family_members')
                     ->numeric()
                     ->label('Total Miembros Familiares')
-                    ->required()
+                    ->readOnly()
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->default(1)
                     ->live()
@@ -105,13 +105,61 @@ class EditPolicyIncome extends EditRecord
                         return null;
                     })
                     ->schema([
+                        Forms\Components\Toggle::make('is_self_employed')
+                            ->label('¿Self Employeed?')
+                            ->inline(false)
+                            ->live()
+                            ->columnStart(1)
+                            // ->afterStateHydrated(fn(
+                            //     $state,
+                            //     Forms\Set $set,
+                            //     Forms\Get $get
+                            // ) => static::calculateYearlyIncome('applicant', $state, $set,
+                            //     $get))
+                            ->afterStateUpdated(function (
+                                $state,
+                                Forms\Set $set,
+                                Forms\Get $get
+                            ) {
+                                $set('employer_1_name', '');
+                                $set('employer_1_role', '');
+                                $set('employer_1_phone', '');
+                                $set('employer_1_address', '');
+                                static::lockHourlyIncome('applicant', $state, $set, $get);
+                                static::calculateYearlyIncome('applicant', $state, $set,
+                                    $get);
+                            }),
+                        Forms\Components\TextInput::make('self_employed_profession')
+                            ->label('Profesión')
+                            ->columnStart(5)
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => ! $get('is_self_employed')),
+                        Forms\Components\TextInput::make('self_employed_yearly_income')
+                            ->numeric()
+                            ->label('Ingreso Anual')
+                            ->live(onBlur: true)
+                            ->columnStart(6)
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => ! $get('is_self_employed'))
+                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                static::calculateYearlyIncome('applicant', $state, $set,
+                                    $get);
+                            }),
                         Forms\Components\TextInput::make('employer_1_name')
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => $get('is_self_employed'))
                             ->label('Empleador'),
                         Forms\Components\TextInput::make('employer_1_role')
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => $get('is_self_employed'))
                             ->label('Cargo'),
                         Forms\Components\TextInput::make('employer_1_phone')
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => $get('is_self_employed'))
                             ->label('Teléfono'),
                         Forms\Components\TextInput::make('employer_1_address')
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => $get('is_self_employed'))
                             ->label('Dirección')
                             ->columnSpan(3),
                         Forms\Components\TextInput::make('income_per_hour')
@@ -177,45 +225,11 @@ class EditPolicyIncome extends EditRecord
                                 $get)),
                         Forms\Components\TextInput::make('yearly_income')
                             ->numeric()
+                            ->disabled(fn (Forms\Get $get
+                            ): bool => $get('is_self_employed'))
                             ->label('Ingreso Anual')
                             ->readOnly(),
-                        Forms\Components\Toggle::make('is_self_employed')
-                            ->label('¿Self Employeed?')
-                            ->inline(false)
-                            ->live()
-                            ->columnStart(4)
-                            // ->afterStateHydrated(fn(
-                            //     $state,
-                            //     Forms\Set $set,
-                            //     Forms\Get $get
-                            // ) => static::calculateYearlyIncome('applicant', $state, $set,
-                            //     $get))
-                            ->afterStateUpdated(function (
-                                $state,
-                                Forms\Set $set,
-                                Forms\Get $get
-                            ) {
-                                static::lockHourlyIncome('applicant', $state, $set, $get);
-                                static::calculateYearlyIncome('applicant', $state, $set,
-                                    $get);
-                            }),
-                        Forms\Components\TextInput::make('self_employed_profession')
-                            ->label('Profesión')
-                            ->disabled(fn (Forms\Get $get
-                            ): bool => ! $get('is_self_employed')),
-                        Forms\Components\TextInput::make('self_employed_yearly_income')
-                            ->numeric()
-                            ->label('Ingreso Anual')
-                            ->live(onBlur: true)
-                            ->columnStart(6)
-                            ->disabled(fn (Forms\Get $get
-                            ): bool => ! $get('is_self_employed'))
-                            ->afterStateUpdated(fn (
-                                $state,
-                                Forms\Set $set,
-                                Forms\Get $get
-                            ) => static::calculateYearlyIncome('applicant', $state, $set,
-                                $get)),
+
                     ])->columns(6)->columnSpanFull()
                     ->collapseAllAction(fn (\Filament\Forms\Components\Actions\Action $action) => $action->hidden())
                     ->expandAllAction(fn (\Filament\Forms\Components\Actions\Action $action) => $action->hidden()),

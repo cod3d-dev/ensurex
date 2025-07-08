@@ -3,22 +3,15 @@
 namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\FamilyRelationship;
-use App\Enums\Gender;
-use App\Enums\ImmigrationStatus;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Contact;
-use App\Models\PolicyApplicant;
-use Filament\Actions;
 use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
-use Filament\Resources\Pages\EditRecord;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Carbon;
-
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditPolicyApplicants extends EditRecord
 {
@@ -37,32 +30,32 @@ class EditPolicyApplicants extends EditRecord
     {
         // Get the policy model
         $policy = $this->record;
-        
+
         // Count the total family members (all applicants in the pivot table)
         $totalFamilyMembers = $policy->policyApplicants()->count();
-        
+
         // Count applicants where is_covered_by_policy is true
         $totalCoveredApplicants = $policy->policyApplicants()
             ->where('is_covered_by_policy', true)
             ->count();
-        
+
         // Count applicants where medicaid_client is true
         $totalMedicaidApplicants = $policy->policyApplicants()
             ->where('medicaid_client', true)
             ->count();
-        
+
         // Update the policy with the new counts
         $policy->update([
             'total_family_members' => $totalFamilyMembers,
             'total_applicants' => $totalCoveredApplicants,
             'total_applicants_with_medicaid' => $totalMedicaidApplicants,
         ]);
-        
+
         // Mark this page as completed
         $policy->markPageCompleted('edit_policy_applicants');
     }
 
-    public  function form(Form $form): Form
+    public function form(Form $form): Form
     {
         return $form
             ->schema([
@@ -72,8 +65,10 @@ class EditPolicyApplicants extends EditRecord
                             ->itemLabel(function (array $state): ?string {
                                 if (isset($state['contact_id'])) {
                                     $contact = Contact::find($state['contact_id']);
+
                                     return $contact->full_name;
                                 }
+
                                 return null;
                             })
                             ->deleteAction(
@@ -84,7 +79,7 @@ class EditPolicyApplicants extends EditRecord
                                     ->icon('heroicon-m-trash')
                                     ->action(function (array $arguments, Repeater $component): void {
                                         $selectedApplicant = $component->getItemState($arguments['item']);
-                                        
+
                                         if ($selectedApplicant['relationship_with_policy_owner'] === 'self') {
                                             Notification::make()
                                                 ->title('No se puede eliminar')
@@ -94,28 +89,29 @@ class EditPolicyApplicants extends EditRecord
                                         } else {
                                             // Get the current state of the repeater
                                             $state = $component->getState();
-                                            
+
                                             // Remove the item with the specified key
                                             unset($state[$arguments['item']]);
-                                            
+
                                             // Update the repeater state
                                             $component->state($state);
-                                            
+
                                             Notification::make()
                                                 ->title('Aplicante eliminado')
                                                 ->body('El aplicante ha sido eliminado de la póliza. Los cambios no serán efectivos hasta que se guarde el formulario.')
                                                 ->success()
                                                 ->send();
                                         }
-                                    })
-                                    // ->modalHeading('¿Eliminar aplicante?')
-                                    // ->modalDescription('¿Está seguro que desea eliminar este aplicante?')
-                                    // ->modalSubmitActionLabel('Sí, eliminar')
-                                    // ->modalCancelActionLabel('No, cancelar'),
+                                    }),
+                                // ->modalHeading('¿Eliminar aplicante?')
+                                // ->modalDescription('¿Está seguro que desea eliminar este aplicante?')
+                                // ->modalSubmitActionLabel('Sí, eliminar')
+                                // ->modalCancelActionLabel('No, cancelar'),
                             ])
                             ->label('Aplicantes Adicionales')
                             ->relationship()
                             ->columnSpanFull()
+                            ->deletable(false)
                             ->hiddenLabel(true)
                             ->orderColumn('sort_order')
                             ->schema([
@@ -127,7 +123,8 @@ class EditPolicyApplicants extends EditRecord
                                                     ->relationship('contact', 'full_name')
                                                     ->columnSpan(4)
                                                     ->fixIndistinctState()
-                                                    ->label('Cliente')
+                                                    ->label('Nombre')
+                                                    ->required()
                                                     ->live()
                                                     ->getOptionLabelFromRecordUsing(function (Contact $record) {
                                                         $label = $record->full_name;
@@ -135,11 +132,11 @@ class EditPolicyApplicants extends EditRecord
                                                             $label .= ' / '.$record->state_province->getLabel();
                                                         }
 
-                                                            if ($record->age) {
-                                                                $label .= ' / '.$record->age;
-                                                            }
+                                                        if ($record->age) {
+                                                            $label .= ' / '.$record->age;
+                                                        }
 
-                                                            return $label;
+                                                        return $label;
                                                     })
                                                     ->createOptionForm([
                                                         Forms\Components\TextInput::make('full_name')
@@ -155,13 +152,13 @@ class EditPolicyApplicants extends EditRecord
                                                                 ->danger()
                                                                 ->persistent()
                                                                 ->send();
-                                                            
+
                                                             // Redirect to reload the page
                                                             $this->redirect(PolicyResource::getUrl('edit-applicants', ['record' => $this->record]));
-                                                            
+
                                                             return null;
                                                         }
-                                                        
+
                                                         // For other relationships, create the contact normally
                                                         return Contact::create($data)->getKey();
                                                     })
@@ -185,19 +182,30 @@ class EditPolicyApplicants extends EditRecord
                                                 Forms\Components\Toggle::make('is_covered_by_policy')
                                                     ->inline(false)
                                                     ->default(true)
+                                                    ->live()
+                                                    ->afterStateUpdated(function ($state, $set) {
+                                                        if ($state === true) {
+                                                            $set('medicaid_client', false);
+                                                        }
+                                                    })
                                                     ->label('¿Aplicante?')
                                                     ->columnStart(6),
                                                 Forms\Components\Toggle::make('medicaid_client')
                                                     ->inline(false)
                                                     ->default(false)
+                                                    ->live()
+                                                    ->afterStateUpdated(function ($state, $set) {
+                                                        if ($state === true) {
+                                                            $set('is_covered_by_policy', false);
+                                                        }
+                                                    })
                                                     ->label('¿Medicaid?'),
                                                 Forms\Components\Select::make('relationship_with_policy_owner')
                                                     ->columnSpan(4)
                                                     ->label('¿Relación con el cliente principal?')
                                                     ->options(FamilyRelationship::class)
-                                                    ->disableOptionWhen(fn ($state, $value): bool => 
-                                                        ($state === null && $value === 'self') || 
-                                                        ($state !== null && $value === 'self') || 
+                                                    ->disableOptionWhen(fn ($state, $value): bool => ($state === null && $value === 'self') ||
+                                                        ($state !== null && $value === 'self') ||
                                                         $state === 'self'
                                                     )
                                                     ->required(),
@@ -217,11 +225,9 @@ class EditPolicyApplicants extends EditRecord
                             ->collapsible(true)
                             ->defaultItems(0)
                             ->reorderable(false)
-                            ->columns(3)
-                        ]),
-                        
+                            ->columns(3),
+                    ]),
+
             ])->columns(6);
     }
-
-
 }

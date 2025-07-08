@@ -19,12 +19,13 @@
 -   [x] Bug: Table filters are distruptive with Estatus Filters. Should have just the types that I need and group by utility.
 -   [x] Bug: When adding a new note, a blank line is first.
 -   [x] Todo: View Mode in same tab a change status button
--   [ ] Todo: Button to change quote status with a note like in policies
--   [ ] Todo: Message should show if Income is lower to what is required by Kynect
+-   [ ] Todo: Button to change quote status
+-   [ ] Todo: Message that shows if Income is lower to what is required by Kynect
 
 ## 2. Quote-to-Policy Conversion Testing
 
 -   [ ] Test converting quotes to policies using the existing button
+-   [ ] Don't show convert to policy button when the quote status is converted
 -   [ ] Verify all quote data is properly transferred to policies
 -   [ ] Check correct policy number generation
 -   [ ] Verify policy starts in "Draft" status

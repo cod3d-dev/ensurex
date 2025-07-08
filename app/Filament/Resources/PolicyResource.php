@@ -97,19 +97,28 @@ class PolicyResource extends Resource
             //            Pages\ViewPolicy::class,
             Pages\EditPolicy::class,
             Pages\EditPolicyContact::class,
-            Pages\EditPolicyApplicants::class,
-            Pages\EditPolicyApplicantsData::class,
-            Pages\EditPolicyIncome::class,
-            Pages\EditPolicyPayments::class,
-            Pages\ManagePolicyDocument::class,
-            Pages\ManagePolicyIssues::class,
-            Pages\EditCompletePolicyCreation::class,
+            // Pages\EditPolicyApplicants::class,
+            // Pages\EditPolicyApplicantsData::class,
+            // Pages\EditPolicyIncome::class,
 
         ];
 
-        // if ($record->areRequiredPagesCompleted() === true) {
-        //     $pages[] = Pages\EditCompletePolicyCreation::class;
-        // }
+        if ($record->policy_type == PolicyType::Life) {
+            $pages[] = Pages\EditPolicyApplicantsData::class;
+            $pages[] = Pages\EditPolicyLife::class;
+        } else {
+            $pages[] = Pages\EditPolicyApplicants::class;
+            $pages[] = Pages\EditPolicyApplicantsData::class;
+            $pages[] = Pages\EditPolicyIncome::class;
+        }
+
+        $pages[] = Pages\EditPolicyPayments::class;
+        $pages[] = Pages\ManagePolicyDocument::class;
+        $pages[] = Pages\ManagePolicyIssues::class;
+
+        if ($record->areRequiredPagesCompleted() === false) {
+            $pages[] = Pages\EditCompletePolicyCreation::class;
+        }
 
         return $page->generateNavigationItems($pages);
     }
@@ -120,10 +129,15 @@ class PolicyResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Poliza')
                     ->schema([
+                        Forms\Components\TextInput::make('code')
+                            ->readOnly()
+                            ->dehydrated(false)
+                            ->columnSpan(1)
+                            ->label('Código'),
                         Forms\Components\Select::make('policy_type')
                             ->options(PolicyType::class)
-                            ->required()
-                            ->columnSpan(2)
+                            ->disabled()
+                            ->columnSpan(1)
                             ->label('Tipo'),
                         Forms\Components\Select::make('agent_id')
                             ->relationship('agent', 'name')
@@ -205,7 +219,20 @@ class PolicyResource extends Resource
                                 Forms\Components\TextInput::make('policy_zipcode')
                                     ->label('Código Postal')
                                     ->required()
-                                    ->columnSpan(1),
+                                    ->columnSpan(1)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (string $state, Forms\Set $set) {
+                                        if ($state !== null && strlen($state) === 5 && is_numeric($state)) {
+                                            $zipCodeService = app(\App\Services\ZipCodeService::class);
+                                            $locationData = $zipCodeService->getLocationFromZipCode($state);
+
+                                            if ($locationData) {
+                                                $set('policy_city', $locationData['city']);
+                                                $set('policy_us_state', $locationData['state']);
+                                                $set('policy_us_county', $locationData['county']);
+                                            }
+                                        }
+                                    }),
                                 Forms\Components\TextInput::make('policy_city')
                                     ->label('Ciudad')
                                     ->required()
@@ -228,6 +255,7 @@ class PolicyResource extends Resource
                                     ->columnSpan(1)
                                     ->label('Pedir Caso Kynect'),
                                 Forms\Components\TextInput::make('total_family_members')
+                                    ->integer()
                                     ->label('Familiares')
                                     ->required()
                                     ->extraInputAttributes([
@@ -235,6 +263,7 @@ class PolicyResource extends Resource
                                     ])
                                     ->columnSpan(1),
                                 Forms\Components\TextInput::make('total_applicants')
+                                    ->integer()
                                     ->label('Aplicantes')
                                     ->required()
                                     ->extraInputAttributes([
@@ -242,6 +271,7 @@ class PolicyResource extends Resource
                                     ])
                                     ->columnSpan(1),
                                 Forms\Components\TextInput::make('total_applicants_with_medicaid')
+                                    ->integer()
                                     ->label('Medicaid')
                                     ->required()
                                     ->extraInputAttributes([
@@ -251,6 +281,7 @@ class PolicyResource extends Resource
 
                                 Forms\Components\TextInput::make('estimated_household_income')
                                     ->label('Ingresos Estimados')
+                                    ->readOnly()
                                     ->extraInputAttributes([
                                         'class' => 'text-center',
                                     ])
@@ -326,7 +357,7 @@ class PolicyResource extends Resource
                                         ])
                                         ->modalSubmitActionLabel('Agregar')
                                         ->action(function (Policy $record, array $data, Set $set): void {
-                                            $note = Carbon::now()->toDateTimeString().' - '.auth()->user()->name.":\n".$data['note']."\n\n";
+                                            $note = Carbon::now()->toDateTimeString().' - '.auth()->user()->name.":\n".$data['note'];
                                             $record->notes = ! empty($record->notes) ? $record->notes."\n\n".$note : $note;
                                             $record->save();
 
@@ -455,7 +486,7 @@ class PolicyResource extends Resource
                         // Add horizontal line
                         $customers .= '<div style="border-top: 1px solid #e5e7eb; margin-top: 8px; margin-bottom: 6px;"></div>';
 
-                        $enrollmentType = $record->policy_inscription_type->getLabel() ?? 'N/A';
+                        $enrollmentType = $record->policy_inscription_type?->getLabel() ?? 'N/A';
                         $customers .= '<div style="display: flex; align-items: center;">
                             <span style="font-size: 0.75rem; color: #374151; font-weight: 500;">Tipo de Inscripción:</span>
                             <span style="font-size: 0.75rem; color: #6b7280; margin-left: 4px;">'.$enrollmentType.'</span>
@@ -1027,6 +1058,7 @@ class PolicyResource extends Resource
             //            'view-contact' => Pages\ViewPolicyContact::route('/{record}/contact'),
             'edit' => Pages\EditPolicy::route('/{record}/edit'),
             'edit-contact' => Pages\EditPolicyContact::route('/{record}/edit/contact'),
+            'edit-life' => Pages\EditPolicyLife::route('/{record}/edit/life'),
             'edit-applicants' => Pages\EditPolicyApplicants::route('/{record}/edit/applicants'),
             'edit-applicants-data' => Pages\EditPolicyApplicantsData::route('/{record}/edit/applicants/data'),
             'edit-income' => Pages\EditPolicyIncome::route('/{record}/edit/income'),

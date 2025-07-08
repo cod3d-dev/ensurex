@@ -12,7 +12,6 @@ use App\Filament\Resources\QuoteResource\Pages;
 use App\Filament\Resources\QuoteResource\RelationManagers;
 use App\Models\Contact;
 use App\Models\Quote;
-use App\Services\GoogleMapsService;
 use App\Tables\Columns\PoliciesColumn;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -355,6 +354,8 @@ class QuoteResource extends Resource
                                     ->columnSpan(2),
                                 Forms\Components\TextInput::make('contact.age')
                                     ->dehydrated(false)
+                                    ->integer()
+                                    ->readOnly(fn (Forms\Get $get): bool => $get('contact.date_of_birth') !== null)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, Forms\Set $set, $get) {
                                         if ($state) {
@@ -441,10 +442,10 @@ class QuoteResource extends Resource
                                     ->required()
                                     ->columnSpan(2)
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(function (string $state, Forms\Set $set) {
+                                    ->afterStateUpdated(function (?string $state, Forms\Set $set) {
                                         if ($state !== null && strlen($state) === 5 && is_numeric($state)) {
-                                            $googleMapsService = app(GoogleMapsService::class);
-                                            $locationData = $googleMapsService->getLocationFromZipCode($state);
+                                            $zipCodeService = app(\App\Services\ZipCodeService::class);
+                                            $locationData = $zipCodeService->getLocationFromZipCode($state);
 
                                             if ($locationData) {
                                                 $set('contact.city', $locationData['city']);
@@ -472,9 +473,10 @@ class QuoteResource extends Resource
                         Section::make('Aplicantes')
                             ->schema([
                                 Forms\Components\TextInput::make('total_family_members')
-                                    ->numeric()
+                                    ->integer()
                                     ->label('Total Familiares')
                                     ->required()
+                                    ->minValue(1)
                                     ->default(1)
                                     ->live()
                                     ->afterStateUpdated(function (string $state, Forms\Set $set) {
@@ -482,9 +484,10 @@ class QuoteResource extends Resource
                                         $set('kynect_fpl_threshold', $kinectKPL * 12);
                                     }),
                                 Forms\Components\TextInput::make('total_applicants')
-                                    ->numeric()
+                                    ->integer()
                                     ->label('Total Solicitantes')
                                     ->required()
+                                    ->minValue(1)
                                     ->default(1)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
@@ -501,6 +504,7 @@ class QuoteResource extends Resource
                                                 $applicants[] = [
                                                     'relationship' => '',
                                                     'age' => '',
+                                                    'is_covered' => true,
                                                     'pregnant' => false,
                                                     'tobacco_user' => false,
                                                     'is_eligible_for_coverage' => false,
@@ -586,6 +590,8 @@ class QuoteResource extends Resource
                                         }
                                     }),
                                 Forms\Components\TextInput::make('age')
+                                    ->integer()
+                                    ->readOnly(fn (Forms\Get $get): bool => $get('date_of_birth') !== null)
                                     ->label('Edad'),
                                 Forms\Components\Toggle::make('is_covered')
                                     ->label('Aplicante')
@@ -1180,7 +1186,7 @@ class QuoteResource extends Resource
                     Tables\Actions\EditAction::make(),
                     Tables\Actions\ViewAction::make(),
                     ConvertToPolicy::make('convert_to_policy')
-                        ->label('Crear Poliza')
+                        ->label('Crear Polizas2')
                         ->icon('iconoir-privacy-policy'),
                 ])
                     ->tooltip('Acciones')
