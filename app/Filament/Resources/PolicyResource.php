@@ -425,21 +425,18 @@ class PolicyResource extends Resource
             ->columns([
                 // Insurance Account name
                 Tables\Columns\TextColumn::make('contact.id')
-                    // format getting the first letter of each word in the name in uppercase
                     ->label('#')
                     ->badge()
-                    // ->tooltip(fn(string $state): string => $state)
-                    ->sortable(),
+                    ->color('gray')
+                    ->sortable()
+                    ->visibleFrom('lg'),
                 Tables\Columns\TextColumn::make('agent.name')
                     // format getting the first letter of each word in the name in uppercase
                     ->formatStateUsing(fn (string $state): string => Str::acronym($state))
                     ->label('Cuenta')
                     ->badge()
-                    // ->tooltip(fn(string $state): string => $state)
-                    ->color(fn (string $state): string => match ($state) {
-                        'Ghercy Segovia' => 'success',
-                        'Maly Carvajal' => 'primary',
-                    })
+                    ->tooltip(fn(string $state): string => $state)
+                    ->color('gray')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('contact.full_name')
@@ -558,7 +555,7 @@ class PolicyResource extends Resource
                     ->default('NA')
                     ->color(fn (string $state): string => match ($state) {
                         'NA' => 'danger',
-                        default => 'success',
+                        default => 'gray',
                     })
                     ->tooltip(function ($record) {
                         if (! $record || ! $record->insuranceCompany) {
@@ -575,6 +572,8 @@ class PolicyResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('m-d-Y')
                     ->label('Fecha')
+                    ->badge()
+                    ->color('gray')
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('user.code')
@@ -584,17 +583,7 @@ class PolicyResource extends Resource
                     ->tooltip(function (string $state, Policy $record): string {
                         return $record->user->name;
                     })
-                    ->color(fn (string $state): string => match ($state) {
-                        'CR' => 'success',
-                        'RS' => 'primary',
-                        'OO' => 'warning',
-                        'FS' => 'danger',
-                        'GS' => 'info',
-                        'CH' => 'gray',
-                        'RM' => 'violet',
-                        'MC' => 'purple',
-                        'AG' => 'danger',
-                    })
+                    ->color('gray')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estatus')
@@ -1024,7 +1013,7 @@ class PolicyResource extends Resource
                     $newPolicy->start_date = $data['start_date'];
                     $newPolicy->end_date = $data['end_date'];
                     $newPolicy->is_renewal = true;
-                    $newPolicy->renewal_status = RenewalStatus::COMPLETED;
+                    $newPolicy->renewal_status = RenewalStatus::Completed;
                     $newPolicy->renewed_at = now();
                     $newPolicy->observations = ($record->observations ? $record->observations."\n\n" : '')
                         ."=== Notas de Renovación ===\n".$data['renewal_notes'];
@@ -1032,7 +1021,7 @@ class PolicyResource extends Resource
                     $newPolicy->save();
 
                     // Update the original policy's renewal status
-                    $record->renewal_status = RenewalStatus::COMPLETED;
+                    $record->renewal_status = RenewalStatus::Completed;
                     $record->save();
 
                     Notification::make()
@@ -1067,7 +1056,7 @@ class PolicyResource extends Resource
             'documents' => Pages\ManagePolicyDocument::route('/{record}/documents'),
             'issues' => Pages\ManagePolicyIssues::route('/{record}/issues'),
             'payments' => Pages\EditPolicyPayments::route('/{record}/payments'),
-            //            'issues' => Pages\ManagePolicyDocument::route('/{record}/documents'),
+            'print' => Pages\PrintPolicy::route('/{record}/print'),
         ];
     }
 }

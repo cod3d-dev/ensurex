@@ -14,7 +14,7 @@
                         Cotización
                         <x-filament::button
                             :href="App\Filament\Resources\QuoteResource::getUrl('edit', ['record' => $record])" tag="a"
-                            color="warning">
+                            color="warning" outlined>
                             Editar
                         </x-filament::button>
                     </div>
@@ -35,17 +35,17 @@
                         </div>
                         <div class="col-span-1">
                             <p class="text-sm font-medium text-gray-500">Fecha Creación</p>
-                            <p class="mt-1">{{ $record->created_at->format('m/d/Y') }}</p>
+                            <p class="mt-1">{{ $record->created_at ? $record->created_at->format('m/d/Y') : 'N/A' }}</p>
                         </div>
                         <div class="col-span-1">
                             <p class="text-sm font-medium text-gray-500">Tipo</p>
                             <p class="mt-1">
                                 @if(is_array($record->policy_types) && count($record->policy_types) > 0)
                                 @foreach($record->policy_types as $policy_type)
-                                {{ \App\Enums\PolicyType::from($policy_type)->getLabel() }}@if(!$loop->last), @endif
+                                {{ is_string($policy_type) ? (\App\Enums\PolicyType::tryFrom($policy_type)?->getLabel() ?? 'Unknown') : 'Unknown' }}@if(!$loop->last), @endif
                                 @endforeach
-                                @elseif($record->policy_types)
-                                {{ \App\Enums\PolicyType::from($record->policy_types)->getLabel() }}
+                                @elseif($record->policy_types && is_string($record->policy_types))
+                                {{ \App\Enums\PolicyType::tryFrom($record->policy_types)?->getLabel() ?? 'Unknown' }}
                                 @else
                                 N/A
                                 @endif
@@ -151,7 +151,7 @@
                                         Embarazada</th>
                                     <th
                                         class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Elegible</th>
+                                        Medicaid</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
@@ -223,8 +223,7 @@
                                 @foreach($applicantsIncome as $applicant)
                                 <tr>
                                     @if(!($applicant['is_self_employed'] ?? false))
-                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{
-                                        $applicant['relationship']->getLabel() ?? 'N/A' }}</td>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ \App\Enums\FamilyRelationship::from($applicant['relationship'])->getLabel() }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['income_per_hour'] ??
                                         'N/A' }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900">{{ $applicant['hours_per_week'] ?? 'N/A'
@@ -240,7 +239,7 @@
                                     @else
                                     @php
                                     $relation = isset($applicant['relationship']) ?
-                                    \App\Enums\FamilyRelationship::from($applicant['relationship'])->getLabel() : 'N/A';
+                                    FamilyRelationship::from($applicant['relationship'])->getLabel() : 'N/A';
                                     @endphp
 
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $relation }}</td>
@@ -325,12 +324,23 @@
                 <div class="text-right justify-between mt-8" style="margin-top: 2.5rem !important;">
                     <x-filament::button
                         href="https://www.healthsherpa.com/shopping?_agent_id=nil&carrier_id=nil&source=agent-home"
-                        tag="a" target="_blank" class="ml-3">
+                        tag="a" target="_blank" class="ml-3" color="info" outlined>
                         Health Sherpa
+                    @if($record->contact->kommo_id)
+                    <x-filament::button
+                        href="https://ghercys.kommo.com/leads/detail/{{$record->contact->kommo_id ?? '' }}"
+                        tag="a" target="_blank" class="ml-3" color="info" outlined>
+                        Kommo
                     </x-filament::button>
+                    @endif
+                    
+                    </x-filament::button>
+                    <div class="ml-3 inline-flex w-5">
+                        
+                    </div>
 
                     @if($record->status->value == 'pending' || $record->status->value == 'accepted')
-                    <x-filament::button wire:click="changeQuoteStatusToSent" class="ml-3" color="success">
+                    <x-filament::button wire:click="changeQuoteStatusToSent" class="ml-3" color="warning" outlined>
                         Marcar como Enviada
                     </x-filament::button>
                     @endif
@@ -339,8 +349,9 @@
                     @if($record->status->value != 'converted')
                     <x-filament::button x-data="{}"
                         x-on:click="$dispatch('open-modal', { id: 'convert-to-policy-confirmation' })" class="ml-3"
-                        color="info">
-                        Convertir a Poliza
+                        color="success"
+                        outlined>
+                        Crear Polizas
                     </x-filament::button>
 
                     @endif

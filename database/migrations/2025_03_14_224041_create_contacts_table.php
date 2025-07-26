@@ -29,10 +29,6 @@ return new class extends Migration
             // Personal Information
             $table->enum('preferred_language', ['spanish', 'english'])->default('spanish');
             $table->string('code')->nullable();
-            $table->string('first_name')->nullable();
-            $table->string('middle_name')->nullable();
-            $table->string('last_name')->nullable();
-            $table->string('second_last_name')->nullable();
             $table->string('full_name')->nullable();
             $table->string('email_address')->nullable();
             $table->string('phone')->nullable();
@@ -52,8 +48,10 @@ return new class extends Migration
             $table->boolean('has_declared_bankruptcy')->default(false);
             $table->boolean('license_has_been_revoked')->default(false);
 
-
             // Employment Information
+            $table->string('self_employed_role')->nullable();
+            $table->boolean('is_self_employed')->default(false);
+            $table->decimal('self_employed_income', 12, 2)->nullable();
             // Source 1
             $table->string('employer_name_1')->nullable();
             $table->string('employer_phone_1')->nullable();
@@ -87,7 +85,6 @@ return new class extends Migration
             $table->string('driver_license_number')->nullable();
             $table->date('driver_license_emission_date')->nullable();
             $table->string('driver_license_emissions_state')->nullable();
-
 
             // Physical Address
             $table->string('address_line_1')->nullable();

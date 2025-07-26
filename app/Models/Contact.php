@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use App\Enums\Gender;
+use App\Enums\MaritialStatus;
+use App\Enums\UsState;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Enums\Gender;
-use App\Enums\MaritialStatus;
-use App\Enums\UsState;
 use Illuminate\Support\Carbon;
 
 class Contact extends Model
@@ -55,27 +55,19 @@ class Contact extends Model
                 $highestContact = self::orderByRaw('CAST(SUBSTRING(code, 2) AS UNSIGNED) DESC')
                     ->where('code', 'like', 'C%')
                     ->first();
-                
+
                 $nextNumber = 1;
                 if ($highestContact) {
                     // Extract the number part and increment
                     $currentNumber = (int) substr($highestContact->code, 1);
                     $nextNumber = $currentNumber + 1;
                 }
-                
+
                 // Format the contact number with leading zeros (5 digits)
                 $contactNumber = str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
-                $contact->code = 'C' . $contactNumber;
+                $contact->code = 'C'.$contactNumber;
             }
         });
-    }
-
-    public function fullName(): Attribute
-    {
-        return Attribute::make(
-            get: fn (string $value) => ucwords($value),
-            set: fn (string $value) => ucwords($value),
-        );
     }
 
     public function age(): Attribute
@@ -156,7 +148,7 @@ class Contact extends Model
                 'yearly_income',
                 'is_self_employed',
                 'self_employed_profession',
-                'self_employed_yearly_income'
+                'self_employed_yearly_income',
             ])
             ->withTimestamps();
     }

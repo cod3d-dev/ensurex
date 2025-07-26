@@ -153,19 +153,35 @@ class EditCompletePolicyCreation extends EditRecord
                                             $newPolicy->status = \App\Enums\PolicyStatus::Created;
                                             $newPolicy->policy_number = null; // Generate a new policy number if needed
                                             
+                                            // Set specific fields for Life policies
+                                            if ($policyType === \App\Enums\PolicyType::Life) {
+                                                $newPolicy->total_family_members = 1;
+                                                $newPolicy->total_applicants = 1;
+                                                $newPolicy->total_applicants_with_medicaid = 0;
+                                            }
+                                            
                                             // We don't need to set the code manually
                                             // The Policy model's boot() method will automatically generate a unique code
                                             // based on the policy type and existing sequence numbers
                                             $newPolicy->code = null; // Force the model to generate a new code
                                             $newPolicy->save();
                                             
-                                            // Copy related data systematically
-                                            
-                                            // 1. Copy policy applicants
-                                            foreach ($currentPolicy->policyApplicants as $applicant) {
-                                                $newApplicant = $applicant->replicate(['id']);
-                                                $newApplicant->policy_id = $newPolicy->id;
-                                                $newApplicant->save();
+                                            // Handle policy applicants based on policy type
+                                            if ($policyType === \App\Enums\PolicyType::Life) {
+                                                // For Life policies, only copy the first applicant (policy owner)
+                                                $firstApplicant = $currentPolicy->policyApplicants->first();
+                                                if ($firstApplicant) {
+                                                    $newApplicant = $firstApplicant->replicate(['id']);
+                                                    $newApplicant->policy_id = $newPolicy->id;
+                                                    $newApplicant->save();
+                                                }
+                                            } else {
+                                                // For other policy types, copy all applicants
+                                                foreach ($currentPolicy->policyApplicants as $applicant) {
+                                                    $newApplicant = $applicant->replicate(['id']);
+                                                    $newApplicant->policy_id = $newPolicy->id;
+                                                    $newApplicant->save();
+                                                }
                                             }
                                             
                                             // 2. Copy contact information if it exists separately from the main contact

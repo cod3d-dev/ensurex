@@ -7,6 +7,7 @@ use App\Enums\Gender;
 use App\Enums\ImmigrationStatus;
 use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -21,6 +22,26 @@ class EditPolicyApplicantsData extends EditRecord
     protected static ?string $navigationLabel = 'Datos';
 
     protected static ?string $navigationIcon = 'iconsax-bro-personalcard';
+    
+    public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
+    
+    protected function getSaveFormAction(): Actions\Action
+    {
+        return parent::getSaveFormAction()
+            ->label(function () {
+                // Check if all pages have been completed
+                $record = $this->getRecord();
+                $isCompleted = $record->areRequiredPagesCompleted();
+                
+                // Return 'Siguiente' if not completed, otherwise 'Guardar'
+                return $isCompleted ? 'Guardar' : 'Siguiente';
+            })
+            ->icon(fn () => $this->getRecord()->areRequiredPagesCompleted() ? '' : 'heroicon-o-arrow-right')
+            ->color(function () {
+                $record = $this->getRecord();
+                return $record->areRequiredPagesCompleted() ? 'primary' : 'success';
+            });    
+    }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -41,7 +62,6 @@ class EditPolicyApplicantsData extends EditRecord
 
     protected function afterSave(): void
     {
-
         // Get the policy model
         $policy = $this->record;
 
@@ -66,7 +86,33 @@ class EditPolicyApplicantsData extends EditRecord
         ]);
 
         // Mark this page as completed
-        $this->record->markPageCompleted('edit_policy_applicants_data');
+        $policy->markPageCompleted('edit_policy_applicants_data');
+        
+        // If all required pages are completed, redirect to the completion page
+        if ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+            return;
+        }
+        
+        // Get the next uncompleted page and redirect to it
+        $incompletePages = $policy->getIncompletePages();
+        if (!empty($incompletePages)) {
+            $nextPage = reset($incompletePages); // Get the first incomplete page
+            
+            // Map page names to their respective routes
+            $pageRoutes = [
+                'edit_policy' => 'edit',
+                'edit_policy_contact' => 'edit-contact',
+                'edit_policy_applicants' => 'edit-applicants',
+                'edit_policy_applicants_data' => 'edit-applicants-data',
+                'edit_policy_income' => 'edit-income',
+                'edit_policy_payments' => 'payments',
+            ];
+            
+            if (isset($pageRoutes[$nextPage])) {
+                $this->redirect(PolicyResource::getUrl($pageRoutes[$nextPage], ['record' => $policy]));
+            }
+        }
     }
 
     public function form(Form $form): Form
@@ -83,6 +129,7 @@ class EditPolicyApplicantsData extends EditRecord
                             ->hiddenLabel(true)
                             ->reorderable()
                             ->orderColumn('sort_order')
+                            ->columns(['sm' => 12, 'md' => 6, 'lg' => 4])
                             ->schema([
                                 Forms\Components\Fieldset::make('Datos')
                                     ->schema([
@@ -227,8 +274,8 @@ class EditPolicyApplicantsData extends EditRecord
                                                                     ->label('Estado Emisión')
                                                                     ->columnSpan(2),
 
-                                                            ])->columns(7),
-                                                    ])->columns(9),
+                                                            ])->columns(['sm' => 7, 'md' => 7, 'lg' => 7]),
+                                                    ])->columns(['sm' => 9, 'md' => 9, 'lg' => 9]),
 
                                                 //                                                Forms\Components\Select::make('immigration_status')
                                                 //                                                    ->columnSpan(2)
@@ -241,14 +288,14 @@ class EditPolicyApplicantsData extends EditRecord
                                                 //
 
                                             ])
-                                            ->columns(7)
+                                            ->columns(['sm' => 7, 'md' => 7, 'lg' => 7])
                                             ->columnSpanFull(),
 
                                         //
 
                                         //
 
-                                    ])->columns(4),
+                                    ])->columns(['sm' => 4, 'md' => 4, 'lg' => 4]),
 
                             ])
                             ->reorderable(false)
@@ -257,7 +304,7 @@ class EditPolicyApplicantsData extends EditRecord
                             ->collapsible(false)
                             ->defaultItems(0)
                             ->reorderable(false)
-                            ->columns(3),
+                            ->columns(['sm' => 3, 'md' => 3, 'lg' => 3]),
                     ]),
             ]);
     }

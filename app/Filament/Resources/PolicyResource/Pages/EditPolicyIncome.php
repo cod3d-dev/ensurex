@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 use App\Enums\FamilyRelationship;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Contact;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\EditRecord;
@@ -17,10 +18,60 @@ class EditPolicyIncome extends EditRecord
 
     protected static ?string $navigationIcon = 'iconoir-money-square';
 
+    public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
+
+    protected function getSaveFormAction(): Actions\Action
+    {
+        return parent::getSaveFormAction()
+            ->label(function () {
+                // Check if all pages have been completed
+                $record = $this->getRecord();
+                $isCompleted = $record->areRequiredPagesCompleted();
+
+                // Return 'Siguiente' if not completed, otherwise 'Guardar'
+                return $isCompleted ? 'Guardar' : 'Siguiente';
+            })
+            ->icon(fn () => $this->getRecord()->areRequiredPagesCompleted() ? '' : 'heroicon-o-arrow-right')
+            ->color(function () {
+                $record = $this->getRecord();
+
+                return $record->areRequiredPagesCompleted() ? 'primary' : 'success';
+            });
+    }
+
     protected function afterSave(): void
     {
+        // Get the policy model
+        $policy = $this->record;
+
         // Mark this page as completed
-        $this->record->markPageCompleted('edit_policy_income');
+        $policy->markPageCompleted('edit_policy_income');
+
+        // If all required pages are completed, redirect to the completion page
+        if ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+            return;
+        }
+
+        // Get the next uncompleted page and redirect to it
+        $incompletePages = $policy->getIncompletePages();
+        if (! empty($incompletePages)) {
+            $nextPage = reset($incompletePages); // Get the first incomplete page
+
+            // Map page names to their respective routes
+            $pageRoutes = [
+                'edit_policy' => 'edit',
+                'edit_policy_contact' => 'edit-contact',
+                'edit_policy_applicants' => 'edit-applicants',
+                'edit_policy_applicants_data' => 'edit-applicants-data',
+                'edit_policy_income' => 'edit-income',
+                'edit_policy_payments' => 'payments',
+            ];
+
+            if (isset($pageRoutes[$nextPage])) {
+                $this->redirect(PolicyResource::getUrl($pageRoutes[$nextPage], ['record' => $policy]));
+            }
+        }
     }
 
     public function form(Form $form): Form
@@ -29,7 +80,7 @@ class EditPolicyIncome extends EditRecord
             ->schema([
                 Forms\Components\TextInput::make('total_family_members')
                     ->numeric()
-                    ->label('Total Miembros Familiares')
+                    ->label('Total Familiares')
                     ->readOnly()
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->default(1)
@@ -49,8 +100,15 @@ class EditPolicyIncome extends EditRecord
                     ->formatStateUsing(function ($state, $record) {
                         return $record->policyApplicants()->where('is_covered_by_policy', true)->count();
                     }),
+                Forms\Components\TextInput::make('total_applicants_with_medicaid')
+                    ->label('Total Medicaid')
+                    ->readOnly()
+                    ->extraInputAttributes(['class' => 'text-center'])
+                    ->formatStateUsing(function ($state, $record) {
+                        return $record->policyApplicants()->where('medicaid_client', true)->count();
+                    }),
                 Forms\Components\TextInput::make('estimated_household_income')
-                    ->label('Ingreso Familiar Estimado')
+                    ->label('Ingresos Estimados')
                     ->prefix('$')
                     ->readOnly()
                     ->extraInputAttributes(function (Forms\Get $get, $state) {
@@ -67,7 +125,7 @@ class EditPolicyIncome extends EditRecord
                     })
                     ->numeric(),
                 Forms\Components\TextInput::make('kynect_fpl_threshold')
-                    ->label('Ingresos Requeridos Kynect')
+                    ->label('Requisito Kynect')
                     ->disabled()
                     ->extraInputAttributes(['class' => 'text-end'])
                     ->prefix('$')
@@ -230,10 +288,10 @@ class EditPolicyIncome extends EditRecord
                             ->label('Ingreso Anual')
                             ->readOnly(),
 
-                    ])->columns(6)->columnSpanFull()
+                    ])->columns(['sm' => 6, 'md' => 6, 'lg' => 6])->columnSpanFull()
                     ->collapseAllAction(fn (\Filament\Forms\Components\Actions\Action $action) => $action->hidden())
                     ->expandAllAction(fn (\Filament\Forms\Components\Actions\Action $action) => $action->hidden()),
-            ])->columns(4);
+            ])->columns(['sm' => 5, 'md' => 5, 'lg' => 5]);
 
     }
 

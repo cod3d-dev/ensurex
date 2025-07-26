@@ -10,6 +10,15 @@ use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Enums\RenewalStatus;
 use App\Enums\UsState;
+use App\Models\Agent;
+use App\Models\Contact;
+use App\Models\InsuranceCompany;
+use App\Models\Issue;
+use App\Models\KynectFPL;
+use App\Models\PolicyApplicant;
+use App\Models\PolicyDocument;
+use App\Models\Quote;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -236,11 +245,16 @@ class Policy extends Model
         $requiredPages = [
             'edit_policy',
             'edit_policy_contact',
-            'edit_policy_applicants',
+            // 'edit_policy_applicants',
             'edit_policy_applicants_data',
-            'edit_policy_income',
+            // 'edit_policy_income',
             'edit_policy_payments',
         ];
+
+        if ($this->policy_type !== PolicyType::Life) {
+            $requiredPages[] = 'edit_policy_applicants';
+            $requiredPages[] = 'edit_policy_income';
+        }
 
         $completedPages = $this->completed_pages ?? [];
 

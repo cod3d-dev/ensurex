@@ -3,12 +3,13 @@
 namespace App\Providers;
 
 use Carbon\Carbon;
-use Filament\Support\Colors\Color;
-use Filament\Support\Facades\FilamentColor;
-use Illuminate\Support\ServiceProvider;
-use Filament\Support\Assets\Css;
-use Filament\Support\Facades\FilamentAsset;
 use Filament\Forms\Components\TextInput;
+use Filament\Support\Assets\Css;
+use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\Facades\FilamentColor;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Set Spanish as the default locale for Carbon
         Carbon::setLocale('es');
-        
+
         FilamentColor::register([
             'danger' => Color::Red,
             'gray' => Color::Zinc,
@@ -44,7 +45,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         FilamentAsset::register([
-            Css::make('custom-stylesheet2', __DIR__ . '/../../resources/css/custom.css'),
+            Css::make('custom-stylesheet2', __DIR__.'/../../resources/css/custom.css'),
         ]);
+
+        Model::unguard();
     }
 }

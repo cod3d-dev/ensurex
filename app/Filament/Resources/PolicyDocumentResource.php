@@ -100,12 +100,67 @@ class PolicyDocumentResource extends Resource
                     })
                     ->description(fn (PolicyDocument $record): string => $record->policy->policy_type->getLabel().': '.$record->policy->insuranceCompany?->name ?? '')
                     ->url(fn (PolicyDocument $record): string => PolicyResource::getUrl('view', ['record' => $record->policy])),
+                Tables\Columns\TextColumn::make('policy.contact.full_name')
+                    ->label('Cliente')
+                    ->grow(false)
+                    ->searchable()
+                    ->html()
+                    // ->searchable(query: function (Builder $query, string $search): Builder {
+                    //     return $query
+                    //         ->whereHas('contact', function (Builder $query) use ($search) {
+                    //             $query->where('full_name', 'like', "%{$search}%");
+                    //         })
+                    //         ->orWhereHas('applicants', function (Builder $query) use ($search) {
+                    //             $query->where('full_name', 'like', "%{$search}%");
+                    //         });
+                    // })
+                    // ->tooltip(function (string $state, Policy $record): string {
+                    //     $spanishMonths = [
+                    //         'January' => 'Enero', 'February' => 'Febrero', 'March' => 'Marzo', 'April' => 'Abril',
+                    //         'May' => 'Mayo', 'June' => 'Junio', 'July' => 'Julio', 'August' => 'Agosto',
+                    //         'September' => 'Septiembre', 'October' => 'Octubre', 'November' => 'Noviembre', 'December' => 'Diciembre',
+                    //     ];
+                    //     $month = $record->contact->created_at->format('F');
+                    //     $year = $record->contact->created_at->format('Y');
+                    //     $spanishDate = $spanishMonths[$month].' de '.$year;
+                    //     $customers = 'Cliente desde '.$spanishDate;
+
+                    //     return $customers;
+                    // })
+                    ->formatStateUsing(function (string $state, PolicyDocument $record): string {
+                        $customers = $state;
+                        foreach ($record->policy->additionalApplicants() as $applicant) {
+                            $medicaidBadge = '';
+                            if ($applicant->pivot->medicaid_client) {
+                                $medicaidBadge = '<span style="display: inline-block; background-color: #60a5fa; color: white; border-radius: 0.2rem; padding: 0rem 0.2rem; font-size: 0.75rem; font-weight: 500; margin-left: 15px;">Medicaid</span>';
+                            }
+
+                            $customers .= '<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1px;">
+                                <span style="color: #6b7280; font-size: 0.75rem; max-width: 70%;">'.$applicant->full_name.'</span>
+                                '.$medicaidBadge.'
+                            </div>';
+                        }
+
+                        // Add horizontal line
+                        $customers .= '<div style="border-top: 1px solid #e5e7eb; margin-top: 8px; margin-bottom: 6px;"></div>';
+
+                        $enrollmentType = $record->policy->policy_inscription_type?->getLabel() ?? 'N/A';
+                        $customers .= '<div style="display: flex; align-items: center;">
+                            <span style="font-size: 0.75rem; color: #374151; font-weight: 500;">Tipo de Inscripción:</span>
+                            <span style="font-size: 0.75rem; color: #6b7280; margin-left: 4px;">'.$enrollmentType.'</span>
+                        </div>';
+
+                        // Add status indicators
+
+                        return $customers;
+                    }),
                 Tables\Columns\TextColumn::make('documentType.name')
                     ->label('Tipo')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Descripción')
-                    ->searchable(),
+                    ->label('Descripción')
+                    ->wrap()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('status')
 //                    ->options(DocumentStatus::class)
                     ->action(
@@ -148,6 +203,7 @@ class PolicyDocumentResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultGroup('policy.code')
             ->filters([
                 //
             ])

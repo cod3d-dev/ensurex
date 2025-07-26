@@ -36,8 +36,8 @@ enum PolicyStatus: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::ToVerify => 'danger',
-            self::Draft => 'info',
-            self::Created => 'success',
+            self::Draft => 'warning',
+            self::Created => 'info',
             self::Pending => 'warning',
             self::Rejected => 'danger',
             self::Active => 'success',

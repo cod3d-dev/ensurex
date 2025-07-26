@@ -1,9 +1,9 @@
 <?php
 
+use App\Enums\QuoteStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Enums\QuoteStatus;
 
 return new class extends Migration
 {
@@ -14,13 +14,13 @@ return new class extends Migration
     {
         Schema::create('quotes', function (Blueprint $table) {
             $table->id();
+            $table->date('date');
             $table->foreignId('contact_id')->constrained();
             $table->json('contact_information')->nullable();
             $table->foreignId('user_id')->constrained();
             $table->foreignId('policy_id')->nullable();
             $table->foreignId('insurance_company_id')->nullable();
             $table->foreignId('agent_id')->nullable();
-            $table->string('policy_type')->nullable();
             $table->decimal('premium_amount', 10, 2)->nullable();
             $table->decimal('coverage_amount', 12, 2)->nullable();
             $table->integer('year')->nullable();
@@ -31,6 +31,7 @@ return new class extends Migration
             $table->json('additional_applicants')->nullable(); // Will store additional applicants
             $table->integer('total_family_members')->default(1);
             $table->integer('total_applicants')->default(1);
+            $table->integer('total_medicaid')->default(0);
 
             // Additional Information
             $table->decimal('estimated_household_income', 12, 2)->nullable();
@@ -42,6 +43,7 @@ return new class extends Migration
             $table->date('end_date')->nullable();
             $table->date('valid_until')->nullable();
             $table->string('status')->default(QuoteStatus::Pending);
+            $table->json('policy_types')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
         });

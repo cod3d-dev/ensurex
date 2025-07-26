@@ -8,11 +8,13 @@ use App\Enums\MaritialStatus;
 use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Contact;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Carbon\Carbon;
 
 class EditPolicyContact extends EditRecord
 {
@@ -21,7 +23,27 @@ class EditPolicyContact extends EditRecord
     protected static ?string $navigationLabel = 'Titular';
 
     protected static ?string $navigationIcon = 'eos-perm-contact-calendar-o';
-
+    
+    public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
+    
+    protected function getSaveFormAction(): Actions\Action
+    {
+        return parent::getSaveFormAction()
+            ->label(function () {
+                // Check if all pages have been completed
+                $record = $this->getRecord();
+                $isCompleted = $record->areRequiredPagesCompleted();
+                
+                // Return 'Siguiente' if not completed, otherwise 'Guardar'
+                return $isCompleted ? 'Guardar' : 'Siguiente';
+            })
+            ->icon(fn () => $this->getRecord()->areRequiredPagesCompleted() ? '' : 'heroicon-o-arrow-right')
+            ->color(function () {
+                $record = $this->getRecord();
+                return $record->areRequiredPagesCompleted() ? 'primary' : 'success';
+            });
+    }
+    
     public function form(Form $form): Form
     {
         return $form
@@ -173,7 +195,7 @@ class EditPolicyContact extends EditRecord
                                     ->modalHeading('Cambiar contacto')
                                     ->modalWidth('md'),
                             ])
-                            ->columnSpan(2),
+                            ->columnSpan(3),
                         Forms\Components\TextInput::make('contact.code')
                             ->label('Codigo Cliente')
                             ->disabled(),
@@ -189,22 +211,26 @@ class EditPolicyContact extends EditRecord
                         Forms\Components\Fieldset::make('Datos')
                             ->relationship('contact')
                             ->schema([
-                                // Forms\Components\Select::make('full_name')
-                                //     ->label('Nombre')
-                                //     ->options(function () {
-                                //         return Contact::all()->pluck('full_name', 'id')->toArray();
-                                //     })
-                                //     ->required()
-                                //     ->columnSpan(2),
                                 Forms\Components\DatePicker::make('date_of_birth')
                                     ->required()
                                     ->label('Fecha de Nacimiento')
                                     ->live(onBlur: true)
+                                    ->afterStateUpdated(function (string $operation, $state, Forms\Set $set) {
+                                        if ($state) {
+                                            $age = Carbon::parse($state)->age;
+                                            $set('calculated_age', $age);
+                                        } else {
+                                            $set('calculated_age', null);
+                                        }
+                                    })
                                     ->columnSpan(3),
-                                Forms\Components\TextInput::make('age')
+                                Forms\Components\Placeholder::make('age')
                                     ->label('Edad')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->extraAttributes([
+                                        'class' => 'block w-full py-1 px-3 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-700',
+                                        'style' => 'min-height: 38px; display: flex; align-items: center;'
+                                    ])
+                                    ->content(fn (Contact $record): string => $record->age ?? '-'),
                                 Forms\Components\Select::make('gender')
                                     ->label('Genero')
                                     ->required()
@@ -236,7 +262,8 @@ class EditPolicyContact extends EditRecord
                                     ->label('Caso Kynect')
                                     ->live()
                                     ->columnSpan(2),
-                            ])->columns(12),
+                            ])
+                            ->columns(['sm' => 12, 'md' => 12, 'lg' => 12]),
                         Forms\Components\Fieldset::make('Direccion')
                             ->relationship('contact')
                             ->schema([
@@ -274,47 +301,10 @@ class EditPolicyContact extends EditRecord
                                     ->options(UsState::class)
                                     ->label('Estado'),
 
-                            ])->columns(4),
-
-                        // Forms\Components\Fieldset::make('Información Migratoria')
-                        //     ->schema([
-                        //             Forms\Components\Select::make('contact_information.immigration_status')
-                        //                 ->label('Estatus migratorio')
-                        //                 ->options(ImmigrationStatus::class)
-                        //                 ->live(),
-                        //             Forms\Components\TextInput::make('contact_information.immigration_status_category')
-                        //                 ->label('Descripción')
-                        //                 ->columnSpan(2)
-                        //                 ->disabled(fn (Get $get) => $get('contact_information.immigration_status') != ImmigrationStatus::Other->value)
-                        //                 ->columnSpan(2),
-                        //             Forms\Components\TextInput::make('contact_information.ssn')
-                        //                 ->label('SSN #'),
-                        //             Forms\Components\TextInput::make('contact_information.passport')
-                        //                 ->label('Pasaporte'),
-                        //             Forms\Components\TextInput::make('contact_information.alien_number')
-                        //                 ->label('Alien'),
-                        //             Forms\Components\TextInput::make('contact_information.work_permit_number')
-                        //                 ->label('Permiso de Trabajo #'),
-                        //             Forms\Components\DatePicker::make('contact_information.work_permit_emission_date')
-                        //                 ->label('Emisión'),
-                        //             Forms\Components\DatePicker::make('contact_information.work_permit_expiration_date')
-                        //                 ->label('Vencimiento'),
-                        //             Forms\Components\TextInput::make('contact_information.green_card_number')
-                        //                 ->label('Green Card #'),
-                        //             Forms\Components\DatePicker::make('contact_information.green_card_emission_date')
-                        //                 ->label('Emisión'),
-                        //             Forms\Components\DatePicker::make('contact_information.green_card_expiration_date')
-                        //                 ->label('Vencimiento'),
-                        //             Forms\Components\TextInput::make('contact_information.driver_license_number')
-                        //                 ->label('Green Card #'),
-                        //             Forms\Components\DatePicker::make('contact_information.driver_license_emission_date')
-                        //                 ->label('Emisión'),
-                        //             Forms\Components\DatePicker::make('contact_information.driver_license_expiration_date')
-                        //                 ->label('Vencimiento'),
-                        //         ])->columns(3),
+                            ])->columns(['sm' => 4, 'md' => 4, 'lg' => 4]),
 
                     ])
-                    ->columns(5),
+                    ->columns(['sm' => 5]),
             ]);
 
     }
@@ -389,8 +379,36 @@ class EditPolicyContact extends EditRecord
 
     protected function afterSave(): void
     {
+        $policy = $this->record;
+        
         // Mark this page as completed
-        $this->record->markPageCompleted('edit_policy_contact');
+        $policy->markPageCompleted('edit_policy_contact');
+        
+        // If all required pages are completed, redirect to the completion page
+        if ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+            return;
+        }
+        
+        // Get the next uncompleted page and redirect to it
+        $incompletePages = $policy->getIncompletePages();
+        if (!empty($incompletePages)) {
+            $nextPage = reset($incompletePages); // Get the first incomplete page
+            
+            // Map page names to their respective routes
+            $pageRoutes = [
+                'edit_policy' => 'edit',
+                'edit_policy_contact' => 'edit-contact',
+                'edit_policy_applicants' => 'edit-applicants',
+                'edit_policy_applicants_data' => 'edit-applicants-data',
+                'edit_policy_income' => 'edit-income',
+                'edit_policy_payments' => 'payments',
+            ];
+            
+            if (isset($pageRoutes[$nextPage])) {
+                $this->redirect(PolicyResource::getUrl($pageRoutes[$nextPage], ['record' => $policy]));
+            }
+        }
     }
 
     //     protected function mutateFormDataBeforeSave(array $data): array

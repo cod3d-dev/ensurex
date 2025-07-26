@@ -5,9 +5,12 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Policy;
+use App\Services\ZipCodeService;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\App;
 
 class EditPolicyPayments extends EditRecord
 {
@@ -17,10 +20,60 @@ class EditPolicyPayments extends EditRecord
 
     protected static ?string $navigationIcon = 'iconoir-bank';
 
+    public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
+
+    protected function getSaveFormAction(): Actions\Action
+    {
+        return parent::getSaveFormAction()
+            ->label(function () {
+                // Check if all pages have been completed
+                $record = $this->getRecord();
+                $isCompleted = $record->areRequiredPagesCompleted();
+
+                // Return 'Siguiente' if not completed, otherwise 'Guardar'
+                return $isCompleted ? 'Guardar' : 'Siguiente';
+            })
+            ->icon(fn () => $this->getRecord()->areRequiredPagesCompleted() ? '' : 'heroicon-o-arrow-right')
+            ->color(function () {
+                $record = $this->getRecord();
+
+                return $record->areRequiredPagesCompleted() ? 'primary' : 'success';
+            });
+    }
+
     protected function afterSave(): void
     {
+        // Get the policy model
+        $policy = $this->record;
+
         // Mark this page as completed
-        $this->record->markPageCompleted('edit_policy_payments');
+        $policy->markPageCompleted('edit_policy_payments');
+
+        // If all required pages are completed, redirect to the completion page
+        if ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+            return;
+        }
+
+        // Get the next uncompleted page and redirect to it
+        $incompletePages = $policy->getIncompletePages();
+        if (! empty($incompletePages)) {
+            $nextPage = reset($incompletePages); // Get the first incomplete page
+
+            // Map page names to their respective routes
+            $pageRoutes = [
+                'edit_policy' => 'edit',
+                'edit_policy_contact' => 'edit-contact',
+                'edit_policy_applicants' => 'edit-applicants',
+                'edit_policy_applicants_data' => 'edit-applicants-data',
+                'edit_policy_income' => 'edit-income',
+                'edit_policy_payments' => 'payments',
+            ];
+
+            if (isset($pageRoutes[$nextPage])) {
+                $this->redirect(PolicyResource::getUrl($pageRoutes[$nextPage], ['record' => $policy]));
+            }
+        }
     }
 
     public function form(Form $form): Form
@@ -90,7 +143,7 @@ class EditPolicyPayments extends EditRecord
                                     ->mask('999')
                                     ->password()
                                     ->autocomplete(false),
-                            ])->columns(3),
+                            ])->columns(['sm' => 3, 'md' => 3, 'lg' => 3]),
                         Forms\Components\Fieldset::make('Cuenta bancaria')
                             ->schema([
                                 Forms\Components\TextInput::make('payment_bank_account_bank')
@@ -105,7 +158,7 @@ class EditPolicyPayments extends EditRecord
                                 Forms\Components\TextInput::make('payment_bank_account_number')
                                     ->label('Cuenta')
                                     ->maxLength(255),
-                            ])->columns(4),
+                            ])->columns(['sm' => 4, 'md' => 4, 'lg' => 4]),
                         Forms\Components\Fieldset::make('Dirección de Facturación')
                             ->schema([
                                 Forms\Components\Toggle::make('copy_home_address')
@@ -123,16 +176,27 @@ class EditPolicyPayments extends EditRecord
                                             $set('billing_address_zip', $record->contact->zip_code);
                                         }
                                     }),
-                                Forms\Components\TextInput::make('billing_address_1')
-                                    ->label('Direccion 1')
+                                Forms\Components\TextInput::make('billing_address_zip')
+                                    ->label('Código Postal')
                                     ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
                                     ->dehydrated(true)
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('billing_address_2')
-                                    ->label('Direccion 2')
-                                    ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
-                                    ->dehydrated(true)
-                                    ->maxLength(255),
+                                    ->maxLength(255)
+                                    ->live()
+                                    ->afterStateUpdated(function (string $state, Forms\Set $set, Forms\Get $get) {
+                                        // Skip if copy_home_address is enabled or if zip is empty
+                                        if ($get('copy_home_address') || empty($state)) {
+                                            return;
+                                        }
+                                        
+                                        // Use ZipCodeService to look up city and state
+                                        $zipService = App::make(ZipCodeService::class);
+                                        $locationData = $zipService->getLocationFromZipCode($state);
+                                        
+                                        if ($locationData) {
+                                            $set('billing_address_city', $locationData['city']);
+                                            $set('billing_address_state', $locationData['state']);
+                                        }
+                                    }),
                                 Forms\Components\TextInput::make('billing_address_city')
                                     ->label('Ciudad')
                                     ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
@@ -140,20 +204,25 @@ class EditPolicyPayments extends EditRecord
                                     ->maxLength(255),
                                 Forms\Components\Select::make('billing_address_state')
                                     ->label('Estado')
-                                    ->live()
                                     ->options(UsState::class)
                                     ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
                                     ->required()
-                                    ->columnSpan(2)
                                     ->dehydrated(true),
-                                Forms\Components\TextInput::make('billing_address_zip')
-                                    ->label('Código Postal')
+                                Forms\Components\TextInput::make('billing_address_1')
+                                    ->label('Direccion 1')
                                     ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
                                     ->dehydrated(true)
+                                    ->columnSpan(2)
                                     ->maxLength(255),
-                            ])->columns(3),
+                                Forms\Components\TextInput::make('billing_address_2')
+                                    ->label('Direccion 2')
+                                    ->disabled(fn (Forms\Get $get) => $get('copy_home_address'))
+                                    ->dehydrated(true)
+                                    ->columnSpan(2)
+                                    ->maxLength(255),
+                            ])->columns(['sm' => 4, 'md' => 4, 'lg' => 4]),
                     ])
-                    ->columns(4),
+                    ->columns(['sm' => 4, 'md' => 4, 'lg' => 4]),
             ]);
 
     }

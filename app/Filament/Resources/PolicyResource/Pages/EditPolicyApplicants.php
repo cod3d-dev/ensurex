@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 use App\Enums\FamilyRelationship;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Contact;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Repeater;
@@ -20,6 +21,26 @@ class EditPolicyApplicants extends EditRecord
     protected static ?string $navigationLabel = 'Miembros';
 
     protected static ?string $navigationIcon = 'carbon-pedestrian-family';
+    
+    public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
+    
+    protected function getSaveFormAction(): Actions\Action
+    {
+        return parent::getSaveFormAction()
+            ->label(function () {
+                // Check if all pages have been completed
+                $record = $this->getRecord();
+                $isCompleted = $record->areRequiredPagesCompleted();
+                
+                // Return 'Siguiente' if not completed, otherwise 'Guardar'
+                return $isCompleted ? 'Guardar' : 'Siguiente';
+            })
+            ->icon(fn () => $this->getRecord()->areRequiredPagesCompleted() ? '' : 'heroicon-o-arrow-right')
+            ->color(function () {
+                $record = $this->getRecord();
+                return $record->areRequiredPagesCompleted() ? 'primary' : 'success';
+            });    
+    }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -53,6 +74,32 @@ class EditPolicyApplicants extends EditRecord
 
         // Mark this page as completed
         $policy->markPageCompleted('edit_policy_applicants');
+        
+        // If all required pages are completed, redirect to the completion page
+        if ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+            return;
+        }
+        
+        // Get the next uncompleted page and redirect to it
+        $incompletePages = $policy->getIncompletePages();
+        if (!empty($incompletePages)) {
+            $nextPage = reset($incompletePages); // Get the first incomplete page
+            
+            // Map page names to their respective routes
+            $pageRoutes = [
+                'edit_policy' => 'edit',
+                'edit_policy_contact' => 'edit-contact',
+                'edit_policy_applicants' => 'edit-applicants',
+                'edit_policy_applicants_data' => 'edit-applicants-data',
+                'edit_policy_income' => 'edit-income',
+                'edit_policy_payments' => 'payments',
+            ];
+            
+            if (isset($pageRoutes[$nextPage])) {
+                $this->redirect(PolicyResource::getUrl($pageRoutes[$nextPage], ['record' => $policy]));
+            }
+        }
     }
 
     public function form(Form $form): Form

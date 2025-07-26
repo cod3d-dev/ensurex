@@ -79,6 +79,11 @@ class QuoteResource extends Resource
                     ->schema([
                         Forms\Components\Grid::make()  // Quote details
                             ->schema([
+                                Forms\Components\DatePicker::make('date')
+                                    ->default(now())
+                                    ->required()
+                                    ->label('Fecha')
+                                    ->columnSpan(2),
                                 Forms\Components\Select::make('contact_id')
                                     ->label('Nombre')
                                     ->relationship('contact', 'full_name')
@@ -133,7 +138,7 @@ class QuoteResource extends Resource
 
                                         return $contact->id;
                                     })
-                                    ->columnSpan(6)
+                                    ->columnSpan(4)
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $contact = Contact::find($state);
                                         if (! $contact) {
@@ -494,13 +499,18 @@ class QuoteResource extends Resource
                                         $applicants = $get('applicants') ?? [];
                                         $applicants_count = count($applicants);
 
+                                        $total_applicants = $state;
+                                        $total_medicaid = $get('total_medicaid');
+
+                                        $total_members = $total_applicants + $total_medicaid;
+
                                         // If we need more rows than we currently have
-                                        if ($state > $applicants_count) {
+                                        if ($total_members > $applicants_count) {
                                             // Keep existing members
                                             //                                                    $newFamilyMembers = $familyMembers;
 
                                             // Add new empty rows
-                                            for ($i = $applicants_count; $i < $state; $i++) {
+                                            for ($i = $applicants_count; $i < $total_members; $i++) {
                                                 $applicants[] = [
                                                     'relationship' => '',
                                                     'age' => '',
@@ -521,7 +531,58 @@ class QuoteResource extends Resource
                                         } else {
                                             // If we need fewer rows, just keep the first $state rows
                                             $applicants = array_slice($applicants, 0,
-                                                $state);
+                                                $total_members);
+                                        }
+
+                                        $set('applicants', $applicants);
+                                    }),
+                                Forms\Components\TextInput::make('total_medicaid')
+                                    ->integer()
+                                    ->label('Total Medicaid')
+                                    ->required()
+                                    ->minValue(0)
+                                    ->default(0)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+
+                                        $total_applicants = $get('total_applicants');
+                                        $total_medicaid = $state;
+
+                                        $total_members = $total_applicants + $total_medicaid;
+
+                                        $applicants = $get('applicants') ?? [];
+
+                                        $applicants_count = count($applicants);
+                                        // dd($total_members, $applicants_count);
+
+                                        // If we need more rows than we currently have
+                                        if ($total_members > $applicants_count) {
+                                            // Keep existing members
+                                            //                                                    $newFamilyMembers = $familyMembers;
+
+                                            // Add new empty rows
+                                            for ($i = $applicants_count; $i < $total_members; $i++) {
+                                                $applicants[] = [
+                                                    'relationship' => '',
+                                                    'age' => '',
+                                                    'is_covered' => false,
+                                                    'pregnant' => false,
+                                                    'tobacco_user' => false,
+                                                    'is_eligible_for_coverage' => true,
+                                                    'income_per_hour' => '',
+                                                    'hours_per_week' => '',
+                                                    'income_per_extra_hour' => '',
+                                                    'extra_hours_per_week' => '',
+                                                    'weeks_per_year' => '',
+                                                    'yearly_income' => '',
+                                                    'is_self_employed' => false,
+                                                    'self_employed_yearly_income' => '',
+                                                ];
+                                            }
+                                        } else {
+                                            // If we need fewer rows, just keep the first $state rows
+                                            $applicants = array_slice($applicants, 0,
+                                                $total_members);
                                         }
 
                                         $set('applicants', $applicants);
@@ -553,12 +614,12 @@ class QuoteResource extends Resource
                                         return $kinectKPL * 12;
                                     }),
                             ])
-                            ->columns(4),
+                            ->columns(5),
                         Forms\Components\Repeater::make('applicants')
                             ->label('Aplicantes')
+                            ->defaultItems(0)
                             ->addable(false)
                             ->deletable(false)
-                            ->defaultItems(0)
                             // ->hiddenLabel(true)
                             ->schema([
                                 Forms\Components\Select::make('relationship')
@@ -596,6 +657,12 @@ class QuoteResource extends Resource
                                 Forms\Components\Toggle::make('is_covered')
                                     ->label('Aplicante')
                                     ->inline(false)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        if ($state) {
+                                            $set('is_eligible_for_coverage', false);
+                                        }
+                                    })
                                     ->default(true),
                                 Forms\Components\Select::make('gender')
                                     ->label('Género')
@@ -615,101 +682,21 @@ class QuoteResource extends Resource
                                 Forms\Components\Toggle::make('is_eligible_for_coverage')
                                     ->label('Medicaid')
                                     ->inline(false)
-                                    ->default(false),
+                                    ->default(false)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        if ($state) {
+                                            $set('is_covered', false);
+                                        }
+                                    }),
                                 Forms\Components\Fieldset::make('Ingresos')
                                     ->schema([
-                                        Forms\Components\TextInput::make('employeer_name')
-                                            ->label('Empresa')
-                                            ->columnSpan(3),
-                                        Forms\Components\TextInput::make('employement_role')
-                                            ->label('Cargo')
-                                            ->columnSpan(3),
-                                        Forms\Components\TextInput::make('employeer_phone')
-                                            ->label('Teléfono')
-                                            ->columnSpan(3),
-                                        Forms\Components\TextInput::make('income_per_hour')
-                                            ->numeric()
-                                            ->label('Hora $')
-                                            ->live(onBlur: true)
-                                            ->columnSpan(2)
-                                            ->afterStateUpdated(fn (
-                                                $state,
-                                                Forms\Set $set,
-                                                Forms\Get $get
-                                            ) => static::calculateYearlyIncome(
-                                                'additional',
-                                                $state,
-                                                $set,
-                                                $get
-                                            )),
-                                        Forms\Components\TextInput::make('hours_per_week')
-                                            ->integer()
-                                            ->label('H/S')
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(fn (
-                                                $state,
-                                                Forms\Set $set,
-                                                Forms\Get $get
-                                            ) => static::calculateYearlyIncome(
-                                                'additional',
-                                                $state,
-                                                $set,
-                                                $get
-                                            )),
-                                        Forms\Components\TextInput::make('income_per_extra_hour')
-                                            ->numeric()
-                                            ->label('H/Extra $')
-                                            ->columnSpan(2)
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(fn (
-                                                $state,
-                                                Forms\Set $set,
-                                                Forms\Get $get
-                                            ) => static::calculateYearlyIncome(
-                                                'additional',
-                                                $state,
-                                                $set,
-                                                $get
-                                            )),
-                                        Forms\Components\TextInput::make('extra_hours_per_week')
-                                            ->integer()
-                                            ->label('H/E S')
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(fn (
-                                                $state,
-                                                Forms\Set $set,
-                                                Forms\Get $get
-                                            ) => static::calculateYearlyIncome(
-                                                'additional',
-                                                $state,
-                                                $set,
-                                                $get
-                                            )),
-                                        Forms\Components\TextInput::make('weeks_per_year')
-                                            ->integer()
-                                            ->label('S/Año')
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(fn (
-                                                $state,
-                                                Forms\Set $set,
-                                                Forms\Get $get
-                                            ) => static::calculateYearlyIncome(
-                                                'additional',
-                                                $state,
-                                                $set,
-                                                $get
-                                            )),
-                                        Forms\Components\TextInput::make('yearly_income')
-                                            ->numeric()
-                                            ->label('Ingreso Anual')
-                                            ->disabled()
-                                            ->columnSpan(2),
                                         Forms\Components\Toggle::make('is_self_employed')
                                             ->label('¿Self Employeed?')
                                             ->inline(false)
                                             ->live(onBlur: true)
                                             ->columnSpan(2)
-                                            ->columnStart(6)
+                                            ->columnStart(4)
                                             ->afterStateHydrated(fn (
                                                 $state,
                                                 Forms\Set $set,
@@ -738,8 +725,13 @@ class QuoteResource extends Resource
                                                     $get
                                                 );
                                             }),
+                                        Forms\Components\TextInput::make('self_employed_role')
+                                            ->label('Profesión')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === false)
+                                            ->columnSpan(2),
                                         Forms\Components\TextInput::make('self_employed_yearly_income')
                                             ->numeric()
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === false)
                                             ->live(onBlur: true)
                                             ->label('Ingreso Anual')
                                             ->columnSpan(2)
@@ -753,6 +745,100 @@ class QuoteResource extends Resource
                                                 $set,
                                                 $get
                                             )),
+                                        Forms\Components\TextInput::make('employeer_name')
+                                            ->label('Empresa')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->columnSpan(3),
+                                        Forms\Components\TextInput::make('employement_role')
+                                            ->label('Cargo')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->columnSpan(3),
+                                        Forms\Components\TextInput::make('employeer_phone')
+                                            ->label('Teléfono')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->columnSpan(3),
+                                        Forms\Components\TextInput::make('income_per_hour')
+                                            ->numeric()
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->label('Hora $')
+                                            ->live(onBlur: true)
+                                            ->columnSpan(2)
+                                            ->afterStateUpdated(fn (
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('hours_per_week')
+                                            ->integer()
+                                            ->label('H/S')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn (
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('income_per_extra_hour')
+                                            ->numeric()
+                                            ->label('H/Extra $')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->columnSpan(2)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn (
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('extra_hours_per_week')
+                                            ->integer()
+                                            ->label('H/E S')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn (
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('weeks_per_year')
+                                            ->integer()
+                                            ->label('S/Año')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn (
+                                                $state,
+                                                Forms\Set $set,
+                                                Forms\Get $get
+                                            ) => static::calculateYearlyIncome(
+                                                'additional',
+                                                $state,
+                                                $set,
+                                                $get
+                                            )),
+                                        Forms\Components\TextInput::make('yearly_income')
+                                            ->numeric()
+                                            ->label('Ingreso Anual')
+                                            ->disabled(fn (Forms\Get $get): bool => $get('is_self_employed') === true)
+                                            ->columnSpan(2),
                                     ])
                                     ->columns(9),
                             ])
@@ -798,59 +884,23 @@ class QuoteResource extends Resource
                             ->schema([
                                 Forms\Components\TextInput::make('total_family_members')
                                     ->numeric()
+                                    ->readOnly()
                                     ->label('Total Familiares')
-                                    ->required()
-                                    ->columnStart(2)
-                                    ->default(1)
-                                    ->live()
-                                    ->afterStateUpdated(function (string $state, Forms\Set $set) {
-                                        $kinectKPL = \App\Models\KynectFPL::threshold(2024, (int) $state);
-                                        $set('../data.kynect_fpl_threshold', $kinectKPL * 12);
-                                    }),
+                                    ->columnStart(2),
                                 Forms\Components\TextInput::make('total_applicants')
                                     ->numeric()
-                                    ->label('Total Solicitantes')
-                                    ->required()
+                                    ->readOnly()
                                     ->default(1)
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
-                                        $applicants = $get('applicants') ?? [];
-                                        $applicants_count = count($applicants);
-
-                                        // If we need more rows than we currently have
-                                        if ($state > $applicants_count) {
-                                            // Keep existing members
-                                            //                                                    $newFamilyMembers = $familyMembers;
-
-                                            // Add new empty rows
-                                            for ($i = $applicants_count; $i < $state; $i++) {
-                                                $applicants[] = [
-                                                    'relationship' => '',
-                                                    'age' => '',
-                                                    'pregnant' => false,
-                                                    'tobacco_user' => false,
-                                                    'is_eligible_for_coverage' => false,
-                                                    'income_per_hour' => '',
-                                                    'hours_per_week' => '',
-                                                    'income_per_extra_hour' => '',
-                                                    'extra_hours_per_week' => '',
-                                                    'weeks_per_year' => '',
-                                                    'yearly_income' => '',
-                                                    'is_self_employed' => false,
-                                                    'self_employed_yearly_income' => '',
-                                                ];
-                                            }
-                                        } else {
-                                            // If we need fewer rows, just keep the first $state rows
-                                            $applicants = array_slice($applicants, 0,
-                                                $state);
-                                        }
-
-                                        $set('applicants', $applicants);
-                                    }),
+                                    ->label('Total Solicitantes'),
+                                Forms\Components\TextInput::make('total_medicaid')
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->default(0)
+                                    ->label('Total Medicaid'),
                                 Forms\Components\TextInput::make('estimated_household_income')
                                     ->numeric()
                                     ->label('Ingresos Estimados')
+                                    ->readOnly()
                                     ->prefix('$')
                                     ->extraInputAttributes(function ($state, Forms\Set $set, Forms\Get $get) {
                                         $kynectFplThreshold = $get('kynect_fpl_threshold');
@@ -972,23 +1022,25 @@ class QuoteResource extends Resource
         $AllApplicantsYearlyIncome = 0;
 
         foreach ($applicants as $index => $applicant) {
-            $applicantYearlyIncome = 0;
-            if ($applicant['is_self_employed']) {
-                $applicantYearlyIncome = floatval($applicant['self_employed_yearly_income'] ?? 0);
-            } else {
-                $incomePerHour = floatval($applicant['income_per_hour'] ?? 0);
-                $hoursPerWeek = floatval($applicant['hours_per_week'] ?? 0);
-                $incomePerExtraHour = floatval($applicant['income_per_extra_hour'] ?? 0);
-                $extraHoursPerWeek = floatval($applicant['extra_hours_per_week'] ?? 0);
-                $weeksPerYear = floatval($applicant['weeks_per_year'] ?? 0);
+            // $applicantYearlyIncome = 0;
+            // if ($applicant['is_self_employed']) {
+            //     $applicantYearlyIncome = floatval($applicant['self_employed_yearly_income'] ?? 0);
+            // } else {
+            //     $incomePerHour = floatval($applicant['income_per_hour'] ?? 0);
+            //     $hoursPerWeek = floatval($applicant['hours_per_week'] ?? 0);
+            //     $incomePerExtraHour = floatval($applicant['income_per_extra_hour'] ?? 0);
+            //     $extraHoursPerWeek = floatval($applicant['extra_hours_per_week'] ?? 0);
+            //     $weeksPerYear = floatval($applicant['weeks_per_year'] ?? 0);
 
-                $applicantYearlyIncome = ($incomePerHour * $hoursPerWeek + $incomePerExtraHour * $extraHoursPerWeek) * $weeksPerYear;
-            }
+            //     $applicantYearlyIncome = ($incomePerHour * $hoursPerWeek + $incomePerExtraHour * $extraHoursPerWeek) * $weeksPerYear;
+            // }
 
-            $AllApplicantsYearlyIncome += $applicantYearlyIncome;
+            $yearlyIncome = floatval($applicant['yearly_income'] ?? 0);
+            $selfEmployedIncome = floatval($applicant['self_employed_yearly_income'] ?? 0);
+            $AllApplicantsYearlyIncome += $yearlyIncome + $selfEmployedIncome;
         }
 
-        $totalYearlyIncome = $AllApplicantsYearlyIncome;
+        $totalYearlyIncome = round($AllApplicantsYearlyIncome, 2);
 
         $set('../../estimated_household_income', $totalYearlyIncome);
         $set('estimated_household_income', $totalYearlyIncome);
@@ -1186,7 +1238,7 @@ class QuoteResource extends Resource
                     Tables\Actions\EditAction::make(),
                     Tables\Actions\ViewAction::make(),
                     ConvertToPolicy::make('convert_to_policy')
-                        ->label('Crear Polizas2')
+                        ->label('Crear Polizas')
                         ->icon('iconoir-privacy-policy'),
                 ])
                     ->tooltip('Acciones')
