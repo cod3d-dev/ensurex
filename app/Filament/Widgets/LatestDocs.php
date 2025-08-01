@@ -19,27 +19,34 @@ class LatestDocs extends BaseWidget
     {
         return $table
             ->query(
-                fn () => PolicyDocument::query()->whereIn('status', [
-                    \App\Enums\DocumentStatus::ToAdd->value,
-                    \App\Enums\DocumentStatus::Pending->value,
-                    \App\Enums\DocumentStatus::Rejected->value,
-                ]),
+                fn () => PolicyDocument::query()->whereNotIn('status', [
+                    \App\Enums\DocumentStatus::Approved,
+                ])->where('due_date', '<=', now()->addDays(5)->toDateString())->orderBy('due_date', 'asc')
             )
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
+                    ->html()
+                    ->formatStateUsing(function (PolicyDocument $record, string $state): string {
+                        $policy = $record->policy;
+                        $documentName = e($state);
+
+                        if (! $policy) {
+                            return '<span>'.$documentName.'</span>';
+                        }
+
+                        $contact = $policy->contact;
+                        $contactName = $contact ? e($contact->full_name) : 'No Contact';
+                        $policyCode = e($policy->code);
+
+                        $detailsHtml = '<div class="text-xs text-gray-500">'.$policyCode.' - '.$contactName.'</div>';
+
+                        return '<div>'.$documentName.'</div><hr class="my-1 border-gray-300">'.$detailsHtml;
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estatus')
-                    ->badge()
-                    ->color(function (\App\Enums\DocumentStatus $state): string {
-                        return match ($state->value) {
-                            \App\Enums\DocumentStatus::ToAdd->value => 'warning',
-                            \App\Enums\DocumentStatus::Pending->value => 'info',
-                            \App\Enums\DocumentStatus::Rejected->value => 'danger',
-                            default => 'gray',
-                        };
-                    }),
+                    ->badge(),
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Vencimiento')
                     ->dateTime('m/d/Y'),

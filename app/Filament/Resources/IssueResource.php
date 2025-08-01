@@ -10,7 +10,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +29,8 @@ class IssueResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Hidden::make('created_by')
+                    ->default(auth()->user()->id),
                 Forms\Components\TextInput::make('description')
                     ->label('Descripción')
                     ->required()
@@ -48,8 +49,9 @@ class IssueResource extends Resource
                     ->label('Fecha de verificación')
                     ->required(),
                 Forms\Components\Textarea::make('email_message')
-                    ->hidden(fn (Forms\Get $get): bool => $get('status') == IssueStatus::ToReview->value)
                     ->label('Mensaje para Kynect')
+                    ->readOnly(fn (Forms\Get $get): bool => $get('status') != IssueStatus::ToSend->value)
+                    ->required(fn (Forms\Get $get): bool => $get('status') == IssueStatus::ToSend->value)
                     ->columnSpanFull(),
                 Forms\Components\Grid::make()
                     ->schema([
@@ -83,44 +85,68 @@ class IssueResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('Creado')
+                    ->label('Fecha')
                     ->date('m/d/Y')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('issueType.name')
                     ->label('Tipo')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
-                    ->label('Creado'),
-                Tables\Columns\TextColumn::make('description'),
+                    ->date('m/d/Y')
+                    ->label('Actualizado')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('description')
+                    ->wrap()
+                    ->searchable()
+                    ->label('Descripción'),
                 Tables\Columns\TextColumn::make('policy.contact.full_name')
                     ->label('Cliente')
                     ->html()
                     ->url(fn (Issue $record): string => PolicyResource::getUrl('view', ['record' => $record->policy]))
                     ->formatStateUsing(fn (Model $record): string => $record->policy->contact->full_name)
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->whereHas('policy.contact', function (Builder $query) use ($search): Builder {
-                            return $query->where('first_name', 'like', "%{$search}%")
-                                ->orWhere('middle_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%")
-                                ->orWhere('second_last_name', 'like', "%{$search}%");
-                        });
+                        return $query
+                            ->whereHas('policy.applicants', function (Builder $query) use ($search): Builder {
+                                return $query->where('full_name', 'like', "%{$search}%");
+                            });
+                    })
+                    ->formatStateUsing(function (string $state, Issue $record): string {
+                        $customers = $state;
+                        foreach ($record->policy->additionalApplicants() as $applicant) {
+                            $medicaidBadge = '';
+                            if ($applicant->pivot->medicaid_client) {
+                                $medicaidBadge = '<span class="ml-2 px-2 py-0.5 bg-indigo-900/10 text-indigo-900 rounded-md text-xs font-medium">Medicaid</span>';
+                            }
+
+                            $customers .= '<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1px;">
+                                <span style="color: #6b7280; font-size: 0.75rem; max-width: 70%;">'.$applicant->full_name.'</span>
+                                '.$medicaidBadge.'
+                            </div>';
+                        }
+
+                        // Add horizontal line
+                        $customers .= '<div style="border-top: 1px solid #e5e7eb; margin-top: 8px; margin-bottom: 6px;"></div>';
+
+                        $enrollmentType = $record->policy->policy_inscription_type?->getLabel() ?? 'N/A';
+                        $customers .= '<div style="display: flex; align-items: center;">
+                            <span style="font-size: 0.75rem; color: #6b7280; margin-left: 4px;">'.$record->policy->policy_type->getLabel().' - '.$record->policy->insuranceCompany->name.'</span>
+                        </div>';
+
+                        // Add status indicators
+
+                        return $customers;
                     }),
-                Tables\Columns\TextColumn::make('policy.insuranceCompany.name')
-                    ->label('Aseguradora'),
-                Tables\Columns\TextColumn::make('policy.policyType.name')
-                    ->label('Tipo Poliza'),
                 Tables\Columns\TextColumn::make('issueType.name')
                     ->label('Tipo')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
-                    ->label('Estatus'),
+                    ->label('Estatus')
+                    ->badge(),
                 Tables\Columns\TextColumn::make('verification_date')
+                    ->label('Verificación')
                     ->date('m/d/Y')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //
@@ -134,24 +160,43 @@ class IssueResource extends Resource
                         return $record;
                     }),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+            ->headerActions([
                 Tables\Actions\BulkAction::make('view_messages')
                     ->label('Ver Mensajes')
-                    ->action(function (Collection $records): void {
-                        // This will be empty as we're just showing the modal
+                    ->fillForm(function (Collection $records): array {
+                        $messages = $records->map(function ($record) {
+                            if ($record->policy) {
+                                return "Case #: {$record->policy->kynect_case_number}\n{$record->email_message}";
+                            }
+
+                            return $record->email_message;
+                        })->implode("\n\n---\n\n");
+
+                        return [
+                            'kynect_message' => $messages,
+                        ];
                     })
-                    ->modalContent(function (Collection $records): View {
-                        return view('filament.resources.issue.views.view-messages', [
-                            'messages' => $records->map(function ($record) {
-                                return "Case #: {$record->policy->kynect_case_number}: {$record->email_message}";
-                            })->filter()->join("\n\n---\n\n"),
+                    ->form([
+                        Forms\Components\Textarea::make('kynect_message')
+                            ->label('Mensaje para Kynect')
+                            ->rows(25)
+                            ->readOnly()
+                            ->columnSpanFull(),
+                    ])
+                    ->modalHeading('Mensaje para Kynect')
+                    ->slideOver()
+                    ->stickyModalHeader()
+                    ->modalWidth('xl')
+                    ->stickyModalFooter()
+                    ->modalSubmitActionLabel('Marcar como Enviados')
+                    ->modalCancelActionLabel('Cerrar')
+                    ->action(function (Collection $records, array $data, array $arguments): void {
+                        // Change selected records status to sent
+                        $records->each->update([
+                            'status' => IssueStatus::Sent,
+                            'updated_by' => auth()->user()->id,
                         ]);
-                    }) // Message
-                    ->modalSubmitAction(false)
-                    ->modalCancelAction(false),
+                    }),
             ]);
     }
 

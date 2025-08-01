@@ -90,10 +90,10 @@ class EditCompletePolicyCreation extends EditRecord
                                 ->color('success')
                                 ->action(function ($record) {
                                     // Check if all required pages have been completed
-                                    if (!$record->areRequiredPagesCompleted()) {
+                                    if (! $record->areRequiredPagesCompleted()) {
                                         // Get incomplete pages
                                         $incompletePages = $record->getIncompletePages();
-                                        
+
                                         // Define custom page names for each page
                                         $pageNameMapping = [
                                             'edit_policy' => 'Póliza',
@@ -103,12 +103,12 @@ class EditCompletePolicyCreation extends EditRecord
                                             'edit_policy_income' => 'Ingresos',
                                             'edit_policy_payments' => 'Pago',
                                         ];
-                                        
+
                                         // Map incomplete pages to their custom names
                                         $readablePageNames = array_map(function ($pageName) use ($pageNameMapping) {
                                             return $pageNameMapping[$pageName] ?? ucwords(str_replace('_', ' ', $pageName));
                                         }, $incompletePages);
-                                        
+
                                         // Show notification with incomplete pages
                                         Notification::make()
                                             ->warning()
@@ -116,29 +116,29 @@ class EditCompletePolicyCreation extends EditRecord
                                             ->body('Por favor, complete las siguientes secciones antes de continuar: '.implode(', ', $readablePageNames))
                                             ->persistent()
                                             ->send();
-                                            
+
                                         return;
                                     }
-                                    
+
                                     // Begin transaction for bulk operations
                                     \DB::beginTransaction();
-                                    
+
                                     try {
                                         // 1. First, update the existing policy to 'Created' status
                                         $currentPolicy = $record;
                                         $currentPolicy->status = \App\Enums\PolicyStatus::Created;
                                         $currentPolicy->save();
-                                        
+
                                         // 2. Get the policy types selected for creation
                                         $selectedPolicyTypes = $currentPolicy->quote_policy_types ?? [];
-                                        
+
                                         // Check if there are policy types selected
                                         if (empty($selectedPolicyTypes)) {
                                             throw new \Exception('No se han seleccionado tipos de póliza para crear.');
                                         }
-                                        
+
                                         $createdPolicies = 1; // Count the current policy that was updated
-                                        
+
                                         // 3. Create new policies for each selected type (except the current one)
                                         foreach ($selectedPolicyTypes as $policyTypeValue) {
                                             // Skip if this is the current policy's type
@@ -146,26 +146,26 @@ class EditCompletePolicyCreation extends EditRecord
                                             if ($policyType === $currentPolicy->policy_type) {
                                                 continue;
                                             }
-                                            
+
                                             // Create a new policy with the same data but different type
                                             $newPolicy = $currentPolicy->replicate(['id']);
                                             $newPolicy->policy_type = $policyType;
                                             $newPolicy->status = \App\Enums\PolicyStatus::Created;
                                             $newPolicy->policy_number = null; // Generate a new policy number if needed
-                                            
+
                                             // Set specific fields for Life policies
                                             if ($policyType === \App\Enums\PolicyType::Life) {
                                                 $newPolicy->total_family_members = 1;
                                                 $newPolicy->total_applicants = 1;
                                                 $newPolicy->total_applicants_with_medicaid = 0;
                                             }
-                                            
+
                                             // We don't need to set the code manually
                                             // The Policy model's boot() method will automatically generate a unique code
                                             // based on the policy type and existing sequence numbers
                                             $newPolicy->code = null; // Force the model to generate a new code
                                             $newPolicy->save();
-                                            
+
                                             // Handle policy applicants based on policy type
                                             if ($policyType === \App\Enums\PolicyType::Life) {
                                                 // For Life policies, only copy the first applicant (policy owner)
@@ -183,7 +183,7 @@ class EditCompletePolicyCreation extends EditRecord
                                                     $newApplicant->save();
                                                 }
                                             }
-                                            
+
                                             // 2. Copy contact information if it exists separately from the main contact
                                             if (method_exists($currentPolicy, 'policyContacts') && $currentPolicy->policyContacts()->exists()) {
                                                 foreach ($currentPolicy->policyContacts as $contact) {
@@ -192,7 +192,7 @@ class EditCompletePolicyCreation extends EditRecord
                                                     $newContact->save();
                                                 }
                                             }
-                                            
+
                                             // 3. Copy policy documents (if appropriate)
                                             // Only copy documents that should be shared across all policy types
                                             if (method_exists($currentPolicy, 'documents') && $currentPolicy->documents()->exists()) {
@@ -204,39 +204,39 @@ class EditCompletePolicyCreation extends EditRecord
                                                     $newDocument->save();
                                                 }
                                             }
-                                            
+
                                             $createdPolicies++;
                                         }
-                                        
+
                                         // Commit the transaction
                                         \DB::commit();
-                                        
+
                                         // Show success notification
                                         Notification::make()
                                             ->success()
                                             ->title('Pólizas creadas')
                                             ->body("Se han creado {$createdPolicies} póliza(s) exitosamente")
                                             ->send();
-                                        
+
                                         // Redirect to policies list after successful creation
                                         $this->redirect(PolicyResource::getUrl('index'));
-                                            
+
                                     } catch (\Exception $e) {
                                         // Roll back in case of error
                                         DB::rollBack();
-                                        
+
                                         // Log the error for debugging
-                                        Log::error('Error creating policies: ' . $e->getMessage(), [
+                                        Log::error('Error creating policies: '.$e->getMessage(), [
                                             'exception' => $e,
                                             'policy_id' => $record->id,
                                             'selected_types' => $record->quote_policy_types ?? [],
                                         ]);
-                                        
+
                                         // Show error notification
                                         Notification::make()
                                             ->danger()
                                             ->title('Error al crear pólizas')
-                                            ->body('Ha ocurrido un error: ' . $e->getMessage())
+                                            ->body('Ha ocurrido un error: '.$e->getMessage())
                                             ->persistent()
                                             ->send();
                                     }

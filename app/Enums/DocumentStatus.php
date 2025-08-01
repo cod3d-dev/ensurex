@@ -10,6 +10,7 @@ enum DocumentStatus: string implements HasColor, HasLabel
     case ToAdd = 'to_add';
     case Pending = 'pending';
     case Sent = 'sent';
+    case ToVerify = 'to_verify';
     case Approved = 'approved';
     case Expired = 'expired';
     case Rejected = 'rejected';
@@ -20,6 +21,7 @@ enum DocumentStatus: string implements HasColor, HasLabel
             self::ToAdd => 'Por Agregar',
             self::Pending => 'Pendiente',
             self::Sent => 'Enviado',
+            self::ToVerify => 'Por Verificar',
             self::Approved => 'Aprobado',
             self::Expired => 'Expirado',
             self::Rejected => 'Rechazado',
@@ -32,6 +34,7 @@ enum DocumentStatus: string implements HasColor, HasLabel
             self::ToAdd => 'warning',
             self::Pending => 'pending',
             self::Sent => 'info',
+            self::ToVerify => 'warning',
             self::Approved => 'success',
             self::Expired => 'warning',
             self::Rejected => 'danger',

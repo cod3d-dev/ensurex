@@ -435,7 +435,7 @@ class PolicyResource extends Resource
                     ->formatStateUsing(fn (string $state): string => Str::acronym($state))
                     ->label('Cuenta')
                     ->badge()
-                    ->tooltip(fn(string $state): string => $state)
+                    ->tooltip(fn (string $state): string => $state)
                     ->color('gray')
                     ->sortable(),
 
@@ -471,7 +471,7 @@ class PolicyResource extends Resource
                         foreach ($record->additionalApplicants() as $applicant) {
                             $medicaidBadge = '';
                             if ($applicant->pivot->medicaid_client) {
-                                $medicaidBadge = '<span style="display: inline-block; background-color: #60a5fa; color: white; border-radius: 0.2rem; padding: 0rem 0.2rem; font-size: 0.75rem; font-weight: 500; margin-left: 15px;">Medicaid</span>';
+                                $medicaidBadge = '<span class="px-2 py-0.5 bg-indigo-900/10 text-indigo-900 rounded-md text-xs font-medium">Medicaid</span>';
                             }
 
                             $customers .= '<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1px;">

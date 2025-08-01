@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\IssueStatus;
 use App\Filament\Resources\PolicyResource;
+use App\Filament\Resources\PolicyResource\Widgets\CustomerInfo;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\ManageRelatedRecords;
@@ -23,6 +24,13 @@ class ManagePolicyIssues extends ManageRelatedRecords
     public static function getNavigationLabel(): string
     {
         return 'Problemas';
+    }
+
+    public function getHeaderWidgets(): array
+    {
+        return [
+            CustomerInfo::class,
+        ];
     }
 
     public function form(Form $form): Form
@@ -80,7 +88,12 @@ class ManagePolicyIssues extends ManageRelatedRecords
         return $table
             ->recordTitleAttribute('description')
             ->columns([
-                Tables\Columns\TextColumn::make('description'),
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Caso'),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Estatus')
+                    ->badge(),
+
             ])
             ->filters([
                 //

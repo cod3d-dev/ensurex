@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PolicyDocumentResource\Pages;
 
+use App\Enums\DocumentStatus;
 use App\Filament\Resources\PolicyDocumentResource;
 use Filament\Actions;
 use Filament\Resources\Components\Tab;
@@ -24,21 +25,39 @@ class ListPolicyDocuments extends ListRecords
     {
         return [
             'expired' => Tab::make('Vencidos')
-                ->query(fn ($query) => $query->where('status', 'expired')->orWhere('status', 'pending')->whereDate('due_date', '<', now()))
-                ->badge(fn () => static::getModel()::where('status', 'expired')->orWhere('status', 'pending')->whereDate('due_date', '<', now())->count()),
+    ->query(fn ($query) =>
+        $query->whereNot('status', DocumentStatus::Approved)
+            ->where(function ($q) {
+                $q->whereDate('due_date', '<', now())
+                  ->orWhereNull('due_date');
+            })
+    )
+    ->badge(fn () =>
+        static::getModel()::whereNot('status', DocumentStatus::Approved)
+            ->where(function ($q) {
+                $q->whereDate('due_date', '<', now())
+                  ->orWhereNull('due_date');
+            })
+            ->count()
+    ),
             'today' => Tab::make('Vencen Hoy')
-                ->query(fn ($query) => $query->where('status', 'pending')->whereDate('due_date', now()))
-                ->badge(fn () => static::getModel()::where('status', 'pending')->whereDate('due_date', now())->count()),
+                ->query(fn ($query) => $query->whereNot('status', DocumentStatus::Approved)->whereDate('due_date', now()))
+                ->badge(fn () => static::getModel()::whereNot('status', DocumentStatus::Approved)->whereDate('due_date', now())->count()),
             'tomorrow' => Tab::make('Vencen Mañana')
-                ->query(fn ($query) => $query->where('status', 'pending')->whereDate('due_date', now()->addDay()))
-                ->badge(fn () => static::getModel()::where('status', 'pending')->whereDate('due_date', now()->addDay())->count()),
+                ->query(fn ($query) => $query->whereNot('status', DocumentStatus::Approved)->whereDate('due_date', now()->addDay()))
+                ->badge(fn () => static::getModel()::whereNot('status', DocumentStatus::Approved)->whereDate('due_date', now()->addDay())->count()),
             'this_week' => Tab::make('Vencen Esta Semana')
-                ->query(fn ($query) => $query->where('status', 'pending')->whereDate('due_date', '>=', now())->whereDate('due_date', '<=', now()->endOfWeek()))
-                ->badge(fn () => static::getModel()::where('status', 'pending')->whereDate('due_date', '>=', now())->whereDate('due_date', '<=', now()->endOfWeek())->count()),
+                ->query(fn ($query) => $query->whereNot('status', DocumentStatus::Approved)
+                    ->whereBetween('due_date', [now()->startOfWeek(), now()->endOfWeek()])
+                )
+                ->badge(fn () => static::getModel()::whereNot('status', DocumentStatus::Approved)
+                    ->whereBetween('due_date', [now()->startOfWeek(), now()->endOfWeek()])
+                    ->count()
+                ),
 
             'pending' => Tab::make('Pendientes')
-                ->query(fn ($query) => $query->where('status', 'pending'))
-                ->badge(fn () => static::getModel()::where('status', 'pending')->count()),
+                ->query(fn ($query) => $query->whereNot('status', DocumentStatus::Approved)->where('status', 'pending'))
+                ->badge(fn () => static::getModel()::whereNot('status', DocumentStatus::Approved)->where('status', 'pending')->count()),
             'sent' => Tab::make('Enviados')
                 ->query(fn ($query) => $query->where('status', 'sent'))
                 ->badge(fn () => static::getModel()::where('status', 'sent')->count()),

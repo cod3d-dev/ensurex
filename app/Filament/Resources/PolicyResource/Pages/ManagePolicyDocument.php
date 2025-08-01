@@ -4,11 +4,14 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\DocumentStatus;
 use App\Filament\Resources\PolicyResource;
+use App\Filament\Resources\PolicyResource\Widgets\CustomerInfo;
+use App\Models\PolicyDocument;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
 
 class ManagePolicyDocument extends ManageRelatedRecords
 {
@@ -20,6 +23,13 @@ class ManagePolicyDocument extends ManageRelatedRecords
 
     protected static ?string $title = 'Documentos';
 
+    public function getHeaderWidgets(): array
+    {
+        return [
+            CustomerInfo::class,
+        ];
+    }
+
     public static function getNavigationLabel(): string
     {
         return 'Documentos';
@@ -29,36 +39,193 @@ class ManagePolicyDocument extends ManageRelatedRecords
     {
         return $form
             ->schema([
+
+                Forms\Components\Hidden::make('policy_id'),
+                Forms\Components\Select::make('user_id')
+                    ->label('Agregado por')
+                    ->relationship('user', 'name')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
+                Forms\Components\Select::make('document_type_id')
+                    ->relationship('documentType', 'name')
+                    ->label('Tipo de Documento')
+                    ->required(),
+                Forms\Components\Select::make('status')
+                    ->label('Estatus')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->options(DocumentStatus::class),
+                Forms\Components\DatePicker::make('sent_date')
+                    ->label('Fecha Enviado')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
+                Forms\Components\TextInput::make('status_updated_by')
+                    ->label('Estatus actualizado por')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->formatStateUsing(function ($state) {
+                        if ($state) {
+                            $user = \App\Models\User::find($state);
+
+                            return $user ? $user->name : 'Unknown';
+                        }
+
+                        return '';
+                    }),
+                Forms\Components\TextInput::make('status_updated_at')
+                    ->label('Fecha Actualización')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->formatStateUsing(function ($state) {
+                        if ($state) {
+                            return \Carbon\Carbon::parse($state)->format('d/m/Y');
+                        } else {
+                            return '';
+                        }
+                    }),
+                Forms\Components\DatePicker::make('due_date')
+                    ->label('Vence')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->columnStart(4),
                 Forms\Components\TextInput::make('name')
-                    ->label('Nombre')
+                    ->label('Descripción')
+                    ->columnSpanFull()
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Select::make('document_type_id')
-                    ->label('Tipo de Documento')
-                    ->relationship('documentType', 'name')
-                    ->required(),
-                //                Forms\Components\Select::make('user_id')
-                //                    ->label('Subido por')
-                //                    ->relationship('user', 'name')
-                //                    ->required(),
-                Forms\Components\Hidden::make('user_id')
-                    ->default(auth()->user()->id),
-                Forms\Components\Select::make('status')
-                    ->label('Estado')
-                    ->options(DocumentStatus::class)
-                    ->live()
-                    ->required(),
-                Forms\Components\DatePicker::make('due_date')
-                    ->label('Fecha de vencimiento')
-                    ->required(),
-                Forms\Components\DatePicker::make('sent_date')
-                    ->label('Fecha de envio')
-                    ->live()
-                    ->hidden(fn (Forms\Get $get): bool => empty($get('status')) || in_array($get('status'), [DocumentStatus::Pending->value, DocumentStatus::ToAdd->value])),
+                Forms\Components\Textarea::make('notes')
+                    ->label('Notas')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->rows(6)
+                    ->columnSpanFull(),
+            ])->columns([
+                'sm' => 4,
+                'md' => 4,
+                'lg' => 4,
+                'xl' => 4,
+            ]);
+    }
 
-                // Forms\Components\FileUpload::make('file_name')
-                //     ->label('Archivo')
-                //     ->columnSpanFull(),
+    public function table(Table $table): Table
+    {
+        return $table
+            ->recordAction(Tables\Actions\ViewAction::class)
+            ->recordTitleAttribute('name')
+            ->columns([
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->date('m/d/Y')
+                    ->label('Creado')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('documentType.name')
+                    ->label('Tipo de Documento')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('name')
+                    ->grow()
+                    ->label('Nombre')
+                    ->html()
+                    ->formatStateUsing(function (PolicyDocument $record, string $state): ?string {
+                        if (empty($record->notes)) {
+                            return '<span>'.e($state).'</span>';
+                        }
+                        $entries = preg_split('/\n\s*\n/', trim($record->notes));
+                        $entries = array_slice($entries, -3);
+                        $notes = array_map(function ($entry) {
+                            return preg_replace('/^.*\n/', '', $entry, 1);
+                        }, $entries);
+                        $notesHtml = '<div class="text-xs text-gray-700 ml-2 mt-2">- '.implode('<br>- ', $notes).'</div>';
+
+                        return '<span>'.e($state).'</span>'.$notesHtml;
+                    })
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Estado')
+                    ->sortable()
+                    ->badge()
+                    ->action(
+                        Tables\Actions\Action::make('cambiarEstatus')
+                            ->fillForm(fn (PolicyDocument $record) => [
+                                'status' => $record->status,
+                                'sent_date' => $record->sent_date,
+                                'due_date' => $record->due_date,
+                            ])
+                            ->form([
+                                Forms\Components\Select::make('status')
+                                    ->label('Estatus')
+                                    ->options(
+                                        collect(DocumentStatus::cases())
+                                            ->reject(fn ($status) => $status->value === DocumentStatus::ToAdd->value)
+                                            ->mapWithKeys(fn ($status) => [
+                                                $status->value => $status->getLabel(),
+                                            ])
+                                            ->toArray()
+                                    )
+                                    ->live()
+                                    ->required(),
+                                Forms\Components\DatePicker::make('sent_date')
+                                    ->label('Fecha de envio')
+                                    ->maxDate(Carbon::now())
+                                    ->required(fn (Forms\Get $get) => $get('status') === DocumentStatus::Sent)
+                                    ->live()
+                                    ->afterStateUpdated(function (?string $state, Forms\Set $set) {
+                                        if (! empty($state)) {
+                                            $dueDate = Carbon::parse($state)->addDays(5)->toDateString();
+                                            $set('due_date', $dueDate);
+                                        } else {
+                                            $set('due_date', null);
+                                        }
+                                    }),
+                                Forms\Components\DatePicker::make('due_date')
+                                    ->label('Verificación')
+                                    ->required(fn (Forms\Get $get) => $get('status') === DocumentStatus::Sent || $get('status') === DocumentStatus::ToVerify),
+                                Forms\Components\Textarea::make('note')
+                                    ->label('Comentarios')
+                                    ->rows(3)
+                                    ->required(),
+
+                            ])
+                            ->modalWidth('md')
+                            ->action(function (PolicyDocument $record, array $data): void {
+                                $note = Carbon::now()->toDateTimeString().' - '.auth()->user()->name.":\n".$data['note'];
+                                $note = ! empty($record->notes) ? $record->notes."\n\n".$note : $note;
+
+                                $record->update([
+                                    'status' => $data['status'],
+                                    'notes' => $note,
+                                    'sent_date' => $data['sent_date'],
+                                    'due_date' => $data['due_date'],
+                                    'status_updated_by' => auth()->user()->id,
+                                    'status_updated_at' => now(),
+                                ]);
+                                if ($data['status'] == DocumentStatus::Sent->value) {
+                                    $record->update([
+                                        'sent_date' => now(),
+                                    ]);
+                                }
+                            })
+                    ),
+                Tables\Columns\TextColumn::make('due_date')
+                    ->label('Vence')
+                    ->date('m/d/Y')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->date('m/d/Y')
+                    ->label('Actualizado')
+                    ->sortable(),
+
+            ])
+            ->filters([
+                //
+            ])
+            ->headerActions([
+                Tables\Actions\CreateAction::make()
+                    ->label('Agregar Documento')
+                    ->after($this->updatePolicyDocumentStatus()),
+                // Tables\Actions\AssociateAction::make(),
+            ])
+            ->actions([
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
             ]);
     }
 
@@ -94,6 +261,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
             DocumentStatus::Rejected,
             DocumentStatus::Expired,
             DocumentStatus::Pending,
+            DocumentStatus::ToVerify,
             DocumentStatus::Sent,
             DocumentStatus::Approved,
         ];
@@ -130,53 +298,5 @@ class ManagePolicyDocument extends ManageRelatedRecords
         }
 
         $policy->save();
-    }
-
-    public function table(Table $table): Table
-    {
-        return $table
-            ->recordTitleAttribute('name')
-            ->columns([
-                Tables\Columns\TextColumn::make('created_at')
-                    ->date()
-                    ->label('Creado')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('documentType.name')
-                    ->label('Tipo de Documento')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Nombre')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Estado')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('due_date')
-                    ->label('Vence')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->date()
-                    ->label('Actualizado')
-                    ->sortable(),
-
-            ])
-            ->filters([
-                //
-            ])
-            ->headerActions([
-                Tables\Actions\CreateAction::make()
-                    ->label('Agregar Documento')
-                    ->after($this->updatePolicyDocumentStatus()),
-                // Tables\Actions\AssociateAction::make(),
-            ])
-            ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
     }
 }

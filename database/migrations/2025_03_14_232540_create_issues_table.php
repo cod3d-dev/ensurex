@@ -15,11 +15,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('policy_id')->constrained()->cascadeOnDelete();
             $table->foreignId('issue_type_id')->constrained();
+            $table->foreignId('created_by')->constrained('users');
             $table->string('description');
             $table->string('status')->nullable();
             $table->text('proposed_solution')->nullable();
             $table->text('email_message')->nullable();
             $table->date('verification_date')->nullable();
+            $table->foreignId('updated_by')->constrained('users')->nullable();
             $table->text('response')->nullable();
             $table->json('notes')->nullable();
             $table->timestamps();

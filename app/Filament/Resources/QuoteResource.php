@@ -1064,7 +1064,37 @@ class QuoteResource extends Resource
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->html()
+                    ->tooltip(function (string $state, Quote $record): string {
+                        $spanishMonths = [
+                            'January' => 'Enero', 'February' => 'Febrero', 'March' => 'Marzo', 'April' => 'Abril',
+                            'May' => 'Mayo', 'June' => 'Junio', 'July' => 'Julio', 'August' => 'Agosto',
+                            'September' => 'Septiembre', 'October' => 'Octubre', 'November' => 'Noviembre', 'December' => 'Diciembre',
+                        ];
+                        $month = $record->contact->created_at->format('F');
+                        $year = $record->contact->created_at->format('Y');
+                        $spanishDate = $spanishMonths[$month].' de '.$year;
+                        $customers = 'Cliente desde '.$spanishDate;
+
+                        return $customers;
+                    })
+                    ->formatStateUsing(function (string $state, Quote $record): string {
+                        $output = $state;
+                        $medicaidCount = $record->total_medicaid;
+                        $applicantsCount = $record->total_applicants;
+
+                        $output .= "<div style='font-size: 0.75rem; color: #6b7280; margin-top: 2px;'>";
+                        $output .= "Aplicantes: {$applicantsCount}";
+
+                        if ($medicaidCount > 0) {
+                            $output .= " | Medicaid: {$medicaidCount}";
+                        }
+
+                        $output .= '</div>';
+
+                        return $output;
+                    }),
                 PoliciesColumn::make('policy_types')
                     ->label('Tipo')
                     ->sortable(),

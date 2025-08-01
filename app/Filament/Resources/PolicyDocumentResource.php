@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\DocumentStatus;
 use App\Filament\Resources\PolicyDocumentResource\Pages;
 use App\Models\PolicyDocument;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -22,6 +23,8 @@ class PolicyDocumentResource extends Resource
 
     protected static ?string $singularLabel = 'Documento';
 
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function form(Form $form): Form
     {
         return $form
@@ -31,19 +34,21 @@ class PolicyDocumentResource extends Resource
                 Forms\Components\Select::make('user_id')
                     ->label('Agregado por')
                     ->relationship('user', 'name')
-                    ->disabled(),
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
                 Forms\Components\Select::make('document_type_id')
                     ->relationship('documentType', 'name')
                     ->label('Tipo de Documento')
                     ->required(),
                 Forms\Components\Select::make('status')
                     ->label('Estatus')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
                     ->options(DocumentStatus::class),
-                Forms\Components\DatePicker::make('due_date')
-                    ->label('Vence'),
+                Forms\Components\DatePicker::make('sent_date')
+                    ->label('Fecha Enviado')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
                 Forms\Components\TextInput::make('status_updated_by')
                     ->label('Estatus actualizado por')
-                    ->disabled()
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
                     ->formatStateUsing(function ($state) {
                         if ($state) {
                             $user = \App\Models\User::find($state);
@@ -55,7 +60,7 @@ class PolicyDocumentResource extends Resource
                     }),
                 Forms\Components\TextInput::make('status_updated_at')
                     ->label('Fecha Actualización')
-                    ->disabled()
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
                     ->formatStateUsing(function ($state) {
                         if ($state) {
                             return \Carbon\Carbon::parse($state)->format('d/m/Y');
@@ -63,9 +68,9 @@ class PolicyDocumentResource extends Resource
                             return '';
                         }
                     }),
-                Forms\Components\DatePicker::make('sent_date')
-                    ->label('Fecha Enviado')
-                    ->disabled()
+                Forms\Components\DatePicker::make('due_date')
+                    ->label('Vence')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
                     ->columnStart(4),
                 Forms\Components\TextInput::make('name')
                     ->label('Descripción')
@@ -74,65 +79,38 @@ class PolicyDocumentResource extends Resource
                     ->maxLength(255),
                 Forms\Components\Textarea::make('notes')
                     ->label('Notas')
-                    ->columnSpan(3),
-
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->rows(6)
+                    ->columnSpanFull(),
             ])->columns([
                 'sm' => 4,
-                'md => 4',
-                'lg => 4',
-                'xl => 4',
+                'md' => 4,
+                'lg' => 4,
+                'xl' => 4,
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->recordAction(Tables\Actions\ViewAction::class)
             ->columns([
                 Tables\Columns\TextColumn::make('policy.contact.full_name')
                     ->label('Cliente')
-                    ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->whereHas('policy.contact', function (Builder $query) use ($search): Builder {
-                            return $query->where('first_name', 'like', "%{$search}%")
-                                ->orWhere('middle_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%")
-                                ->orWhere('second_last_name', 'like', "%{$search}%");
-                        });
-                    })
-                    ->description(fn (PolicyDocument $record): string => $record->policy->policy_type->getLabel().': '.$record->policy->insuranceCompany?->name ?? '')
-                    ->url(fn (PolicyDocument $record): string => PolicyResource::getUrl('view', ['record' => $record->policy])),
-                Tables\Columns\TextColumn::make('policy.contact.full_name')
-                    ->label('Cliente')
                     ->grow(false)
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query
+                            ->whereHas('policy.applicants', function (Builder $query) use ($search): Builder {
+                                return $query->where('full_name', 'like', "%{$search}%");
+                            });
+                    })
                     ->html()
-                    // ->searchable(query: function (Builder $query, string $search): Builder {
-                    //     return $query
-                    //         ->whereHas('contact', function (Builder $query) use ($search) {
-                    //             $query->where('full_name', 'like', "%{$search}%");
-                    //         })
-                    //         ->orWhereHas('applicants', function (Builder $query) use ($search) {
-                    //             $query->where('full_name', 'like', "%{$search}%");
-                    //         });
-                    // })
-                    // ->tooltip(function (string $state, Policy $record): string {
-                    //     $spanishMonths = [
-                    //         'January' => 'Enero', 'February' => 'Febrero', 'March' => 'Marzo', 'April' => 'Abril',
-                    //         'May' => 'Mayo', 'June' => 'Junio', 'July' => 'Julio', 'August' => 'Agosto',
-                    //         'September' => 'Septiembre', 'October' => 'Octubre', 'November' => 'Noviembre', 'December' => 'Diciembre',
-                    //     ];
-                    //     $month = $record->contact->created_at->format('F');
-                    //     $year = $record->contact->created_at->format('Y');
-                    //     $spanishDate = $spanishMonths[$month].' de '.$year;
-                    //     $customers = 'Cliente desde '.$spanishDate;
-
-                    //     return $customers;
-                    // })
                     ->formatStateUsing(function (string $state, PolicyDocument $record): string {
                         $customers = $state;
                         foreach ($record->policy->additionalApplicants() as $applicant) {
                             $medicaidBadge = '';
                             if ($applicant->pivot->medicaid_client) {
-                                $medicaidBadge = '<span style="display: inline-block; background-color: #60a5fa; color: white; border-radius: 0.2rem; padding: 0rem 0.2rem; font-size: 0.75rem; font-weight: 500; margin-left: 15px;">Medicaid</span>';
+                                $medicaidBadge = '<span class="ml-2 px-2 py-0.5 bg-indigo-900/10 text-indigo-900 rounded-md text-xs font-medium">Medicaid</span>';
                             }
 
                             $customers .= '<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1px;">
@@ -153,7 +131,8 @@ class PolicyDocumentResource extends Resource
                         // Add status indicators
 
                         return $customers;
-                    }),
+                    })
+                    ->url(fn (PolicyDocument $record) => PolicyResource::getUrl('view', ['record' => $record->policy_id])),
                 Tables\Columns\TextColumn::make('documentType.name')
                     ->label('Tipo')
                     ->sortable(),
@@ -162,18 +141,60 @@ class PolicyDocumentResource extends Resource
                     ->wrap()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
-//                    ->options(DocumentStatus::class)
+                    ->label('Estado')
+                    ->sortable()
                     ->action(
-                        Tables\Actions\Action::make('changeStatus')
+                        Tables\Actions\Action::make('cambiarEstatus')
+                            ->fillForm(fn (PolicyDocument $record) => [
+                                'status' => $record->status,
+                                'sent_date' => $record->sent_date,
+                                'due_date' => $record->due_date,
+                            ])
                             ->form([
                                 Forms\Components\Select::make('status')
-                                    ->options(DocumentStatus::class)
+                                    ->label('Estatus')
+                                    ->options(
+                                        collect(DocumentStatus::cases())
+                                            ->reject(fn ($status) => $status->value === DocumentStatus::ToAdd->value)
+                                            ->mapWithKeys(fn ($status) => [
+                                                $status->value => $status->getLabel(),
+                                            ])
+                                            ->toArray()
+                                    )
+                                    ->live()
                                     ->required(),
+                                Forms\Components\DatePicker::make('sent_date')
+                                    ->label('Fecha de envio')
+                                    ->maxDate(Carbon::now())
+                                    ->required(fn (Forms\Get $get) => $get('status') === DocumentStatus::Sent)
+                                    ->live()
+                                    ->afterStateUpdated(function (?string $state, Forms\Set $set) {
+                                        if (! empty($state)) {
+                                            $dueDate = Carbon::parse($state)->addDays(5)->toDateString();
+                                            $set('due_date', $dueDate);
+                                        } else {
+                                            $set('due_date', null);
+                                        }
+                                    }),
+                                Forms\Components\DatePicker::make('due_date')
+                                    ->label('Verificación')
+                                    ->required(fn (Forms\Get $get) => $get('status') === DocumentStatus::Sent || $get('status') === DocumentStatus::ToVerify),
+                                Forms\Components\Textarea::make('note')
+                                    ->label('Comentarios')
+                                    ->rows(3)
+                                    ->required(),
+
                             ])
                             ->modalWidth('md')
                             ->action(function (PolicyDocument $record, array $data): void {
+                                $note = Carbon::now()->toDateTimeString().' - '.auth()->user()->name.":\n".$data['note'];
+                                $note = ! empty($record->notes) ? $record->notes."\n\n".$note : $note;
+
                                 $record->update([
                                     'status' => $data['status'],
+                                    'notes' => $note,
+                                    'sent_date' => $data['sent_date'],
+                                    'due_date' => $data['due_date'],
                                     'status_updated_by' => auth()->user()->id,
                                     'status_updated_at' => now(),
                                 ]);
@@ -183,16 +204,14 @@ class PolicyDocumentResource extends Resource
                                     ]);
                                 }
                             })
-                    )
-                    ->label('Estatus')
-                    ->sortable(),
+                    ),
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Vence')
-                    ->date()
+                    ->date('m/d/Y')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('sent_date')
                     ->label('Enviado')
-                    ->date()
+                    ->date('m/d/Y')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
@@ -209,6 +228,7 @@ class PolicyDocumentResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -229,7 +249,7 @@ class PolicyDocumentResource extends Resource
         return [
             'index' => Pages\ListPolicyDocuments::route('/'),
             'create' => Pages\CreatePolicyDocument::route('/create'),
-            'edit' => Pages\EditPolicyDocument::route('/{record}/edit'),
+            // 'edit' => Pages\EditPolicyDocument::route('/{record}/edit'),
         ];
     }
 }

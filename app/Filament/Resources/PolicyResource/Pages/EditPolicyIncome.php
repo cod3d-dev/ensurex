@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\FamilyRelationship;
 use App\Filament\Resources\PolicyResource;
+use App\Filament\Resources\PolicyResource\Widgets\CustomerInfo;
 use App\Models\Contact;
 use Filament\Actions;
 use Filament\Forms;
@@ -19,6 +20,13 @@ class EditPolicyIncome extends EditRecord
     protected static ?string $navigationIcon = 'iconoir-money-square';
 
     public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
+
+    public function getHeaderWidgets(): array
+    {
+        return [
+            CustomerInfo::class,
+        ];
+    }
 
     protected function getSaveFormAction(): Actions\Action
     {
@@ -50,6 +58,7 @@ class EditPolicyIncome extends EditRecord
         // If all required pages are completed, redirect to the completion page
         if ($policy->areRequiredPagesCompleted()) {
             $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+
             return;
         }
 

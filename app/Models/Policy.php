@@ -10,15 +10,6 @@ use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Enums\RenewalStatus;
 use App\Enums\UsState;
-use App\Models\Agent;
-use App\Models\Contact;
-use App\Models\InsuranceCompany;
-use App\Models\Issue;
-use App\Models\KynectFPL;
-use App\Models\PolicyApplicant;
-use App\Models\PolicyDocument;
-use App\Models\Quote;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -53,6 +44,7 @@ class Policy extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'valid_until' => 'date',
+        'effective_date' => 'date',
         'next_document_expiration_date' => 'date',
         'total_family_members' => 'integer',
         'total_applicants' => 'integer',

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
+use App\Filament\Resources\PolicyResource\Widgets\CustomerInfo;
 use App\Models\Policy;
 use App\Services\ZipCodeService;
 use Filament\Actions;
@@ -21,6 +22,13 @@ class EditPolicyPayments extends EditRecord
     protected static ?string $navigationIcon = 'iconoir-bank';
 
     public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
+
+    public function getHeaderWidgets(): array
+    {
+        return [
+            CustomerInfo::class,
+        ];
+    }
 
     protected function getSaveFormAction(): Actions\Action
     {
@@ -52,6 +60,7 @@ class EditPolicyPayments extends EditRecord
         // If all required pages are completed, redirect to the completion page
         if ($policy->areRequiredPagesCompleted()) {
             $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+
             return;
         }
 
@@ -187,11 +196,11 @@ class EditPolicyPayments extends EditRecord
                                         if ($get('copy_home_address') || empty($state)) {
                                             return;
                                         }
-                                        
+
                                         // Use ZipCodeService to look up city and state
                                         $zipService = App::make(ZipCodeService::class);
                                         $locationData = $zipService->getLocationFromZipCode($state);
-                                        
+
                                         if ($locationData) {
                                             $set('billing_address_city', $locationData['city']);
                                             $set('billing_address_state', $locationData['state']);
