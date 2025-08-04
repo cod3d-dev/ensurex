@@ -18,10 +18,11 @@ class QuoteConversionService
      * Convert a quote to a policy
      *
      * @param  Quote  $quote  The quote to convert
-     * @param  array  $data  Additional data for the conversion
+     * @param  int|null  $userId  Optional user ID to use for the policy (useful for CLI)
+     * @param  array|null  $dateOptions  Optional date options for policy creation
      * @return Policy The newly created policy
      */
-    public function convertQuoteToPolicy(Quote $quote)
+    public function convertQuoteToPolicy(Quote $quote, ?int $userId = null, ?array $dateOptions = null)
     {
         // Determine the main policy type from the quote's policy_type array
         $quotePolicyTypesData = $quote->policy_types ?? [];
@@ -71,10 +72,10 @@ class QuoteConversionService
             }
         }
 
-        // Create the policy
-        $policy = Policy::create([
+        // Prepare policy data
+        $policyData = [
             'contact_id' => $quote->contact_id,
-            'user_id' => auth()->id(),
+            'user_id' => $quote->user_id,
             'insurance_company_id' => $quote->insurance_company_id,
             'policy_type' => $finalPolicyType,
             'quote_policy_types' => $quote->policy_types,
@@ -99,8 +100,17 @@ class QuoteConversionService
             'policy_us_county' => $quote->contact->county,
             'policy_city' => $quote->contact->city,
             'policy_us_state' => $quote->contact->state_province,
-            'effective_date' => $this->calculateEffectiveDate($quote),
-        ]);
+            'effective_date' => $this->calculateEffectiveDate($quote, $dateOptions),
+        ];
+
+        // Set custom creation date if provided
+        if ($dateOptions && isset($dateOptions['date'])) {
+            $policyData['created_at'] = $dateOptions['date'];
+            $policyData['updated_at'] = $dateOptions['date'];
+        }
+        
+        // Create the policy
+        $policy = Policy::create($policyData);
 
         // Update the quote status to Converted and add policy reference
         $quote->update([
@@ -134,9 +144,18 @@ class QuoteConversionService
 
     /**
      * Calculate the effective date for the policy
+     * 
+     * @param Quote $quote The quote being converted
+     * @param array|null $dateOptions Optional date options
+     * @return string The effective date in Y-m-d format
      */
-    private function calculateEffectiveDate(Quote $quote): string
+    private function calculateEffectiveDate(Quote $quote, ?array $dateOptions = null): string
     {
+        // If custom date is provided, use it
+        if ($dateOptions && isset($dateOptions['date'])) {
+            return $dateOptions['date']->format('Y-m-d');
+        }
+        
         $currentYear = (int) date('Y');
         $quoteYear = (int) $quote->year;
 

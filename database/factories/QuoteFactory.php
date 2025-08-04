@@ -48,9 +48,9 @@ class QuoteFactory extends Factory
         $applicants = $this->createApplicantsArray($contact, $totalApplicants, $totalMeicaidMembers);
 
         // Generate random dates
-        $startDate = $this->faker->dateTimeBetween('-1 month', '+1 month');
-        $endDate = (clone $startDate)->modify('+1 year');
-        $validUntil = (clone $startDate)->modify('+30 days');
+        $date = $this->faker->dateTimeBetween('-1 month', 'now');
+        $endDate = (clone $date)->modify('+1 year');
+        $validUntil = (clone $date)->modify('+30 days');
 
         // Created date according to year
         $year = Carbon::now()->subYears(rand(0, 1))->year;
@@ -115,6 +115,7 @@ class QuoteFactory extends Factory
         $data = [
             'contact_id' => $contact->id,
             'contact_information' => $contactInformation,
+            'date' => $date,
             'user_id' => $user->id,
             'policy_id' => null,
             'agent_id' => $agent?->id,

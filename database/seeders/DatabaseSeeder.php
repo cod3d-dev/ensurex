@@ -27,7 +27,7 @@ class DatabaseSeeder extends Seeder
 
             // QuoteSeeder::class,
             // PolicySeeder::class,
-            // IssueTypeSeeder::class,
+            IssueTypeSeeder::class,
             // DocumentTypeSeeder::class,
 
         ]);
@@ -42,21 +42,21 @@ class DatabaseSeeder extends Seeder
             'members_6' => 5286,
             'members_7' => 5960,
             'members_8' => 6634,
-            'additional_member' => 674
+            'additional_member' => 674,
         ];
 
         KynectFPL::create($kynectFPLData);
-        
+
         // Import contacts from CSV file if it exists
         $contactsFile = base_path('contacts_export.csv');
         if (File::exists($contactsFile)) {
             $this->command->info('Importing contacts from CSV file...');
             Artisan::call('contacts:import', [
-                'file' => $contactsFile
+                'file' => $contactsFile,
             ]);
             $this->command->info(Artisan::output());
         } else {
-            $this->command->warn('Contacts CSV file not found at: ' . $contactsFile);
+            $this->command->warn('Contacts CSV file not found at: '.$contactsFile);
         }
     }
 }

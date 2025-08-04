@@ -1050,6 +1050,10 @@ class QuoteResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('#')
+                    ->formatStateUsing(fn (string $state): string => Str::padLeft($state, 5, '0'))
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('agent.name')
                     ->label('Cuenta')
                     ->badge()

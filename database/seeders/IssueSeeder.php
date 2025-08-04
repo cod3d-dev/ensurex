@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class IssueSeeder extends Seeder
@@ -13,5 +12,6 @@ class IssueSeeder extends Seeder
     public function run(): void
     {
         //
+
     }
 }
