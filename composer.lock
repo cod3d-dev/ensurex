@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ab8125e9ec8dc6ed5b773ae5e41d6780",
+    "content-hash": "b2265865101c023284903f777c9477a4",
     "packages": [
         {
             "name": "andreiio/blade-iconoir",
@@ -2558,6 +2558,88 @@
             "transport-options": {
                 "relative": true
             }
+        },
+        {
+            "name": "lara-zeus/inline-chart",
+            "version": "1.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/lara-zeus/inline-chart.git",
+                "reference": "47aec17bc5e1ca4f26b415a803ea2bc68965b125"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/lara-zeus/inline-chart/zipball/47aec17bc5e1ca4f26b415a803ea2bc68965b125",
+                "reference": "47aec17bc5e1ca4f26b415a803ea2bc68965b125",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^3.0",
+                "php": "^8.1",
+                "spatie/laravel-package-tools": "^1.16"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.0",
+                "nunomaduro/collision": "^7.0",
+                "nunomaduro/larastan": "^2.0.1",
+                "nunomaduro/phpinsights": "^2.8",
+                "orchestra/testbench": "^8.0",
+                "phpstan/extension-installer": "^1.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "LaraZeus\\InlineChart\\InlineChartServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "LaraZeus\\InlineChart\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Lara Zeus (Ash)",
+                    "email": "info@larazeus.com"
+                }
+            ],
+            "description": "Zeus Inline Chart easily add a chart in filamentPHP table column",
+            "homepage": "https://larazeus.com/inline-chart",
+            "keywords": [
+                "chart",
+                "coulmn",
+                "design",
+                "filamentphp",
+                "generator",
+                "inline",
+                "input",
+                "lara-zeus",
+                "laravel",
+                "mini",
+                "table",
+                "ui"
+            ],
+            "support": {
+                "issues": "https://github.com/lara-zeus/inline-chart/issues",
+                "source": "https://github.com/lara-zeus/inline-chart"
+            },
+            "funding": [
+                {
+                    "url": "https://www.buymeacoffee.com/larazeus",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/atmonshi",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-03-03T15:02:12+00:00"
         },
         {
             "name": "laravel/framework",

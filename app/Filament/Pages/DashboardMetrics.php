@@ -25,10 +25,10 @@ class DashboardMetrics extends BaseDashboard
     public function getColumns(): int | string | array
 {
     return [
-        'sm' => 2,
+        'sm' => 3,
         'md' => 3,
-        'lg' => 4,
-        'xl' => 5,
+        'lg' => 3,
+        'xl' => 3,
     ];
 }
 

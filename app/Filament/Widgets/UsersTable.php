@@ -6,6 +6,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use App\Models\User;
+use App\Filament\Widgets\UsersTrend;
 
 class UsersTable extends BaseWidget
 {
@@ -27,6 +28,8 @@ class UsersTable extends BaseWidget
                     ->label('Polizas')
                     ->formatStateUsing(fn (User $record) => $record->id)
                     ->searchable(),
+                
+                
             ]);
     }
 }
