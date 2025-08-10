@@ -19,12 +19,25 @@ class CommissionStatement extends Model
         'status',
         'created_by',
         'notes',
+        'health_policy_amount',
+        'accident_policy_amount',
+        'vision_policy_amount',
+        'dental_policy_amount',
+        'life_policy_amount',
+        'bonus_amount',
+        'bonus_notes',
     ];
 
     protected $casts = [
         'statement_date' => 'date',
         'pay_period_end_date' => 'date',
         'total_amount' => 'decimal:2',
+        'health_policy_amount' => 'decimal:2',
+        'accident_policy_amount' => 'decimal:2',
+        'vision_policy_amount' => 'decimal:2',
+        'dental_policy_amount' => 'decimal:2',
+        'life_policy_amount' => 'decimal:2',
+        'bonus_amount' => 'decimal:2',
     ];
 
     public function agent()

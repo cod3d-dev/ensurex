@@ -8,15 +8,15 @@ use App\Models\Policy;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Eloquent\Builder;
-use Filament\Notifications\Notification;
 
 class CommissionRun extends Page implements HasTable
 {
@@ -37,9 +37,27 @@ class CommissionRun extends Page implements HasTable
     public $selectedPolicies = [];
 
     public $totalCommission = 0;
-    
+
     // Store custom commission rates temporarily
     public array $customRates = [];
+
+    // Bonus amount and notes
+    public $bonus_amount = 0;
+
+    public $bonus_notes = '';
+
+    // Policy type amounts for summary display
+    public $healthAmount = 0;
+
+    public $accidentAmount = 0;
+
+    public $visionAmount = 0;
+
+    public $dentalAmount = 0;
+
+    public $lifeAmount = 0;
+
+    public $totalPoliciesAmount = 0;
 
     protected static string $resource = CommissionStatementResource::class;
 
@@ -62,6 +80,59 @@ class CommissionRun extends Page implements HasTable
                             ->content('Select an agent and date, then click "Find Policies" to see commissionable policies.'),
                     ])
                     ->columns(2),
+                Forms\Components\Card::make()
+                    ->schema([
+                        Forms\Components\TextInput::make('bonus_amount')
+                            ->label('Bonus Amount')
+                            ->numeric()
+                            ->prefix('$')
+                            ->default(0),
+                        Forms\Components\Textarea::make('bonus_notes')
+                            ->label('Bonus Notes')
+                            ->placeholder('Enter reason for bonus or any additional notes')
+                            ->rows(2),
+                    ])
+                    ->columns(1),
+
+                Forms\Components\Section::make('Commission Summary')
+                    ->schema([
+                        Forms\Components\Grid::make()
+                            ->schema([
+                                Forms\Components\Placeholder::make('health_amount_summary')
+                                    ->label('Health Policies')
+                                    ->content(fn () => '$'.number_format($this->healthAmount, 2)),
+                                Forms\Components\Placeholder::make('accident_amount_summary')
+                                    ->label('Accident Policies')
+                                    ->content(fn () => '$'.number_format($this->accidentAmount, 2)),
+                                Forms\Components\Placeholder::make('vision_amount_summary')
+                                    ->label('Vision Policies')
+                                    ->content(fn () => '$'.number_format($this->visionAmount, 2)),
+                                Forms\Components\Placeholder::make('dental_amount_summary')
+                                    ->label('Dental Policies')
+                                    ->content(fn () => '$'.number_format($this->dentalAmount, 2)),
+                                Forms\Components\Placeholder::make('life_amount_summary')
+                                    ->label('Life Policies')
+                                    ->content(fn () => '$'.number_format($this->lifeAmount, 2)),
+                            ])
+                            ->columns(3),
+                        Forms\Components\Grid::make()
+                            ->schema([
+                                Forms\Components\Placeholder::make('total_policies_amount')
+                                    ->label('Total Policies Commission')
+                                    ->content(fn () => '$'.number_format($this->totalPoliciesAmount, 2))
+                                    ->extraAttributes(['class' => 'text-lg font-bold']),
+                                Forms\Components\Placeholder::make('bonus_amount_summary')
+                                    ->label('Bonus Amount')
+                                    ->content(fn () => '$'.number_format($this->bonus_amount, 2)),
+                                Forms\Components\Placeholder::make('total_with_bonus')
+                                    ->label('Total Commission')
+                                    ->content(fn () => '$'.number_format($this->totalPoliciesAmount + (float) $this->bonus_amount, 2))
+                                    ->extraAttributes(['class' => 'text-xl font-bold text-primary-600']),
+                            ])
+                            ->columns(3),
+                    ])
+                    ->hidden(fn () => $this->totalPoliciesAmount <= 0)
+                    ->collapsible(),
             ]);
 
     }
@@ -194,7 +265,7 @@ class CommissionRun extends Page implements HasTable
                     }),
                 Tables\Columns\TextColumn::make('total_applicants')
                     ->label('Applicantes Adicionales')
-                    ->formatStateUsing(fn ($state) => $state -  1),
+                    ->formatStateUsing(fn ($state) => $state - 1),
                 Tables\Columns\TextColumn::make('activation_date')
                     ->label('Fecha Activación')
                     ->date('m-d-Y'),
@@ -214,8 +285,9 @@ class CommissionRun extends Page implements HasTable
                     ->label('Total')
                     ->getStateUsing(function (Policy $record) {
                         $baseCommission = $this->customRates[$record->id]['base_rate'] ?? $record->commission_rate_per_policy ?? 10;
-                        $additionalApplicantsCommission = (($record->total_applicants ?? 1) - 1) * 
+                        $additionalApplicantsCommission = (($record->total_applicants ?? 1) - 1) *
                             ($this->customRates[$record->id]['additional_rate'] ?? $record->commission_rate_per_additional_applicant ?? 5);
+
                         return $baseCommission + $additionalApplicantsCommission;
                     })
                     ->money('USD')
@@ -254,9 +326,9 @@ class CommissionRun extends Page implements HasTable
                         // Store in component state, not in database
                         $this->customRates[$record->id] = [
                             'base_rate' => $data['base_rate'],
-                            'additional_rate' => $data['additional_rate']
+                            'additional_rate' => $data['additional_rate'],
                         ];
-                        
+
                         Notification::make()
                             ->title('Custom rates saved temporarily')
                             ->body('The rates will be applied when the final statement is generated.')
@@ -271,43 +343,60 @@ class CommissionRun extends Page implements HasTable
                     ->requiresConfirmation()
                     ->action(function (Collection $records) {
                         if ($records->isEmpty()) {
-                            $this->notify('error', 'No policies selected.');
+                            Notification::make()->danger()->title('No policies selected.')->send();
+
                             return;
                         }
 
                         DB::transaction(function () use ($records) {
-                            // Calculate total commission using custom rates where available
-                            $totalAmount = 0;
-                            foreach ($records as $policy) {
-                                $baseCommission = $this->customRates[$policy->id]['base_rate'] ?? $policy->commission_rate_per_policy ?? 10;
-                                $additionalApplicantsCommission = (($policy->total_applicants ?? 1) - 1) * 
-                                    ($this->customRates[$policy->id]['additional_rate'] ?? $policy->commission_rate_per_additional_applicant ?? 5);
-                                $totalAmount += $baseCommission + $additionalApplicantsCommission;
-                            }
+                            // Calculate commission amounts by policy type
+                            $this->calculatePolicyTypeAmounts($records);
+
+                            // Add bonus amount to total
+                            $bonusAmount = (float) $this->bonus_amount;
+                            $totalWithBonus = $this->totalPoliciesAmount + $bonusAmount;
 
                             // Create the commission statement
                             $statement = CommissionStatement::create([
                                 'user_id' => $this->user_id,
                                 'statement_date' => now(),
                                 'end_date' => $this->until_date,
-                                'total_commission' => $totalAmount,
+                                'total_amount' => $totalWithBonus,
                                 'status' => 'Generated',
                                 'created_by' => auth()->id(),
+                                'health_policy_amount' => $this->healthAmount,
+                                'accident_policy_amount' => $this->accidentAmount,
+                                'vision_policy_amount' => $this->visionAmount,
+                                'dental_policy_amount' => $this->dentalAmount,
+                                'life_policy_amount' => $this->lifeAmount,
+                                'bonus_amount' => $bonusAmount,
+                                'bonus_notes' => $this->bonus_notes,
                             ]);
 
                             // Link the policies to this statement and update rates if customized
                             foreach ($records as $policy) {
                                 $updateData = ['commission_statement_id' => $statement->id];
-                                
-                                // Only update the rates if they were customized
-                                if (isset($this->customRates[$policy->id])) {
-                                    $updateData['commission_rate_per_policy'] = $this->customRates[$policy->id]['base_rate'];
-                                    $updateData['commission_rate_per_additional_applicant'] = $this->customRates[$policy->id]['additional_rate'];
-                                }
-                                
+
+                                // Always save the rates and commission amount, whether they were customized or not
+                                $baseRate = isset($this->customRates[$policy->id])
+                                    ? $this->customRates[$policy->id]['base_rate']
+                                    : ($policy->commission_rate_per_policy ?? 10);
+
+                                $additionalRate = isset($this->customRates[$policy->id])
+                                    ? $this->customRates[$policy->id]['additional_rate']
+                                    : ($policy->commission_rate_per_additional_applicant ?? 5);
+
+                                $additionalApplicants = ($policy->total_applicants ?? 1) - 1;
+                                $commissionAmount = $baseRate + ($additionalApplicants * $additionalRate);
+
+                                // Update all fields
+                                $updateData['commission_rate_per_policy'] = $baseRate;
+                                $updateData['commission_rate_per_additional_applicant'] = $additionalRate;
+                                $updateData['commission_amount'] = $commissionAmount;
+
                                 $policy->update($updateData);
                             }
-                            
+
                             // Clear the custom rates after generating the statement
                             $this->customRates = [];
                         });
@@ -317,10 +406,10 @@ class CommissionRun extends Page implements HasTable
                             ->success()
                             ->send();
                         $this->resetTableFiltersForm();
-                        
+
                         // Redirect to the index page to see the newly created statement
                         $this->redirect(CommissionStatementResource::getUrl('index'));
-                    })
+                    }),
             ]);
     }
 
@@ -332,18 +421,72 @@ class CommissionRun extends Page implements HasTable
             'user_id' => 'required',
             'until_date' => 'required|date',
         ]);
-        
+
         // Reset selected policies when changing agent or date
         $this->selectedPolicies = [];
         $this->totalCommission = 0;
-        
-        // Set default commission values for policies
-        // $policies = $this->getTableQuery()->get();
-        // foreach ($policies as $policy) {
-        //     $policy->commission_rate_per_policy = 10;
-        // }
-        
+        $this->resetPolicyTypeAmounts();
+
         // The table will automatically refresh with the new query parameters
+    }
+
+    public function updatedTableSelectedRecords($selectedRecords)
+    {
+        if (empty($selectedRecords)) {
+            $this->resetPolicyTypeAmounts();
+
+            return;
+        }
+
+        // Get the selected policies
+        $policies = Policy::whereIn('id', $selectedRecords)->get();
+        $this->calculatePolicyTypeAmounts($policies);
+    }
+
+    protected function resetPolicyTypeAmounts()
+    {
+        $this->healthAmount = 0;
+        $this->accidentAmount = 0;
+        $this->visionAmount = 0;
+        $this->dentalAmount = 0;
+        $this->lifeAmount = 0;
+        $this->totalPoliciesAmount = 0;
+    }
+
+    protected function calculatePolicyTypeAmounts($policies)
+    {
+        $this->resetPolicyTypeAmounts();
+
+        foreach ($policies as $policy) {
+            $baseCommission = $this->customRates[$policy->id]['base_rate'] ?? $policy->commission_rate_per_policy ?? 10;
+            $additionalApplicantsCommission = (($policy->total_applicants ?? 1) - 1) *
+                ($this->customRates[$policy->id]['additional_rate'] ?? $policy->commission_rate_per_additional_applicant ?? 5);
+            $policyCommission = $baseCommission + $additionalApplicantsCommission;
+
+            // Add to the appropriate policy type amount
+            $policyType = $policy->policy_type?->value ?? 'health';
+            switch ($policyType) {
+                case 'health':
+                    $this->healthAmount += $policyCommission;
+                    break;
+                case 'accident':
+                    $this->accidentAmount += $policyCommission;
+                    break;
+                case 'vision':
+                    $this->visionAmount += $policyCommission;
+                    break;
+                case 'dental':
+                    $this->dentalAmount += $policyCommission;
+                    break;
+                case 'life':
+                    $this->lifeAmount += $policyCommission;
+                    break;
+                default:
+                    $this->healthAmount += $policyCommission;
+            }
+
+            $this->totalPoliciesAmount += $policyCommission;
+        }
     }
 
     // Statement generation is now handled in the bulk action
