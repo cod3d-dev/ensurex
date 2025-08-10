@@ -37,6 +37,9 @@ class CommissionRun extends Page implements HasTable
     public $selectedPolicies = [];
 
     public $totalCommission = 0;
+    
+    // Store custom commission rates temporarily
+    public array $customRates = [];
 
     protected static string $resource = CommissionStatementResource::class;
 
@@ -195,25 +198,71 @@ class CommissionRun extends Page implements HasTable
                 Tables\Columns\TextColumn::make('activation_date')
                     ->label('Fecha Activación')
                     ->date('m-d-Y'),
-                Tables\Columns\TextInputColumn::make('commission_rate_per_policy')
+                Tables\Columns\TextColumn::make('commission_rate_per_policy')
                     ->label('Comisión Poliza')
-                    ->type('number')
-                    ->default(10),
-                Tables\Columns\TextInputColumn::make('commission_rate_per_additional_applicant')
+                    ->getStateUsing(function (Policy $record) {
+                        return $this->customRates[$record->id]['base_rate'] ?? $record->commission_rate_per_policy ?? 10;
+                    })
+                    ->numeric(),
+                Tables\Columns\TextColumn::make('commission_rate_per_additional_applicant')
                     ->label('Applicante Adicional')
-                    ->type('number')
-                    ->default(5),
+                    ->getStateUsing(function (Policy $record) {
+                        return $this->customRates[$record->id]['additional_rate'] ?? $record->commission_rate_per_additional_applicant ?? 5;
+                    })
+                    ->numeric(),
                 Tables\Columns\TextColumn::make('commission_amount')
                     ->label('Total')
-                    ->getStateUsing(function ($record) {
-                        $baseCommission = $record->commission_rate_per_policy ?? 10;
-                        $additionalApplicantsCommission = (($record->total_applicants ?? 1) - 1) * ($record->commission_rate_per_additional_applicant ?? 5);
+                    ->getStateUsing(function (Policy $record) {
+                        $baseCommission = $this->customRates[$record->id]['base_rate'] ?? $record->commission_rate_per_policy ?? 10;
+                        $additionalApplicantsCommission = (($record->total_applicants ?? 1) - 1) * 
+                            ($this->customRates[$record->id]['additional_rate'] ?? $record->commission_rate_per_additional_applicant ?? 5);
                         return $baseCommission + $additionalApplicantsCommission;
                     })
-                    ->money('USD'),
+                    ->money('USD')
+                    ->badge()
+                    ->color(fn (Policy $record) => isset($this->customRates[$record->id]) ? 'warning' : null),
             ])
             ->actions([
-                // Add any row actions if needed
+                Tables\Actions\Action::make('customizeRates')
+                    ->label('Custom Rates')
+                    ->icon('heroicon-o-pencil')
+                    ->color('warning')
+                    ->modalHeading('Customize Commission Rates')
+                    ->modalDescription(fn (Policy $record) => "Setting custom rates for policy #{$record->code}")
+                    ->modalSubmitActionLabel('Save Custom Rates')
+                    ->modalWidth('md')
+                    ->form([
+                        Forms\Components\TextInput::make('base_rate')
+                            ->label('Base Commission Rate')
+                            ->required()
+                            ->numeric()
+                            ->default(function (Policy $record) {
+                                return $this->customRates[$record->id]['base_rate'] ?? $record->commission_rate_per_policy ?? 10;
+                            }),
+                        Forms\Components\TextInput::make('additional_rate')
+                            ->label('Additional Applicant Rate')
+                            ->required()
+                            ->numeric()
+                            ->default(function (Policy $record) {
+                                return $this->customRates[$record->id]['additional_rate'] ?? $record->commission_rate_per_additional_applicant ?? 5;
+                            }),
+                        Forms\Components\Placeholder::make('note')
+                            ->content('These rates will only be applied when the final statement is generated.')
+                            ->extraAttributes(['class' => 'text-sm text-gray-500']),
+                    ])
+                    ->action(function (Policy $record, array $data): void {
+                        // Store in component state, not in database
+                        $this->customRates[$record->id] = [
+                            'base_rate' => $data['base_rate'],
+                            'additional_rate' => $data['additional_rate']
+                        ];
+                        
+                        Notification::make()
+                            ->title('Custom rates saved temporarily')
+                            ->body('The rates will be applied when the final statement is generated.')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkAction::make('generate_statement')
@@ -227,11 +276,12 @@ class CommissionRun extends Page implements HasTable
                         }
 
                         DB::transaction(function () use ($records) {
-                            // Calculate total commission using the same logic as calculateTotal
+                            // Calculate total commission using custom rates where available
                             $totalAmount = 0;
                             foreach ($records as $policy) {
-                                $baseCommission = $policy->commission_rate_per_policy ?? 10;
-                                $additionalApplicantsCommission = (($policy->total_applicants ?? 1) - 1) * ($policy->commission_rate_per_additional_applicant ?? 5);
+                                $baseCommission = $this->customRates[$policy->id]['base_rate'] ?? $policy->commission_rate_per_policy ?? 10;
+                                $additionalApplicantsCommission = (($policy->total_applicants ?? 1) - 1) * 
+                                    ($this->customRates[$policy->id]['additional_rate'] ?? $policy->commission_rate_per_additional_applicant ?? 5);
                                 $totalAmount += $baseCommission + $additionalApplicantsCommission;
                             }
 
@@ -245,10 +295,21 @@ class CommissionRun extends Page implements HasTable
                                 'created_by' => auth()->id(),
                             ]);
 
-                            // Link the policies to this statement
+                            // Link the policies to this statement and update rates if customized
                             foreach ($records as $policy) {
-                                $policy->update(['commission_statement_id' => $statement->id]);
+                                $updateData = ['commission_statement_id' => $statement->id];
+                                
+                                // Only update the rates if they were customized
+                                if (isset($this->customRates[$policy->id])) {
+                                    $updateData['commission_rate_per_policy'] = $this->customRates[$policy->id]['base_rate'];
+                                    $updateData['commission_rate_per_additional_applicant'] = $this->customRates[$policy->id]['additional_rate'];
+                                }
+                                
+                                $policy->update($updateData);
                             }
+                            
+                            // Clear the custom rates after generating the statement
+                            $this->customRates = [];
                         });
 
                         Notification::make()
