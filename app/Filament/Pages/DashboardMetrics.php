@@ -74,10 +74,12 @@ class DashboardMetrics extends BaseDashboard
                         DatePicker::make('startDate')
                             ->label('Fecha Inicial')
                             ->default(now()->startOfMonth())
+                            ->required()
                             ->maxDate(fn (Get $get) => $get('endDate') ?: now()),
                         DatePicker::make('endDate')
                             ->label('Fecha Final')
                             ->default(now())
+                            ->required()
                             ->minDate(fn (Get $get) => $get('startDate') ?: now())
                             ->maxDate(now()),
                     ])

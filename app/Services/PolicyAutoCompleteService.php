@@ -142,6 +142,11 @@ class PolicyAutoCompleteService
             $newPolicy->status = PolicyStatus::Created;
             $newPolicy->policy_number = null;
             
+            // Preserve created_at and updated_at dates from the original policy
+            // to ensure consistent dates across all related policies
+            $newPolicy->created_at = $policy->created_at;
+            $newPolicy->updated_at = $policy->updated_at;
+            
             // Set specific fields for Life policies
             if ($policyType->value === 'life') {
                 $newPolicy->total_family_members = 1;

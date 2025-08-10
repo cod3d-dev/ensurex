@@ -10,11 +10,23 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Pages\Dashboard as BaseDashboard;
+use App\Filament\Widgets;
 
 class Dashboard extends BaseDashboard
 {
     use BaseDashboard\Concerns\HasFiltersForm;
 
+    public function getWidgets(): array
+    {
+        return [
+            Widgets\QuotesStats::class,
+            Widgets\LatestQuotes::class,
+            Widgets\LatestPolicies::class,
+            Widgets\LatestDocs::class,
+            Widgets\LatestIssues::class,
+        ];
+    }
+    
     public function filtersForm(Form $form): Form
     {
         return $form

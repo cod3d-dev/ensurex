@@ -8,6 +8,8 @@ This document provides detailed information about the available Artisan console 
   - [Convert Single Quote](#convert-single-quote)
   - [Convert and Auto-Complete Single Quote](#convert-and-auto-complete-single-quote)
   - [Convert Batch of Quotes](#convert-batch-of-quotes)
+- [Policy Management Commands](#policy-management-commands)
+  - [Change Policy Status](#change-policy-status)
 - [Factory Data Generation Commands](#factory-data-generation-commands)
   - [Create Quotes](#create-quotes)
   - [Create Issues](#create-issues)
@@ -17,16 +19,23 @@ This document provides detailed information about the available Artisan console 
 
 ### Convert Single Quote
 
-**Command**: `quotes:convert {quote_id}`
+**Command**: `quotes:convert {quote_id} [--date=YYYY-MM-DD]`
 
-Converts a single quote to a policy.
+Converts a single quote to a policy, optionally setting the creation date of the policy.
 
 **Arguments**:
 - `quote_id`: ID of the quote to convert (required)
 
-**Example**:
+**Options**:
+- `--date`: Optional creation date for the policy (format: YYYY-MM-DD)
+
+**Examples**:
 ```bash
+# Convert without specifying date (uses current date)
 php artisan quotes:convert 5
+
+# Convert and set a specific creation date
+php artisan quotes:convert 5 --date=2025-07-15
 ```
 
 **Output Example**:
@@ -42,16 +51,23 @@ Converting quote ID: 5...
 
 ### Convert and Auto-Complete Single Quote
 
-**Command**: `quotes:convert-auto {quote_id}`
+**Command**: `quotes:convert-auto {quote_id} [--date=YYYY-MM-DD]`
 
-Converts a single quote to a policy and then automatically completes it with random data.
+Converts a single quote to a policy and then automatically completes it with random data. Optionally sets the creation date of the policy.
 
 **Arguments**:
 - `quote_id`: ID of the quote to convert and auto-complete (required)
 
-**Example**:
+**Options**:
+- `--date`: Optional creation date for the policy (format: YYYY-MM-DD)
+
+**Examples**:
 ```bash
+# Convert and auto-complete without specifying date
 php artisan quotes:convert-auto 36
+
+# Convert and auto-complete with a specific creation date
+php artisan quotes:convert-auto 36 --date=2025-07-15
 ```
 
 **Output Example**:
@@ -154,6 +170,50 @@ Converting Quote #23... ✅ Success: Policy #6
 📊 Results Summary:
   ✓ Successfully converted: 5
   ✗ Failed conversions: 0
+```
+
+## Policy Management Commands
+
+### Change Policy Status
+
+**Command**: `policies:change-status [options]`
+
+Change the status of a specific policy or a batch of policies, with options to filter by current status and date range.
+
+**Options**:
+- `--id=`: ID of a specific policy to change status
+- `--count=`: Number of policies to change in batch mode
+- `--from=`: Current status to filter policies by (comma-separated for multiple)
+- `--to=`: Target status to set (random if not provided)
+- `--start-date=`: Start date for filtering policies (format: YYYY-MM-DD)
+- `--end-date=`: End date for filtering policies (format: YYYY-MM-DD)
+
+**Examples**:
+```bash
+# Change a specific policy to active status
+php artisan policies:change-status --id=15 --to=active
+
+# Change 10 draft policies to random statuses
+php artisan policies:change-status --count=10 --from=draft
+
+# Change all policies created in July 2025 from draft to active
+php artisan policies:change-status --from=draft --to=active --start-date=2025-07-01 --end-date=2025-07-31
+
+# Change 5 policies from any status to pending
+php artisan policies:change-status --count=5 --to=pending
+
+# Change all rejected policies from the last month to active
+php artisan policies:change-status --from=rejected --to=active --start-date=2025-07-01 --end-date=2025-07-31
+```
+
+**Output Example**:
+```
+This will change 5 policies with status [draft] to 'active'. Continue? (yes/no) [no]:
+> yes
+
+[============================] 100%
+
+✅ Successfully updated status for 5 policies.
 ```
 
 ## Factory Data Generation Commands

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Quote;
 use App\Services\QuoteConversionService;
 use App\Enums\QuoteStatus;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class ConvertQuoteToPolicy extends Command
@@ -14,7 +15,7 @@ class ConvertQuoteToPolicy extends Command
      *
      * @var string
      */
-    protected $signature = 'quotes:convert {id : The ID of the quote to convert}';
+    protected $signature = 'quotes:convert {id : The ID of the quote to convert} {--date= : The creation date for the policy (format: YYYY-MM-DD)}';
 
     /**
      * The console command description.
@@ -47,8 +48,20 @@ class ConvertQuoteToPolicy extends Command
         $this->info("Converting quote ID: {$quoteId}...");
         
         try {
+            // Check if a date was provided
+            $dateOptions = null;
+            if ($this->option('date')) {
+                try {
+                    $date = Carbon::parse($this->option('date'));
+                    $dateOptions = ['date' => $date];
+                } catch (\Exception $e) {
+                    $this->error("Invalid date format. Please use YYYY-MM-DD.");
+                    return 1;
+                }
+            }
+            
             // Convert the quote to policy
-            $policy = $conversionService->convertQuoteToPolicy($quote);
+            $policy = $conversionService->convertQuoteToPolicy($quote, null, $dateOptions);
             
             $this->info("✅ Successfully converted to policy ID: {$policy->id}");
             $this->table(

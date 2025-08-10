@@ -133,6 +133,19 @@ class Policy extends Model
                 'changes' => $policy->getChanges(),
             ]);
         });
+
+        static::updating(function ($policy) {
+            if ($policy->isDirty('status') && $policy->status === PolicyStatus::Active && $policy->getOriginal('status') !== PolicyStatus::Active) {
+                $policy->activation_date = now();
+            }
+        });
+    }
+
+    public function isCommissionable(): bool
+    {
+        return $this->status === PolicyStatus::Active &&
+            $this->activation_date !== null &&
+            $this->commission_statement_id !== null;
     }
 
     public function documents(): HasMany
@@ -201,6 +214,11 @@ class Policy extends Model
     public function insuranceCompany(): BelongsTo
     {
         return $this->belongsTo(InsuranceCompany::class);
+    }
+
+    public function commissionStatement(): BelongsTo
+    {
+        return $this->belongsTo(CommissionStatement::class);
     }
 
     /**
