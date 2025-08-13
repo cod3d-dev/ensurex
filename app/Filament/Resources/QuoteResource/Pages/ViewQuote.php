@@ -37,7 +37,7 @@ class ViewQuote extends ViewRecord
                 ->action(function (Quote $record, array $data) {
                     // Use the QuoteConversionService to handle the conversion logic
                     $conversionService = app(QuoteConversionService::class);
-                    $policy = $conversionService->convertQuoteToPolicy($record, $data);
+                    $policy = $conversionService->convertQuoteToPolicy($record, auth()->user()->id);
 
                     // Redirect to edit the policy
                     $this->redirect(PolicyResource::getUrl('edit', ['record' => $policy->id]));

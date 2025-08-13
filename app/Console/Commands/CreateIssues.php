@@ -18,9 +18,9 @@ class CreateIssues extends Command
     protected $signature = 'factory:issues
                             {count=5 : Number of issues to create}
                             {--policy_id= : Attach issues to a specific policy ID}
-                            {--quote_id= : Attach issues to a specific quote ID}
                             {--issue_type= : Create issues of a specific type ID}
-                            {--random : Attach issues to random policies or quotes}';
+                            {--random : Attach issues to random policies}';
+
 
     /**
      * The console command description.
@@ -36,15 +36,8 @@ class CreateIssues extends Command
     {
         $count = (int) $this->argument('count');
         $policyId = $this->option('policy_id');
-        $quoteId = $this->option('quote_id');
         $issueTypeId = $this->option('issue_type');
         $random = $this->option('random');
-
-        // Validate parameters
-        if ($policyId && $quoteId) {
-            $this->error('Cannot specify both policy_id and quote_id. Choose one.');
-            return 1;
-        }
 
         // Check if issue type exists if specified
         if ($issueTypeId) {
@@ -72,44 +65,20 @@ class CreateIssues extends Command
             return 0;
         }
 
-        // Check if we're attaching to a specific quote
-        if ($quoteId) {
-            $quote = Quote::find($quoteId);
-            if (!$quote) {
-                $this->error("Quote with ID {$quoteId} not found.");
-                return 1;
-            }
-            
-            $this->createIssuesForQuote($count, $quote, $issueTypeId);
-            return 0;
-        }
 
-        // If random, attach to random policies or quotes
+
+        // If random, attach to random policies
         if ($random) {
-            // Split the count between policies and quotes
-            $policyCount = (int)($count / 2);
-            $quoteCount = $count - $policyCount;
-            
-            $this->info("Creating {$policyCount} issues for random policies and {$quoteCount} issues for random quotes...");
+            $this->info("Creating {$count} issues for random policies...");
             
             // Get random policies
-            $policies = Policy::inRandomOrder()->limit($policyCount)->get();
+            $policies = Policy::inRandomOrder()->limit($count)->get();
             if ($policies->isEmpty()) {
                 $this->warn("No policies found in the database.");
-                $policyCount = 0;
+                return 1;
             } else {
                 foreach ($policies as $policy) {
                     $this->createIssuesForPolicy(1, $policy, $issueTypeId);
-                }
-            }
-            
-            // Get random quotes
-            $quotes = Quote::inRandomOrder()->limit($quoteCount)->get();
-            if ($quotes->isEmpty()) {
-                $this->warn("No quotes found in the database.");
-            } else {
-                foreach ($quotes as $quote) {
-                    $this->createIssuesForQuote(1, $quote, $issueTypeId);
                 }
             }
             
@@ -153,25 +122,7 @@ class CreateIssues extends Command
         $this->showIssueSummary($issues);
     }
 
-    /**
-     * Create issues for a specific quote
-     */
-    private function createIssuesForQuote(int $count, Quote $quote, ?int $issueTypeId = null)
-    {
-        $this->info("Creating {$count} issues for Quote #{$quote->id}...");
-        
-        $issues = Issue::factory($count)
-            ->for($quote)
-            ->when($issueTypeId, function ($factory, $typeId) {
-                return $factory->state(['issue_type_id' => $typeId]);
-            })
-            ->create();
-            
-        $this->info("✅ Created {$count} issues for Quote #{$quote->id}.");
-        
-        // Show a summary of created issues
-        $this->showIssueSummary($issues);
-    }
+
 
     /**
      * Show a summary of created issues

@@ -52,6 +52,8 @@ enum UsState: string implements HasLabel
     case UTAH = 'UT';
     case VERMONT = 'VT';
     case VIRGINIA = 'VA';
+
+    case VIRGINISLAND = 'VI';
     case WASHINGTON = 'WA';
     case WEST_VIRGINIA = 'WV';
     case WISCONSIN = 'WI';
@@ -61,7 +63,7 @@ enum UsState: string implements HasLabel
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::ALABAMA => 'Alabama',
             self::ALASKA => 'Alaska',
             self::ARIZONA => 'Arizona',
@@ -108,6 +110,7 @@ enum UsState: string implements HasLabel
             self::UTAH => 'Utah',
             self::VERMONT => 'Vermont',
             self::VIRGINIA => 'Virginia',
+            self::VIRGINISLAND => 'Virgin Islands',
             self::WASHINGTON => 'Washington',
             self::WEST_VIRGINIA => 'West Virginia',
             self::WISCONSIN => 'Wisconsin',
@@ -116,5 +119,4 @@ enum UsState: string implements HasLabel
             self::PUERTO_RICO => 'Puerto Rico',
         };
     }
-
 }

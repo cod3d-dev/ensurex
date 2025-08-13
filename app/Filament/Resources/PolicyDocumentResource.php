@@ -232,7 +232,13 @@ class PolicyDocumentResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['status_updated_at'] = now();
+                        $data['status_updated_by'] = auth()->user()->id;
+
+                        return $data;
+                    }),
                 Tables\Actions\ViewAction::make(),
             ])
             ->bulkActions([

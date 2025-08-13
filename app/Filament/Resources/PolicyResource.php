@@ -48,7 +48,7 @@ class PolicyResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Polizas';
 
-    // protected static SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
+    protected static SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 
     protected static ?string $recordTitleAttribute = 'contact.first_name';
 

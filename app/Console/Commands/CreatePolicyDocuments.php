@@ -146,7 +146,7 @@ class CreatePolicyDocuments extends Command
         } elseif ($dueToday) {
             $factory = $factory->expireToday();
         } elseif ($dueNextWeek) {
-            $factory = $factory->expireNextWeek();
+            $factory = $factory->expiresNextWeek();
         }
         
         return $factory;

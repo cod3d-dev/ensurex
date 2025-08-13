@@ -3,9 +3,15 @@
 namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\FamilyRelationship;
+use App\Enums\PolicyStatus;
 use App\Filament\Resources\PolicyResource;
+use App\Models\Policy;
+use Carbon\Carbon;
+use Filament\Actions\Action;
+use Filament\Forms;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewPolicy extends ViewRecord
@@ -21,6 +27,71 @@ class ViewPolicy extends ViewRecord
     public function hasCombinedRelationManagerTabsWithContent(): bool
     {
         return false;
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('change_status')
+                ->label('Cambiar Estatus')
+                ->color('info')
+                ->icon('mdi-tag-edit-outline')
+                ->form([
+                    Forms\Components\Split::make([
+                        Forms\Components\Grid::make(1)
+                            ->schema([
+                                Forms\Components\Select::make('status')
+                                    ->label('Estatus')
+                                    ->options(PolicyStatus::class)
+                                    ->required()
+                                    ->preload()
+                                    ->disableOptionWhen(fn (string $value): bool => ($value === PolicyStatus::ToVerify->value)
+                                    )
+                                    ->searchable(),
+                                Forms\Components\Textarea::make('notas')
+                                    ->label('Notas')
+                                    ->required(),
+                            ]),
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\Toggle::make('client_notified')
+                                    ->label('Cliente Informado')
+                                    ->default(fn (Policy $record) => $record->client_notified),
+                                Forms\Components\Toggle::make('initial_paid')
+                                    ->label('Inicial Pagada')
+                                    ->default(fn (Policy $record) => $record->initial_paid),
+                                Forms\Components\Toggle::make('autopay')
+                                    ->label('Cotizacion')
+                                    ->default(fn (Policy $record) => $record->autopay),
+                                Forms\Components\Toggle::make('aca')
+                                    ->label('ACA')
+                                    ->visible(fn (Policy $record) => $record->requires_aca)
+                                    ->default(fn (Policy $record) => $record->aca),
+                            ]),
+                    ]),
+                ])
+                ->action(function (Policy $record, array $data): void {
+                    $record->status = $data['status'];
+                    $note = Carbon::now()->toDateTimeString().' - '.auth()->user()->name.":\nCambio de Estatus: ".PolicyStatus::from($data['status'])->getLabel()."\n".$data['notas']."\n\n";
+                    $record->notes = ! empty($record->notes) ? $record->notes."\n\n".$note : $note;
+                    $record->client_notified = $data['client_notified'];
+                    $record->initial_paid = $data['initial_paid'];
+                    $record->autopay = $data['autopay'];
+                    if ($record->requires_aca) {
+                        $record->aca = $data['aca'];
+                    }
+                    $record->save();
+
+                    Notification::make()
+                        ->title('Estatus Cambiado')
+                        ->success()
+                        ->send();
+                }),
+            Action::make('edit')
+                ->label('Editar')
+                ->color('warning')
+                ->url(PolicyResource::getUrl('edit', ['record' => $this->record])),
+        ];
     }
 
     public function infolist(Infolist $infolist): Infolist

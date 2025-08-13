@@ -29,7 +29,8 @@ class CreateQuotes extends Command
                             {--date-end= : End date for custom range (YYYY-MM-DD)}
                             {--random-dates : Randomize dates within the selected range}
                             {--applicants=1 : Number of applicants for each quote}
-                            {--show : Show detailed information about created quotes}';
+                            {--show : Show detailed information about created quotes}
+                            {--summary-only : Only show summary, suppress progress output}';
 
     /**
      * The console command description.
@@ -55,6 +56,7 @@ class CreateQuotes extends Command
         $randomDates = $this->option('random-dates');
         $applicants = (int) $this->option('applicants');
         $showDetails = $this->option('show');
+        $summaryOnly = $this->option('summary-only');
         
         // Determine the date range to use
         $dateRangeBounds = $this->resolveDateRange($dateRange, $dateStart, $dateEnd, $dateOption);
@@ -185,12 +187,14 @@ class CreateQuotes extends Command
             $quote = $factory->create();
             $createdQuotes[] = $quote;
             
-            $this->info("✅ Created Quote #{$quote->id} with status: {$quote->status->value}");
+            if (!$summaryOnly) {
+                $this->info("✅ Created Quote #{$quote->id} with status: {$quote->status->value}");
+            }
         }
 
         // Show a summary of created quotes
         if ($count > 0) {
-            $this->showQuoteSummary($createdQuotes, $showDetails);
+            $this->showQuoteSummary($createdQuotes, $showDetails, $summaryOnly);
         }
         
         return 0;
@@ -342,8 +346,12 @@ class CreateQuotes extends Command
     
     /**
      * Show a summary of created quotes
+     * 
+     * @param array $quotes The quotes to summarize
+     * @param bool $showDetails Whether to show detailed information
+     * @param bool $summaryOnly Whether to show only the summary
      */
-    private function showQuoteSummary($quotes, $showDetails = false)
+    private function showQuoteSummary($quotes, $showDetails = false, $summaryOnly = false)
     {
         $this->info("\n📋 Quote Summary:");
         

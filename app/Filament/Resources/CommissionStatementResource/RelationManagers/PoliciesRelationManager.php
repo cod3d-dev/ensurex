@@ -161,6 +161,7 @@ class PoliciesRelationManager extends RelationManager
                     ->summarize(Count::make()->label('AA')),
                 Tables\Columns\TextColumn::make('commission_amount')
                     ->label('Comisión')
+                    ->tooltip(fn ($record) => 'Comisión Poliza: $'.$record->commission_rate_per_policy.' | Comisión AA: $'.($record->commission_rate_per_additional_applicant * ($record->total_applicants - 1)))
                     ->numeric()
                     ->summarize(Sum::make()->label('Comisiones')),
                 Tables\Columns\TextColumn::make('bonus')

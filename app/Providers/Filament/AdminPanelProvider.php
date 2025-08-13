@@ -2,6 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Resources\CommissionStatementResource;
+use App\Filament\Resources\IssueResource;
+use App\Filament\Resources\PolicyDocumentResource;
 use App\Filament\Resources\PolicyResource;
 use App\Filament\Resources\QuoteResource;
 use App\Filament\Widgets;
@@ -92,11 +95,11 @@ class AdminPanelProvider extends PanelProvider
                     ->group('Pólizas')
                     ->sort(1),
                 NavigationItem::make('Problemas')
-                    ->url(fn () => PolicyResource::getUrl('index'))
+                    ->url(fn () => IssueResource::getUrl('index'))
                     ->group('Pólizas')
                     ->sort(3),
                 NavigationItem::make('Documentos')
-                    ->url(fn () => PolicyResource::getUrl('index'))
+                    ->url(fn () => PolicyDocumentResource::getUrl('index'))
                     ->group('Pólizas')
                     ->sort(4),
                 NavigationItem::make('Todas las Pólizas')
@@ -104,7 +107,7 @@ class AdminPanelProvider extends PanelProvider
                     ->group('Pólizas')
                     ->sort(5),
                 NavigationItem::make('Comisiones')
-                    ->url(fn () => PolicyResource::getUrl('index'))
+                    ->url(fn () => CommissionStatementResource::getUrl('generate'))
                     ->group('Pólizas')
                     ->visible(fn () => auth()->user()?->role === \App\Enums\UserRoles::Admin)
                     ->sort(6),

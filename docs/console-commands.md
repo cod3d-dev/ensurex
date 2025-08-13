@@ -239,6 +239,7 @@ Creates quotes using the Quote factory.
 - `--random-dates`: Randomize dates within the selected range
 - `--applicants=1`: Number of applicants for each quote
 - `--show`: Show detailed information about created quotes
+- `--summary-only`: Only show summary, suppress progress output
 
 **Examples**:
 ```bash
@@ -247,6 +248,9 @@ php artisan factory:quotes 3 --status=pending --policy_types=health,dental
 
 # Create 1 quote with a specific date and show detailed info
 php artisan factory:quotes 1 --date=2025-10-15 --show
+
+# Create 20 quotes quickly with minimal output
+php artisan factory:quotes 20 --summary-only
 
 # Create 5 quotes with 3 applicants each
 php artisan factory:quotes 5 --applicants=3

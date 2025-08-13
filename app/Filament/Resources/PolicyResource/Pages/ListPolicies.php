@@ -39,8 +39,8 @@ class ListPolicies extends ListRecords
         // pending', 'active', 'inactive', 'cancelled', 'expired'
         return [
             'pending' => Tab::make('Pendientes')
-                ->query(fn ($query) => $query->whereIn('status', ['pending', 'draft']))
-                ->badge(fn () => static::getModel()::whereIn('status', ['pending', 'draft'])->count()),
+                ->query(fn ($query) => $query->whereIn('status', ['pending', 'draft', 'created']))
+                ->badge(fn () => static::getModel()::whereIn('status', ['pending', 'draft', 'created'])->count()),
             'active' => Tab::make('Activa')
                 ->query(fn ($query) => $query->where('status', PolicyStatus::Active->value))
                 ->badge(fn () => static::getModel()::where('status', PolicyStatus::Active->value)->count()),
