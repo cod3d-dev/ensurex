@@ -167,12 +167,14 @@ class ChangePolicyStatus extends Command
             $this->output->progressStart($actualCount);
             
             // Process policies in chunks for better memory management
-            $query->limit($actualCount)->each(function ($policy) use (&$updatedCount, $targetStatus) {
+            $policies = $query->take($actualCount)->get();
+        
+            foreach ($policies as $policy) {
                 $oldStatus = $policy->status;
                 $newStatus = $targetStatus ?? $this->getRandomStatus($oldStatus);
-                
+            
                 $updateData = ['status' => $newStatus];
-                
+            
                 // Set activation date if changing to active status
                 if ($newStatus === PolicyStatus::Active) {
                     $activationDate = $this->determineActivationDate($policy);
@@ -180,14 +182,14 @@ class ChangePolicyStatus extends Command
                         $updateData['activation_date'] = $activationDate;
                     }
                 }
-                
+            
                 // Use withoutEvents to bypass the model's updating event
                 Policy::withoutEvents(function () use ($policy, $updateData) {
                     $policy->update($updateData);
                 });
                 $updatedCount++;
                 $this->output->progressAdvance();
-            });
+            }
             
             $this->output->progressFinish();
             DB::commit();
