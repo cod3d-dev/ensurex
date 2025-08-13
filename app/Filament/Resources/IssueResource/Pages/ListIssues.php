@@ -11,17 +11,16 @@ class ListIssues extends ListRecords
 {
     protected static string $resource = IssueResource::class;
 
-//    protected function getHeaderActions(): array
-//    {
-//        return [
-//            Actions\CreateAction::make(),
-//        ];
-//    }
+    //    protected function getHeaderActions(): array
+    //    {
+    //        return [
+    //            Actions\CreateAction::make(),
+    //        ];
+    //    }
 
     public function getTabs(): array
     {
         return [
-            'all' => Tab::make('Todos'),
             'to_review' => Tab::make('Por Revisar')
                 ->query(fn ($query) => $query->where('status', 'to_review'))
                 ->badge(fn () => static::getModel()::where('status', 'to_review')->count()),
@@ -40,6 +39,7 @@ class ListIssues extends ListRecords
             'no_solution' => Tab::make('Sin Solución')
                 ->query(fn ($query) => $query->where('status', 'no_solution'))
                 ->badge(fn () => static::getModel()::where('status', 'no_solution')->count()),
+            'all' => Tab::make('Todos'),
         ];
     }
 }
