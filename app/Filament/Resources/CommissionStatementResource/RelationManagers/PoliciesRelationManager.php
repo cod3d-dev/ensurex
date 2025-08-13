@@ -2,19 +2,25 @@
 
 namespace App\Filament\Resources\CommissionStatementResource\RelationManagers;
 
+use App\Filament\Resources\PolicyResource;
 use App\Models\Policy;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Columns\Summarizers\Count;
 use Filament\Tables\Columns\Summarizers\Sum;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Livewire\Component;
 
 class PoliciesRelationManager extends RelationManager
 {
     protected static string $relationship = 'policies';
+
+    protected static ?string $title = 'Polizas';
 
     public function form(Form $form): Form
     {
@@ -31,13 +37,20 @@ class PoliciesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('policy')
             ->defaultGroup('policy_type')
+            ->groups([
+                Group::make('policy_type')
+                    ->label('Tipo de Poliza'),
+                Group::make('contact.full_name')
+                    ->label('Cliente'),
+            ])
             ->columns([
                 Tables\Columns\TextColumn::make('code')
                     ->label('Poliza #')
                     ->summarize(Count::make()->label('Total Policies')),
                 Tables\Columns\TextColumn::make('contact.full_name')
-                    ->label('Client')
+                    ->label('Cliente')
                     ->html()
+                    ->url(fn (Policy $record) => PolicyResource::getUrl('view', ['record' => $record->id]))
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query
                             ->whereHas('contact', function (Builder $query) use ($search) {
@@ -141,22 +154,23 @@ class PoliciesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('activation_date')
                     ->label('Fecha Activación')
                     ->date('m-d-Y'),
-                Tables\Columns\TextColumn::make('commission_rate_per_policy')
-                    ->label('Comisión')
-                    ->numeric()
-                    ->summarize(Sum::make()->label('Total Comisión')),
                 Tables\Columns\TextColumn::make('total_applicants')
-                    ->label('Adicionales')
+                    ->label('AA')
+                    ->tooltip('Aplicantes adicionales')
                     ->formatStateUsing(fn ($state) => $state - 1)
-                    ->summarize(Count::make()->label('Total Adicionales')),
-                Tables\Columns\TextColumn::make('commission_rate_per_additional_applicant')
+                    ->summarize(Count::make()->label('AA')),
+                Tables\Columns\TextColumn::make('commission_amount')
                     ->label('Comisión')
                     ->numeric()
-                    ->summarize(Sum::make()->label('Total Comisión')),
-                Tables\Columns\TextColumn::make('commission_amount')
+                    ->summarize(Sum::make()->label('Comisiones')),
+                Tables\Columns\TextColumn::make('bonus')
+                    ->label('Bono')
+                    ->numeric()
+                    ->summarize(Sum::make()->label('Bonos')),
+                Tables\Columns\TextColumn::make('total_commission')
                     ->label('Subtotal')
                     ->formatStateUsing(fn ($state) => '$'.$state)
-                    ->badge(),
+                    ->summarize(Sum::make()->label('Total')),
             ])
             ->filters([
                 //
@@ -165,7 +179,65 @@ class PoliciesRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('edit')
+                    ->hiddenLabel()
+                    ->modalHeading('Modificar Comisión')
+                    ->modalDescription('Modifique la comisión para esta póliza.')
+                    ->fillForm(function (Policy $record): array {
+                        return [
+                            'commission_rate_per_policy' => $record->commission_rate_per_policy,
+                            'commission_rate_per_additional_applicant' => $record->commission_rate_per_additional_applicant,
+                            'bonus' => $record->bonus,
+                        ];
+                    })
+                    ->form([
+                        Forms\Components\TextInput::make('commission_rate_per_policy')
+                            ->label('Comisión por póliza')
+                            ->numeric()
+                            ->required(),
+                        Forms\Components\TextInput::make('commission_rate_per_additional_applicant')
+                            ->label('Comisión por solicitante adicional')
+                            ->numeric()
+                            ->required(),
+                        Forms\Components\TextInput::make('bonus')
+                            ->label('Bono')
+                            ->numeric()
+                            ->required(),
+                    ])
+                    ->action(function (array $data, Policy $record): void {
+                        // Update the policy with new commission rates
+                        $record->commission_rate_per_policy = $data['commission_rate_per_policy'];
+                        $record->commission_rate_per_additional_applicant = $data['commission_rate_per_additional_applicant'];
+                        $record->bonus = $data['bonus'];
+                        // $record->total_commission = $data['commission_rate_per_policy'] + $data['bonus'] + $data['commission_rate_per_additional_applicant'] * ($record->total_applicants - 1);
+
+                        // Recalculate commission amount
+                        $baseCommission = $record->commission_rate_per_policy;
+                        $additionalApplicantsCount = $record->total_applicants > 1 ? $record->total_applicants - 1 : 0;
+                        $additionalCommission = $additionalApplicantsCount * $record->commission_rate_per_additional_applicant;
+                        $totalCommission = $baseCommission + $additionalCommission;
+                        $record->commission_amount = $totalCommission;
+                        $record->total_commission = $totalCommission + $record->bonus;
+                        $record->save();
+
+                        // Update the total commission in the parent commission statement
+                        if ($record->commission_statement_id) {
+                            $commissionStatement = $record->commissionStatement;
+                            $commissionStatement->total_commission = $commissionStatement->policies->sum('commission_amount');
+                            $commissionStatement->bonus_amount = $commissionStatement->policies->sum('bonus');
+                            $commissionStatement->total_amount = $commissionStatement->policies->sum('total_commission');
+                            $commissionStatement->save();
+                        }
+
+                        Notification::make()
+                            ->title('Tasas de comisión actualizadas')
+                            ->body('Las tasas de comisión para esta póliza han sido actualizadas correctamente.')
+                            ->success()
+                            ->send();
+                    })
+                    ->after(function (Component $livewire) {
+                        $livewire->dispatch('refreshCommissionStatement');
+                    }),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

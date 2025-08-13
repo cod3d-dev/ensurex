@@ -13,7 +13,11 @@ class ListCommissionStatements extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\Action::make('generate')
+                ->label('Generar Comisiones')
+                ->action(function () {
+                    $this->redirect(CommissionStatementResource::getUrl('generate'));
+                }),
         ];
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\CommissionStatementStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
 
 class CommissionStatement extends Model
 {
@@ -12,10 +12,13 @@ class CommissionStatement extends Model
     use HasFactory;
 
     protected $fillable = [
-        'agent_id',
+        'asistant_id',
         'statement_date',
-        'pay_period_end_date',
-        'total_amount',
+        'start_date',
+        'end_date',
+        'month',
+        'year',
+        'total_commission',
         'status',
         'created_by',
         'notes',
@@ -30,19 +33,23 @@ class CommissionStatement extends Model
 
     protected $casts = [
         'statement_date' => 'date',
-        'pay_period_end_date' => 'date',
-        'total_amount' => 'decimal:2',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'month' => 'integer',
+        'year' => 'integer',
+        'total_commission' => 'decimal:2',
         'health_policy_amount' => 'decimal:2',
         'accident_policy_amount' => 'decimal:2',
         'vision_policy_amount' => 'decimal:2',
         'dental_policy_amount' => 'decimal:2',
         'life_policy_amount' => 'decimal:2',
         'bonus_amount' => 'decimal:2',
+        'status' => CommissionStatementStatus::class,
     ];
 
-    public function agent()
+    public function asistant()
     {
-        return $this->belongsTo(User::class, 'agent_id');
+        return $this->belongsTo(User::class, 'asistant_id');
     }
 
     public function policies()
