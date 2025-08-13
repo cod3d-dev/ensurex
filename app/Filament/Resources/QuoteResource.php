@@ -38,7 +38,7 @@ class QuoteResource extends Resource
 {
     protected static ?string $model = Quote::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    // protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Cotizaciones';
 
@@ -46,7 +46,7 @@ class QuoteResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Cotizaciones';
 
-    protected static ?string $navigationGroup = 'Polizas';
+    protected static ?string $navigationGroup = 'Cotizaciones';
 
     protected static ?int $navigationSort = 1;
 

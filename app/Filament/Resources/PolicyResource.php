@@ -637,8 +637,7 @@ class PolicyResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('user_id')
                     ->label('Asistente')
-                    ->relationship('user', 'name')
-                    ->default(auth()->user()->id),
+                    ->relationship('user', 'name'),
                 Tables\Filters\SelectFilter::make('agent.name')
                     ->label('Agente')
                     ->relationship('agent', 'name'),
@@ -663,7 +662,7 @@ class PolicyResource extends Resource
                     ->options(DocumentStatus::class),
                 Tables\Filters\SelectFilter::make('insurance_company_id')
                     ->relationship('insuranceCompany', 'name')
-                    ->label('Compañía de Seguro')
+                    ->label('Aseguradora')
                     ->searchable()
                     ->preload(),
                 Tables\Filters\SelectFilter::make('policy_type')

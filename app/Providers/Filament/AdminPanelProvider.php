@@ -2,12 +2,15 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Resources\PolicyResource;
+use App\Filament\Resources\QuoteResource;
 use App\Filament\Widgets;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -61,8 +64,18 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 NavigationGroup::make()
-                    ->label('Shop')
-                    ->icon('heroicon-o-cash'),
+                    ->label('Cotizaciones')
+                    ->icon('heroicon-o-document-text'),
+            ])
+            ->navigationItems([
+                NavigationItem::make('Cotizar')
+                    ->url(fn () => QuoteResource::getUrl('create'))
+                    ->group('Cotizaciones')
+                    ->sort(10),
+                NavigationItem::make('Polizas')
+                    ->url(fn () => PolicyResource::getUrl('index'))
+                    ->group('Polizas')
+                    ->sort(20),
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->renderHook('panels::body.end', fn (): string => Blade::render("@vite('resources/js/app.js')"));

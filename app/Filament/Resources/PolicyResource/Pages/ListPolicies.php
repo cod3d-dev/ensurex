@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PolicyResource\Pages;
 
+use App\Enums\PolicyStatus;
 use App\Filament\Resources\PolicyResource;
 use Filament\Actions;
 use Filament\Pages\Concerns\ExposesTableToWidgets;
@@ -37,9 +38,21 @@ class ListPolicies extends ListRecords
     {
         // pending', 'active', 'inactive', 'cancelled', 'expired'
         return [
-            'pending' => Tab::make('Pendiente')
+            'pending' => Tab::make('Pendientes')
                 ->query(fn ($query) => $query->whereIn('status', ['pending', 'draft']))
                 ->badge(fn () => static::getModel()::whereIn('status', ['pending', 'draft'])->count()),
+            'active' => Tab::make('Activa')
+                ->query(fn ($query) => $query->where('status', PolicyStatus::Active->value))
+                ->badge(fn () => static::getModel()::where('status', PolicyStatus::Active->value)->count()),
+            'rejected' => Tab::make('Rechazada')
+                ->query(fn ($query) => $query->where('status', PolicyStatus::Rejected->value))
+                ->badge(fn () => static::getModel()::where('status', PolicyStatus::Rejected->value)->count()),
+            'inactive' => Tab::make('Inactiva')
+                ->query(fn ($query) => $query->where('status', PolicyStatus::Inactive->value))
+                ->badge(fn () => static::getModel()::where('status', PolicyStatus::Inactive->value)->count()),
+            'cancelled' => Tab::make('Cancelada')
+                ->query(fn ($query) => $query->where('status', PolicyStatus::Cancelled->value))
+                ->badge(fn () => static::getModel()::where('status', PolicyStatus::Cancelled->value)->count()),
             'past_year' => Tab::make(date('Y', strtotime('-1 year')))
                 ->query(fn ($query) => $query->whereYear('effective_date', date('Y', strtotime('-1 year'))))
                 ->badge(fn () => static::getModel()::whereYear('effective_date', date('Y', strtotime('-1 year')))->count()),
@@ -47,19 +60,7 @@ class ListPolicies extends ListRecords
                 ->query(fn ($query) => $query->whereYear('effective_date', date('Y')))
                 ->badge(fn () => static::getModel()::whereYear('effective_date', date('Y'))->count()),
 
-            'active' => Tab::make('Activa')
-                ->query(fn ($query) => $query->where('status', 'active'))
-                ->badge(fn () => static::getModel()::where('status', 'active')->count()),
-            'inactive' => Tab::make('Inactiva')
-                ->query(fn ($query) => $query->where('status', 'inactive'))
-                ->badge(fn () => static::getModel()::where('status', 'inactive')->count()),
-            'cancelled' => Tab::make('Cancelada')
-                ->query(fn ($query) => $query->where('status', 'cancelled'))
-                ->badge(fn () => static::getModel()::where('status', 'cancelled')->count()),
-            'expired' => Tab::make('Vencida')
-                ->query(fn ($query) => $query->where('status', 'expired'))
-                ->badge(fn () => static::getModel()::where('status', 'expired')->count()),
-            'all' => Tab::make('Todos')
+            'all' => Tab::make('Todas')
                 ->badge(fn () => static::getModel()::count()),
         ];
     }
