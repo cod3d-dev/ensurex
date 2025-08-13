@@ -3,27 +3,27 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\InsuranceCompanyResource\Pages;
-use App\Filament\Resources\InsuranceCompanyResource\RelationManagers;
 use App\Models\InsuranceCompany;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class InsuranceCompanyResource extends Resource
 {
     protected static ?string $model = InsuranceCompany::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    // protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
     protected static ?string $navigationGroup = 'Ajustes';
-   protected static ?int $navigationSort = 1;
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $navigationLabel = 'Aseguradoras';
+
     protected static ?string $modelLabel = 'Aseguradora';
+
     protected static ?string $pluralModelLabel = 'Aseguradoras';
 
     public static function form(Form $form): Form

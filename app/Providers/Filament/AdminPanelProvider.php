@@ -66,16 +66,48 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('Cotizaciones')
                     ->icon('heroicon-o-document-text'),
+                NavigationGroup::make()
+                    ->label('Pólizas')
+                    ->icon('iconoir-privacy-policy'),
+                NavigationGroup::make()
+                    ->label('Ajustes')
+                    ->icon('heroicon-o-cog'),
+
             ])
             ->navigationItems([
+                NavigationItem::make('Mis Cotizaciones')
+                    ->url(fn () => QuoteResource::getUrl('index').'?tableFilters[user_id][value]='.auth()->user()->id)
+                    ->group('Cotizaciones')
+                    ->sort(1),
+                NavigationItem::make('Todas las Cotizaciones')
+                    ->url(fn () => QuoteResource::getUrl('index'))
+                    ->group('Cotizaciones')
+                    ->sort(2),
                 NavigationItem::make('Cotizar')
                     ->url(fn () => QuoteResource::getUrl('create'))
                     ->group('Cotizaciones')
-                    ->sort(10),
-                NavigationItem::make('Polizas')
+                    ->sort(3),
+                NavigationItem::make('Mis Pólizas')
+                    ->url(fn () => PolicyResource::getUrl('index').'?tableFilters[user_id][value]='.auth()->user()->id)
+                    ->group('Pólizas')
+                    ->sort(1),
+                NavigationItem::make('Problemas')
                     ->url(fn () => PolicyResource::getUrl('index'))
-                    ->group('Polizas')
-                    ->sort(20),
+                    ->group('Pólizas')
+                    ->sort(3),
+                NavigationItem::make('Documentos')
+                    ->url(fn () => PolicyResource::getUrl('index'))
+                    ->group('Pólizas')
+                    ->sort(4),
+                NavigationItem::make('Todas las Pólizas')
+                    ->url(fn () => PolicyResource::getUrl('index'))
+                    ->group('Pólizas')
+                    ->sort(5),
+                NavigationItem::make('Comisiones')
+                    ->url(fn () => PolicyResource::getUrl('index'))
+                    ->group('Pólizas')
+                    ->visible(fn () => auth()->user()?->role === \App\Enums\UserRoles::Admin)
+                    ->sort(6),
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->renderHook('panels::body.end', fn (): string => Blade::render("@vite('resources/js/app.js')"));

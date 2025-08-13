@@ -66,7 +66,7 @@ class ContactFactory extends Factory
 
             // Personal Information
             'preferred_language' => 'spanish', // Default to Spanish
-            'full_name' => $this->faker->name(),
+            'full_name' => $this->faker->firstName().' '.$this->faker->lastName(),
             'email_address' => $this->faker->safeEmail(),
             'phone' => $this->faker->phoneNumber(),
             'phone2' => $this->faker->optional()->phoneNumber(),

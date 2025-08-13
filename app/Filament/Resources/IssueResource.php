@@ -25,6 +25,11 @@ class IssueResource extends Resource
 
     protected static ?string $navigationIcon = 'iconoir-warning-hexagon';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form

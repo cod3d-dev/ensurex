@@ -3,28 +3,27 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\KynectFPLResource\Pages;
-use App\Filament\Resources\KynectFPLResource\RelationManagers;
 use App\Models\KynectFPL;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class KynectFPLResource extends Resource
 {
     protected static ?string $model = KynectFPL::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-
     protected static ?string $navigationGroup = 'Ajustes';
-   protected static ?int $navigationSort = 10;
+
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $navigationLabel = 'Kynect FPL';
+
     protected static ?string $modelLabel = 'Kynect FPL';
+
     protected static ?string $pluralModelLabel = 'Kynect FPL';
+
     public static function form(Form $form): Form
     {
         return $form

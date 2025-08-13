@@ -281,39 +281,7 @@
 
                     @if($record->prescription_drugs)
                     <div class="w-full">
-                        <table class="w-full table-fixed divide-y divide-gray-200">
-                            <thead>
-                                <tr class="bg-gray-50">
-                                    <th
-                                        class="w-2/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Aplicante</th>
-                                    <th
-                                        class="w-1/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center">
-                                        Medicamento</th>
-                                    <th
-                                        class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center">
-                                        Dosis</th>
-                                    <th
-                                        class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center">
-                                        Meses</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($record->prescription_drugs as $drug)
-                                @php
-                                // dd($record->additional_applicants);
-                                @endphp
-                                <tr>
-                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $drug['applicant'] ===
-                                        'main' ? 'Principal' : $drug['applicant'] }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 text-center">{{ $drug['name'] }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 text-center">{{ $drug['dosage'] }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 text-center">{{ $drug['frequency'] }}
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                        
                     </div>
                     @endif
 

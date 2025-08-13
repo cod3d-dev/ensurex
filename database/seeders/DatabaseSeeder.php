@@ -48,15 +48,15 @@ class DatabaseSeeder extends Seeder
         KynectFPL::create($kynectFPLData);
 
         // Import contacts from CSV file if it exists
-        $contactsFile = base_path('contacts_export.csv');
-        if (File::exists($contactsFile)) {
-            $this->command->info('Importing contacts from CSV file...');
-            Artisan::call('contacts:import', [
-                'file' => $contactsFile,
-            ]);
-            $this->command->info(Artisan::output());
-        } else {
-            $this->command->warn('Contacts CSV file not found at: '.$contactsFile);
-        }
+        // $contactsFile = base_path('contacts_export.csv');
+        // if (File::exists($contactsFile)) {
+        //     $this->command->info('Importing contacts from CSV file...');
+        //     Artisan::call('contacts:import', [
+        //         'file' => $contactsFile,
+        //     ]);
+        //     $this->command->info(Artisan::output());
+        // } else {
+        //     $this->command->warn('Contacts CSV file not found at: '.$contactsFile);
+        // }
     }
 }

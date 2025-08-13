@@ -42,23 +42,22 @@ class PolicyResource extends Resource
 {
     protected static ?string $model = Policy::class;
 
-    protected static ?string $navigationIcon = 'iconoir-privacy-policy';
-
-    protected static ?string $navigationGroup = 'Polizas';
-
-    protected static ?int $navigationSort = 2;
-
     protected static ?string $navigationLabel = 'Polizas';
 
     protected static ?string $modelLabel = 'Poliza';
 
     protected static ?string $pluralModelLabel = 'Polizas';
 
-    protected static SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
+    // protected static SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 
     protected static ?string $recordTitleAttribute = 'contact.first_name';
 
     protected static int $globalSearchResultsLimit = 20;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     public static function getGlobalSearchResultTitle(Model $record): string|Htmlable
     {

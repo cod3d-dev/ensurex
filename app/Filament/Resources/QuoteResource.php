@@ -50,6 +50,11 @@ class QuoteResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     //    public static function shouldRegisterNavigation(): bool
     //    {
     //        return true;
