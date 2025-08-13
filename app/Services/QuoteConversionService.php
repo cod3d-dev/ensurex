@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Enums\DocumentStatus;
+use App\Enums\Gender;
 use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Enums\QuoteStatus;
+use App\Models\Contact;
 use App\Models\Policy;
 use App\Models\Quote;
 use Carbon\Carbon;
+use Faker\Factory as FakerFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -175,10 +178,48 @@ class QuoteConversionService
     {
         if (is_array($quote->applicants) && count($quote->applicants) > 0) {
             $sortOrder = 1;
+            $faker = FakerFactory::create('es_VE');
 
             foreach ($quote->applicants as $applicant) {
                 // For the first applicant, use the contact_id from the quote
-                $contactId = ($sortOrder === 1) ? $quote->contact_id : null;
+                $contactId = null;
+                
+                if ($sortOrder === 1) {
+                    $contactId = $quote->contact_id;
+                } else {
+                    // Create a new contact for this applicant if they don't have a contact_id
+                    // Determine gender for name generation
+                    $gender = isset($applicant['gender']) ? $applicant['gender'] : null;
+                    $genderEnum = null;
+                    
+                    if ($gender) {
+                        try {
+                            $genderEnum = Gender::from($gender);
+                        } catch (\ValueError $e) {
+                            $genderEnum = $faker->randomElement(Gender::cases());
+                        }
+                    } else {
+                        $genderEnum = $faker->randomElement(Gender::cases());
+                    }
+                    
+                    // Generate a name based on gender if not provided
+                    $fullName = $applicant['full_name'] ?? null;
+                    if (empty($fullName)) {
+                        $fakerGender = $genderEnum === Gender::Male ? 'male' : 'female';
+                        $fullName = $faker->name($fakerGender);
+                    }
+                    
+                    // Create a new contact for this applicant
+                    $contact = Contact::create([
+                        'full_name' => $fullName,
+                        'gender' => $genderEnum,
+                        'date_of_birth' => $applicant['date_of_birth'] ?? null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    
+                    $contactId = $contact->id;
+                }
 
                 // Create the policy applicant record
                 DB::table('policy_applicants')->insert([
