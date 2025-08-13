@@ -766,7 +766,7 @@ class PolicyResource extends Resource
                                             ->disableOptionWhen(fn (string $value): bool => ($value === PolicyStatus::ToVerify->value)
                                             )
                                             ->searchable(),
-                                        Forms\Components\TextArea::make('notas')
+                                        Forms\Components\Textarea::make('notas')
                                             ->label('Notas')
                                             ->required(),
                                     ]),
