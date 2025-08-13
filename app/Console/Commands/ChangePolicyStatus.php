@@ -81,7 +81,10 @@ class ChangePolicyStatus extends Command
                 }
             }
             
-            $policy->update($updateData);
+            // Use withoutEvents to bypass the model's updating event
+            Policy::withoutEvents(function () use ($policy, $updateData) {
+                $policy->update($updateData);
+            });
             $this->info("✅ Policy ID {$policyId} status changed: {$oldStatusValue} → {$newStatus->value}");
         } catch (\Exception $e) {
             $this->error("Failed to change policy status: " . $e->getMessage());
@@ -178,7 +181,10 @@ class ChangePolicyStatus extends Command
                     }
                 }
                 
-                $policy->update($updateData);
+                // Use withoutEvents to bypass the model's updating event
+                Policy::withoutEvents(function () use ($policy, $updateData) {
+                    $policy->update($updateData);
+                });
                 $updatedCount++;
                 $this->output->progressAdvance();
             });
