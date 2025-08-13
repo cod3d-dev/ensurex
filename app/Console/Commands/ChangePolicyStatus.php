@@ -21,7 +21,10 @@ class ChangePolicyStatus extends Command
                             {--from= : Current status to filter policies by (comma-separated for multiple)}
                             {--to= : Target status to set (random if not provided)}
                             {--start-date= : Start date for filtering policies (format: YYYY-MM-DD)}
-                            {--end-date= : End date for filtering policies (format: YYYY-MM-DD)}';
+                            {--end-date= : End date for filtering policies (format: YYYY-MM-DD)}
+                            {--activation-date= : Specific activation date for active policies (format: YYYY-MM-DD)}
+                            {--activation-date-range= : Predefined date range for activation date (this_week|last_week|this_month|last_month|this_year)}
+                            {--use-quote-date : Use the quote creation date as the activation date}';
 
     /**
      * The console command description.
@@ -67,7 +70,18 @@ class ChangePolicyStatus extends Command
         }
         
         try {
-            $policy->update(['status' => $newStatus->value]);
+            $updateData = ['status' => $newStatus->value];
+            
+            // Set activation date if changing to active status
+            if ($newStatus === PolicyStatus::Active) {
+                $activationDate = $this->determineActivationDate($policy);
+                if ($activationDate) {
+                    $updateData['activation_date'] = $activationDate;
+                    $this->info("Setting activation date to: {$activationDate->format('Y-m-d')}");
+                }
+            }
+            
+            $policy->update($updateData);
             $this->info("✅ Policy ID {$policyId} status changed: {$oldStatusValue} → {$newStatus->value}");
         } catch (\Exception $e) {
             $this->error("Failed to change policy status: " . $e->getMessage());
@@ -154,7 +168,17 @@ class ChangePolicyStatus extends Command
                 $oldStatus = $policy->status;
                 $newStatus = $targetStatus ?? $this->getRandomStatus($oldStatus);
                 
-                $policy->update(['status' => $newStatus]);
+                $updateData = ['status' => $newStatus];
+                
+                // Set activation date if changing to active status
+                if ($newStatus === PolicyStatus::Active) {
+                    $activationDate = $this->determineActivationDate($policy);
+                    if ($activationDate) {
+                        $updateData['activation_date'] = $activationDate;
+                    }
+                }
+                
+                $policy->update($updateData);
                 $updatedCount++;
                 $this->output->progressAdvance();
             });
@@ -198,5 +222,70 @@ class ChangePolicyStatus extends Command
         });
         
         return $availableStatuses[array_rand($availableStatuses)];
+    }
+    
+    /**
+     * Determine the activation date based on command options
+     * 
+     * @param Policy $policy The policy being updated
+     * @return Carbon|null The activation date or null if not applicable
+     */
+    private function determineActivationDate(Policy $policy): ?Carbon
+    {
+        // Only set activation date when changing to active status
+        if ($this->option('to') !== PolicyStatus::Active->value) {
+            return null;
+        }
+        
+        // If specific activation date is provided, use it
+        if ($this->option('activation-date')) {
+            try {
+                return Carbon::parse($this->option('activation-date'));
+            } catch (\Exception $e) {
+                $this->warn("Invalid activation date format. Using default.");
+            }
+        }
+        
+        // If using quote date is specified
+        if ($this->option('use-quote-date') && $policy->quote_id) {
+            $quote = $policy->quote;
+            if ($quote && $quote->created_at) {
+                return Carbon::parse($quote->created_at);
+            }
+        }
+        
+        // If a predefined date range is specified
+        if ($this->option('activation-date-range')) {
+            $now = Carbon::now();
+            
+            switch ($this->option('activation-date-range')) {
+                case 'this_week':
+                    return $now->copy()->startOfWeek()->addDays(rand(0, $now->dayOfWeek));
+                    
+                case 'last_week':
+                    return $now->copy()->subWeek()->startOfWeek()
+                        ->addDays(rand(0, 6));
+                    
+                case 'this_month':
+                    $daysInMonth = $now->daysInMonth;
+                    $maxDay = min($now->day, $daysInMonth);
+                    return $now->copy()->startOfMonth()->addDays(rand(0, $maxDay - 1));
+                    
+                case 'last_month':
+                    $lastMonth = $now->copy()->subMonth();
+                    $daysInLastMonth = $lastMonth->daysInMonth;
+                    return $lastMonth->startOfMonth()->addDays(rand(0, $daysInLastMonth - 1));
+                    
+                case 'this_year':
+                    $currentDayOfYear = $now->dayOfYear;
+                    return $now->copy()->startOfYear()->addDays(rand(0, $currentDayOfYear - 1));
+                    
+                default:
+                    $this->warn("Invalid activation date range. Using policy creation date.");
+            }
+        }
+        
+        // Default: use policy creation date
+        return Carbon::parse($policy->created_at);
     }
 }

@@ -187,6 +187,9 @@ Change the status of a specific policy or a batch of policies, with options to f
 - `--to=`: Target status to set (random if not provided)
 - `--start-date=`: Start date for filtering policies (format: YYYY-MM-DD)
 - `--end-date=`: End date for filtering policies (format: YYYY-MM-DD)
+- `--activation-date=`: Specific activation date for active policies (format: YYYY-MM-DD)
+- `--activation-date-range=`: Predefined date range for activation date (this_week|last_week|this_month|last_month|this_year)
+- `--use-quote-date`: Use the quote creation date as the activation date
 
 **Examples**:
 ```bash
@@ -204,6 +207,15 @@ php artisan policies:change-status --count=5 --to=pending
 
 # Change all rejected policies from the last month to active
 php artisan policies:change-status --from=rejected --to=active --start-date=2025-07-01 --end-date=2025-07-31
+
+# Change policies to active with a specific activation date
+php artisan policies:change-status --from=draft --to=active --activation-date=2025-08-01
+
+# Change policies to active with activation dates from this month
+php artisan policies:change-status --from=draft --to=active --activation-date-range=this_month
+
+# Change policies to active using their quote creation date as activation date
+php artisan policies:change-status --from=draft --to=active --use-quote-date
 ```
 
 **Output Example**:
