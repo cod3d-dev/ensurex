@@ -37,7 +37,7 @@ class CommissionRun extends Page implements HasForms, HasTable
 
     protected static string $view = 'filament.resources.commission-statement-resource.pages.commission-run';
 
-    // protected static ?string $title = 'Generar Comisiones';
+    protected static ?string $title = 'Generar Comisiones';
 
     public $asistant_id;
 
