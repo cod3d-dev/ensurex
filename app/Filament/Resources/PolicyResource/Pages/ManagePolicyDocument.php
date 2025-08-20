@@ -43,6 +43,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
                 Forms\Components\Hidden::make('policy_id'),
                 Forms\Components\Select::make('user_id')
                     ->label('Agregado por')
+                    ->default(auth()->user()->id)
                     ->relationship('user', 'name')
                     ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
                 Forms\Components\Select::make('document_type_id')
@@ -51,13 +52,17 @@ class ManagePolicyDocument extends ManageRelatedRecords
                     ->required(),
                 Forms\Components\Select::make('status')
                     ->label('Estatus')
+                    ->live()
                     ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
                     ->options(DocumentStatus::class),
-                Forms\Components\DatePicker::make('sent_date')
-                    ->label('Fecha Enviado')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
+                Forms\Components\DatePicker::make('due_date')
+                    ->label('Vence')
+                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->columnStart(4),
+
                 Forms\Components\TextInput::make('status_updated_by')
                     ->label('Estatus actualizado por')
+                    ->visibleOn('Edit, View')
                     ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
                     ->formatStateUsing(function ($state) {
                         if ($state) {
@@ -71,6 +76,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
                 Forms\Components\TextInput::make('status_updated_at')
                     ->label('Fecha Actualización')
                     ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->visibleOn('Edit, View')
                     ->formatStateUsing(function ($state) {
                         if ($state) {
                             return \Carbon\Carbon::parse($state)->format('d/m/Y');
@@ -78,15 +84,19 @@ class ManagePolicyDocument extends ManageRelatedRecords
                             return '';
                         }
                     }),
-                Forms\Components\DatePicker::make('due_date')
-                    ->label('Vence')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
-                    ->columnStart(4),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Descripción')
-                    ->columnSpanFull()
+                    ->columnSpan(3)
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(150),
+
+                Forms\Components\DatePicker::make('sent_date')
+                    ->label('Fecha Enviado')
+                    ->disabled(fn (callable $get) => empty($get('status')) || in_array($get('status'), [
+                        \App\Enums\DocumentStatus::Pending->value,
+                        \App\Enums\DocumentStatus::ToAdd->value,
+                    ])),
                 Forms\Components\Textarea::make('notes')
                     ->label('Notas')
                     ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
@@ -214,6 +224,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->label('Agregar Documento')
+                    ->modalHeading('Agregar Documento')
                     ->after($this->updatePolicyDocumentStatus()),
                 // Tables\Actions\AssociateAction::make(),
             ])

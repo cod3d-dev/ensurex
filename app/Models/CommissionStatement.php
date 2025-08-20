@@ -29,6 +29,7 @@ class CommissionStatement extends Model
         'life_policy_amount',
         'bonus_amount',
         'bonus_notes',
+        'total_amount',
     ];
 
     protected $casts = [
@@ -44,6 +45,7 @@ class CommissionStatement extends Model
         'dental_policy_amount' => 'decimal:2',
         'life_policy_amount' => 'decimal:2',
         'bonus_amount' => 'decimal:2',
+        'total_amount' => 'decimal:2',
         'status' => CommissionStatementStatus::class,
     ];
 

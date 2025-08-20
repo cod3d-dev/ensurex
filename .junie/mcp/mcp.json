@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "/Users/codelgado/Library/Application Support/Herd/bin/php83",
+            "args": [
+                "/Users/codelgado/Sites/valet/ensurex/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}
