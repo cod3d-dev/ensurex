@@ -13,6 +13,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Filament\Support\Enums\MaxWidth;
+use App\Models\User;
+use Illuminate\Support\HtmlString;
 
 class IssueResource extends Resource
 {
@@ -34,42 +37,58 @@ class IssueResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Hidden::make('created_by')
-                    ->default(auth()->user()->id),
+                Forms\Components\TextInput::make('created_at')
+                    ->label('Fecha')
+                    ->disabled()
+                    ->formatStateUsing(fn (string $state): string => now()->parse($state)->format('m/d/Y')),
+                Forms\Components\Select::make('created_by')
+                    ->label('Creado por')
+                    ->options(User::all()->pluck('name', 'id'))
+                    ->default(auth()->user()->id)
+                    ->disabled(),
+                Forms\Components\Select::make('issue_type_id')
+                    ->label('Tipo de Problema')
+                    ->relationship('issueType', 'name')
+                    ->required(),
                 Forms\Components\TextInput::make('description')
                     ->label('Descripción')
                     ->required()
                     ->maxLength(255)
                     ->columnSpanFull(),
-                Forms\Components\Select::make('issue_type_id')
-                    ->label('Tipo de Problema')
-                    ->relationship('issueType', 'name')
-                    ->required(),
+                
                 Forms\Components\Select::make('status')
-                    ->label('Estado')
+                    ->label('Estatus')
                     ->options(IssueStatus::class)
                     ->live()
                     ->required(),
                 Forms\Components\DatePicker::make('verification_date')
+                    ->columnStart(3)
                     ->label('Fecha de verificación')
                     ->required(),
                 Forms\Components\Textarea::make('email_message')
                     ->label('Mensaje para Kynect')
-                    ->readOnly(fn (Forms\Get $get): bool => $get('status') != IssueStatus::ToSend->value)
+                    ->rows(4)
                     ->required(fn (Forms\Get $get): bool => $get('status') == IssueStatus::ToSend->value)
                     ->columnSpanFull(),
+                Forms\Components\Textarea::make('email_response')
+                    ->label('Respuesta')
+                    ->rows(4)
+                    ->required(fn (Forms\Get $get): bool => in_array($get('status'), [IssueStatus::Resolved->value, IssueStatus::NoSolution->value]))
+                    ->columnSpanFull(),   
                 Forms\Components\Grid::make()
                     ->schema([
                         Forms\Components\Textarea::make('notes')
                             ->rows(5)
                             ->label('Notas')
                             ->disabled()
-                            ->dehydrated(true),
+                            ->dehydrated(true)
+                            ->columnSpan(2),
                         Forms\Components\Grid::make()
                             ->schema([
                                 Forms\Components\Textarea::make('new_note')
                                     ->label('Nueva Nota')
-                                    ->rows(3)
+                                    ->live()
+                                    ->rows(5)
                                     ->columnSpanFull(),
                                 Forms\Components\Actions::make([
                                     Forms\Components\Actions\Action::make('add_note')
@@ -81,7 +100,12 @@ class IssueResource extends Resource
                                         }),
                                 ]),
                             ])->columns(1)->columnSpan(1),
-                    ])->columnSpanFull()->columns(2),
+                    ])->columnSpanFull()->columns(3),
+                    Forms\Components\Placeholder::make('new_note_warning')
+                        ->label('')
+                        ->columnSpanFull()
+                        ->content(new HtmlString('<div class="text-red-500 text-md">⚠️ Tiene contenido sin guardar. Debe agregar la nota antes de guardar el caso.</div>'))
+                        ->hidden(fn (Forms\Get $get): bool => $get('new_note') == ''),
             ])->columns(3);
     }
 
@@ -93,6 +117,9 @@ class IssueResource extends Resource
                     ->label('Fecha')
                     ->date('m/d/Y')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('createdBy.code')
+                    ->label('')
+                    ->badge(),
                 Tables\Columns\TextColumn::make('issueType.name')
                     ->label('Tipo')
                     ->sortable(),
@@ -163,7 +190,9 @@ class IssueResource extends Resource
                         $record->update($data);
 
                         return $record;
-                    }),
+                    })
+                    ->modalHeading(fn (Issue $record): string => "Editar Caso")
+                    ->modalWidth(MaxWidth::FourExtraLarge),
             ])
             ->headerActions([
                 Tables\Actions\BulkAction::make('view_messages')

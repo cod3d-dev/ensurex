@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\HealthChecks\DatabaseHealthCheck;
+use App\HealthChecks\FailingHealthCheck;
 use Carbon\Carbon;
 use Filament\Forms\Components\TextInput;
 use Filament\Support\Assets\Css;
@@ -10,6 +12,10 @@ use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentColor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Health\Checks\Checks\CpuLoadCheck;
+use Spatie\Health\Checks\Checks\OptimizedAppCheck;
+use Spatie\Health\Checks\Checks\UsedDiskSpaceCheck;
+use Spatie\Health\Facades\Health;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -49,5 +55,16 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         Model::unguard();
+
+        // Register health checks
+        Health::checks([
+            UsedDiskSpaceCheck::new(),
+            DatabaseHealthCheck::new(),
+            FailingHealthCheck::new(),
+            OptimizedAppCheck::new(),
+            // CpuLoadCheck::new()
+            // ->failWhenLoadIsHigherInTheLast5Minutes(2.0)
+            // ->failWhenLoadIsHigherInTheLast15Minutes(1.5),
+        ]);
     }
 }

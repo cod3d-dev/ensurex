@@ -1,7 +1,7 @@
 <?php
 
-// use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Route;
+use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 
-// Route::get('/', function () {
-//     return view('welcome');
-// });
+// Health check web interface
+Route::middleware('auth')->get('/health', HealthCheckResultsController::class)->name('health.dashboard');

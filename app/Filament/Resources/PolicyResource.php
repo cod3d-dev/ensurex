@@ -363,40 +363,7 @@ class PolicyResource extends Resource
                                             // Refresh the notes field with the updated value
                                             $set('notes', $record->notes);
                                         }),
-                                    Forms\Components\Actions\Action::make('verification')
-                                        ->label('Marcar como Verificada')
-                                        ->color('success')
-                                        ->modalHeading('Verificación')
-                                        ->visible(fn (?Policy $record) => $record && $record->exists && $record->status === PolicyStatus::ToVerify)
-                                        ->form([
-                                            Forms\Components\Select::make('status')
-                                                ->options(PolicyStatus::class)
-                                                ->disableOptionWhen(fn (string $value): bool => ($value === PolicyStatus::ToVerify->value)
-                                                )
-                                                ->required(),
-                                            Forms\Components\Textarea::make('note')
-                                                ->required()
-                                                ->rows(3)
-                                                ->label('Nota'),
-                                        ])
-                                        ->modalSubmitActionLabel('Verificación')
-                                        ->action(function (Policy $record, array $data, Set $set): void {
-                                            $note = 'Verificada el '.Carbon::now()->toDateTimeString().' por '.auth()->user()->name;
-                                            $note = $note.":\n".$data['note']."\n\n";
-                                            $record->notes = ! empty($record->notes) ? $record->notes."\n\n".$note : $note;
-                                            $record->status = $data['status'];
-                                            $record->is_initial_verification_complete = true;
-                                            $record->initial_verification_performed_by = auth()->user()->id;
-                                            $record->initial_verification_date = Carbon::now();
-                                            $record->save();
-
-                                            // Refresh the notes field with the updated value
-                                            $set('notes', $record->notes);
-                                            // $this->redirect(PolicyResource::getUrl('edit', ['record' => $this->record]));
-                                        }),
-                                ])
-                                    ->alignEnd()
-                                    ->columnSpanFull(),
+                                ]),
                             ])
                             ->columns(['md' => 8, 'lg' => 8])
                             ->columnSpanFull(),

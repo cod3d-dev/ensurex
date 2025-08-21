@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('policies', function (Blueprint $table) {
-            $table->decimal('bonus', 10, 2)->nullable();
-            $table->decimal('total_commission', 10, 2)->nullable();
+            if (! Schema::hasColumn('policies', 'bonus')) {
+                $table->decimal('bonus', 10, 2)->nullable();
+            }
+            if (! Schema::hasColumn('policies', 'total_commission')) {
+                $table->decimal('total_commission', 10, 2)->nullable();
+            }
         });
     }
 
@@ -23,10 +27,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('policies', function (Blueprint $table) {
-            $table->dropColumn([
-                'bonus',
-                'total_commission',
-            ]);
+            if (Schema::hasColumn('policies', 'bonus')) {
+                $table->dropColumn('bonus');
+            }
+            if (Schema::hasColumn('policies', 'total_commission')) {
+                $table->dropColumn('total_commission');
+            }
         });
     }
 };

@@ -17,7 +17,7 @@ class Issue extends Model
     protected $casts = [
         'verification_date' => 'date',
         'notes' => 'array',
-        'status' => IssueStatus::class
+        'status' => IssueStatus::class,
     ];
 
     public function policy(): BelongsTo
@@ -30,4 +30,8 @@ class Issue extends Model
         return $this->belongsTo(IssueType::class);
     }
 
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 }

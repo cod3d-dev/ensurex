@@ -42,6 +42,16 @@ return [
             'synchronous' => null,
         ],
 
+        'health' => [
+            'driver' => 'sqlite',
+            'database' => database_path('health.sqlite'),
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+            'busy_timeout' => null,
+            'journal_mode' => null,
+            'synchronous' => null,
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
