@@ -1073,7 +1073,13 @@ class QuoteResource extends Resource
                 Tables\Columns\TextColumn::make('contact.full_name')
                     ->label('Cliente')
                     ->sortable()
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query
+                            ->whereHas('contact', function (Builder $query) use ($search) {
+                                $query->where('full_name', 'like', "%{$search}%")
+                                    ->orWhere('phone', 'like', "%{$search}%");
+                            });
+                    })
                     ->html()
                     ->tooltip(function (string $state, Quote $record): string {
                         $spanishMonths = [
@@ -1090,6 +1096,29 @@ class QuoteResource extends Resource
                     })
                     ->formatStateUsing(function (string $state, Quote $record): string {
                         $output = $state;
+
+                        // Add contact phone numbers
+                        $phone1 = $record->contact->phone ?? '';
+                        $phone2 = $record->contact->phone2 ?? '';
+
+                        if (! empty($phone1) || ! empty($phone2)) {
+                            $phoneDisplay = '<div style="display: flex; align-items: center; margin-top: 2px;">
+                                <span style="color: #4b5563; font-size: 0.75rem;">';
+
+                            if (! empty($phone1)) {
+                                $phoneDisplay .= '<i class="fas fa-phone-alt mr-1"></i> '.$phone1;
+                            }
+
+                            if (! empty($phone2)) {
+                                if (! empty($phone1)) {
+                                    $phoneDisplay .= ' / ';
+                                }
+                                $phoneDisplay .= '<i class="fas fa-mobile-alt mx-1"></i> '.$phone2;
+                            }
+
+                            $phoneDisplay .= '</span></div>';
+                            $output .= $phoneDisplay;
+                        }
                         $medicaidCount = $record->total_medicaid;
                         $applicantsCount = $record->total_applicants;
 
