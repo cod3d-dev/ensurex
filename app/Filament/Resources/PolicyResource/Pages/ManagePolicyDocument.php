@@ -41,11 +41,17 @@ class ManagePolicyDocument extends ManageRelatedRecords
             ->schema([
 
                 Forms\Components\Hidden::make('policy_id'),
+                Forms\Components\Hidden::make('id'),
                 Forms\Components\Select::make('user_id')
                     ->label('Agregado por')
                     ->default(auth()->user()->id)
                     ->relationship('user', 'name')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
+                    ->required()
+                    ->disabled(fn (\Filament\Forms\Get $get): bool =>
+                        // For agents: disable only if there's an ID (existing record)
+                        auth()->user()?->role === \App\Enums\UserRoles::Agent &&
+                        filled($get('id'))
+                    ),
                 Forms\Components\Select::make('document_type_id')
                     ->relationship('documentType', 'name')
                     ->label('Tipo de Documento')
@@ -53,17 +59,25 @@ class ManagePolicyDocument extends ManageRelatedRecords
                 Forms\Components\Select::make('status')
                     ->label('Estatus')
                     ->live()
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->disabled(fn (\Filament\Forms\Get $get): bool =>
+                                // For agents: disable only if there's an ID (existing record)
+                                auth()->user()?->role === \App\Enums\UserRoles::Agent &&
+                                filled($get('id'))
+                    )
                     ->options(DocumentStatus::class),
                 Forms\Components\DatePicker::make('due_date')
                     ->label('Vence')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->disabled(fn (\Filament\Forms\Get $get): bool =>
+                        // For agents: disable only if there's an ID (existing record)
+                        auth()->user()?->role === \App\Enums\UserRoles::Agent &&
+                        filled($get('id'))
+                    )
                     ->columnStart(4),
 
                 Forms\Components\TextInput::make('status_updated_by')
                     ->label('Estatus actualizado por')
                     ->visibleOn('Edit, View')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->disabled()
                     ->formatStateUsing(function ($state) {
                         if ($state) {
                             $user = \App\Models\User::find($state);
@@ -75,7 +89,7 @@ class ManagePolicyDocument extends ManageRelatedRecords
                     }),
                 Forms\Components\TextInput::make('status_updated_at')
                     ->label('Fecha Actualización')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->disabled()
                     ->visibleOn('Edit, View')
                     ->formatStateUsing(function ($state) {
                         if ($state) {
@@ -121,12 +135,16 @@ class ManagePolicyDocument extends ManageRelatedRecords
                     ->date('m/d/Y')
                     ->label('Creado')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('user.code')
+                    ->label('Código')
+                    ->badge()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('documentType.name')
                     ->label('Tipo de Documento')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->grow()
-                    ->label('Nombre')
+                    ->label('Descripción')
                     ->html()
                     ->formatStateUsing(function (PolicyDocument $record, string $state): ?string {
                         if (empty($record->notes)) {

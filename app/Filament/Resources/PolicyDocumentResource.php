@@ -10,6 +10,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -53,7 +54,7 @@ class PolicyDocumentResource extends Resource
                     ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent),
                 Forms\Components\TextInput::make('status_updated_by')
                     ->label('Estatus actualizado por')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->disabled()
                     ->formatStateUsing(function ($state) {
                         if ($state) {
                             $user = \App\Models\User::find($state);
@@ -65,10 +66,10 @@ class PolicyDocumentResource extends Resource
                     }),
                 Forms\Components\TextInput::make('status_updated_at')
                     ->label('Fecha Actualización')
-                    ->disabled(fn () => auth()->user()?->role === \App\Enums\UserRoles::Agent)
+                    ->disabled()
                     ->formatStateUsing(function ($state) {
                         if ($state) {
-                            return \Carbon\Carbon::parse($state)->format('d/m/Y');
+                            return \Carbon\Carbon::parse($state)->format('d/m/Y h:i A');
                         } else {
                             return '';
                         }
@@ -100,6 +101,9 @@ class PolicyDocumentResource extends Resource
         return $table
             ->recordAction(Tables\Actions\ViewAction::class)
             ->columns([
+                Tables\Columns\TextColumn::make('user.code')
+                    ->badge()
+                    ->label(''),
                 Tables\Columns\TextColumn::make('policy.contact.full_name')
                     ->label('Cliente')
                     ->grow(false)
@@ -228,6 +232,10 @@ class PolicyDocumentResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultGroup('policy.code')
+            ->groups([
+                Group::make('policy.code')
+                    ->label('Poliza'),
+            ])
             ->filters([
                 //
             ])

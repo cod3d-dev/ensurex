@@ -10,6 +10,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class UserResource extends Resource
 {
@@ -30,6 +31,12 @@ class UserResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        $set('code', Str::acronym($state));
+                    }),
+                Forms\Components\TextInput::make('code')
                     ->required(),
                 Forms\Components\TextInput::make('email')
                     ->email()

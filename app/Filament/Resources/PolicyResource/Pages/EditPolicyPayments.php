@@ -58,8 +58,12 @@ class EditPolicyPayments extends EditRecord
         $policy->markPageCompleted('edit_policy_payments');
 
         // If all required pages are completed, redirect to the completion page
-        if ($policy->areRequiredPagesCompleted()) {
+        if ($policy->areRequiredPagesCompleted() && $policy->isDraft()) {
             $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+
+            return;
+        } elseif ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('view', ['record' => $policy]));
 
             return;
         }
@@ -123,10 +127,12 @@ class EditPolicyPayments extends EditRecord
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('payment_card_holder')
                                     ->label('Titular')
+                                    ->autocomplete(false)
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('payment_card_number')
                                     ->label('Número')
                                     ->password()
+                                    ->autocomplete(false)
                                     ->revealable()
                                     ->mask('9999-9999-9999-9999')
                                     ->maxLength(255)
@@ -148,10 +154,10 @@ class EditPolicyPayments extends EditRecord
                                         range(date('Y'), date('Y') + 10))),
                                 Forms\Components\TextInput::make('payment_card_cvv')
                                     ->label('CVV')
+                                    ->autocomplete(false)
                                     ->maxLength(255)
                                     ->mask('999')
-                                    ->password()
-                                    ->autocomplete(false),
+                                    ->password(),
                             ])->columns(['sm' => 3, 'md' => 3, 'lg' => 3]),
                         Forms\Components\Fieldset::make('Cuenta bancaria')
                             ->schema([
@@ -160,12 +166,15 @@ class EditPolicyPayments extends EditRecord
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('payment_bank_account_holder')
                                     ->label('Titular')
+                                    ->autocomplete(false)
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('payment_bank_account_aba')
                                     ->label('ABA / Routing')
+                                    ->autocomplete(false)
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('payment_bank_account_number')
                                     ->label('Cuenta')
+                                    ->autocomplete(false)
                                     ->maxLength(255),
                             ])->columns(['sm' => 4, 'md' => 4, 'lg' => 4]),
                         Forms\Components\Fieldset::make('Dirección de Facturación')

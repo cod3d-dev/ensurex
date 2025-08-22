@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\Gender;
 use App\Enums\MaritialStatus;
+use App\Enums\UsState;
 use App\Filament\Resources\ContactResource\Pages;
 use App\Models\Contact;
 use App\Models\User;
@@ -15,8 +16,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
-use App\Enums\ImmigrationStatus;
-use App\Enums\UsState;
 
 class ContactResource extends Resource
 {
@@ -30,7 +29,7 @@ class ContactResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Contactos';
 
-    protected static ?string $recordTitleAttribute = 'first_name' . ' ' . 'last_name';
+    protected static ?string $recordTitleAttribute = 'first_name'.' '.'last_name';
 
     protected static ?int $navigationSort = 2;
 
@@ -38,10 +37,10 @@ class ContactResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['first_name', 'middle_name', 'last_name', 'second_last_name'];
+        return ['full_name', 'phone', 'phone2', 'email_address', 'kynect_case_number', 'kommo_id'];
     }
 
-    public static function getGlobalSearchResultTitle(Model $record): string | Htmlable
+    public static function getGlobalSearchResultTitle(Model $record): string|Htmlable
     {
         return $record->full_name;
     }
@@ -117,9 +116,8 @@ class ContactResource extends Resource
                             ])
                             ->label('Prioridad')
                             ->default('medium'),
-                   
-                    ])->columns(['md' => 4]),
 
+                    ])->columns(['md' => 4]),
 
                 // Create fieldset for contact info
 
@@ -149,56 +147,56 @@ class ContactResource extends Resource
 
                     ])->columns(['md' => 10]),
 
-                    // Address
+                // Address
 
-                    Forms\Components\Section::make('Dirección')
-                        ->schema([                            
-                            Forms\Components\TextInput::make('zip_code')
-                                ->label('Código Postal'),
-                            Forms\Components\TextInput::make('county')
-                                ->label('Condado'),
-                            Forms\Components\TextInput::make('city')
-                                ->label('Ciudad'),
-                            Forms\Components\Select::make('state_province')
-                                ->options(UsState::class)
-                                ->label('Estado'),
-                            Forms\Components\TextInput::make('address_line_1')
-                                ->label('Línea 1 de la Dirección')
-                                ->columnSpan(4),
-                            Forms\Components\TextInput::make('address_line_2')
-                                ->label('Línea 2 de la Dirección')
-                                ->columnSpan(4),
-                        ])
-                        ->columns(['md' => 4]),
+                Forms\Components\Section::make('Dirección')
+                    ->schema([
+                        Forms\Components\TextInput::make('zip_code')
+                            ->label('Código Postal'),
+                        Forms\Components\TextInput::make('county')
+                            ->label('Condado'),
+                        Forms\Components\TextInput::make('city')
+                            ->label('Ciudad'),
+                        Forms\Components\Select::make('state_province')
+                            ->options(UsState::class)
+                            ->label('Estado'),
+                        Forms\Components\TextInput::make('address_line_1')
+                            ->label('Línea 1 de la Dirección')
+                            ->columnSpan(4),
+                        Forms\Components\TextInput::make('address_line_2')
+                            ->label('Línea 2 de la Dirección')
+                            ->columnSpan(4),
+                    ])
+                    ->columns(['md' => 4]),
 
-                    // Notes
-                    Forms\Components\Section::make('Notas')
-                        ->schema([
-                            Forms\Components\Textarea::make('notes')
-                                ->hiddenLabel()
-                                ->rows(5)
-                                ->columnSpan(5),
-                            Forms\Components\Textarea::make('new_note')
-                                ->label('Nueva Nota')
-                                ->live(onBlur: true)
-                                ->dehydrated(false)
-                                ->rows(3)
-                                ->columnSpan(5),
-                            Forms\Components\Actions::make([
-                                Forms\Components\Actions\Action::make('add_note')
-                                    ->label('Agregar Nota')
-                                    ->disabled(function (Forms\Get $get) {
-                                        return empty($get('new_note'));
-                                    })
-                                    ->action(function (Forms\Set $set, Forms\Get $get) {
-                                        $newNote = $get('new_note');
-                                        $existingNotes = $get('notes');
-                                        $separator = !empty(trim($existingNotes)) ? "\n\n" : "\n";
-                                        $set('notes', $existingNotes . $separator . auth()->user()->name . ': ' . now()->toDateTimeString() . "\n"  . $newNote . "\n");
-                                        $set('new_note', '');
-                                    })
-                            ]),
+                // Notes
+                Forms\Components\Section::make('Notas')
+                    ->schema([
+                        Forms\Components\Textarea::make('notes')
+                            ->hiddenLabel()
+                            ->rows(5)
+                            ->columnSpan(5),
+                        Forms\Components\Textarea::make('new_note')
+                            ->label('Nueva Nota')
+                            ->live(onBlur: true)
+                            ->dehydrated(false)
+                            ->rows(3)
+                            ->columnSpan(5),
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('add_note')
+                                ->label('Agregar Nota')
+                                ->disabled(function (Forms\Get $get) {
+                                    return empty($get('new_note'));
+                                })
+                                ->action(function (Forms\Set $set, Forms\Get $get) {
+                                    $newNote = $get('new_note');
+                                    $existingNotes = $get('notes');
+                                    $separator = ! empty(trim($existingNotes)) ? "\n\n" : "\n";
+                                    $set('notes', $existingNotes.$separator.auth()->user()->name.': '.now()->toDateTimeString()."\n".$newNote."\n");
+                                    $set('new_note', '');
+                                }),
                         ]),
+                    ]),
             ]);
     }
 
@@ -223,7 +221,7 @@ class ContactResource extends Resource
                     ->searchable()
                     ->label('Teléfono')
                     // Add a link to https://ghercys.kommo.com/leads/detail/12788104
-                    ->url(fn (Model $record) => 'https://ghercys.kommo.com/leads/detail/' . $record->kommo_id, '_blank'),
+                    ->url(fn (Model $record) => 'https://ghercys.kommo.com/leads/detail/'.$record->kommo_id, '_blank'),
                 Tables\Columns\TextColumn::make('preferred_language')
                     ->badge()
                     ->label('Idioma Preferido'),
@@ -281,8 +279,6 @@ class ContactResource extends Resource
                 ]),
             ]);
     }
-
-
 
     public static function getPages(): array
     {

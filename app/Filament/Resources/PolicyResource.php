@@ -66,7 +66,7 @@ class PolicyResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['contact.first_name', 'contact.middle_name', 'contact.last_name', 'contact.second_last_name'];
+        return ['contact.full_name', 'contact.phone', 'contact.phone2', 'contact.kommo_id', 'contact.kynect_case_number'];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array
@@ -94,7 +94,7 @@ class PolicyResource extends Resource
 
         $pages = [
             //            Pages\ViewPolicy::class,
-            Pages\EditPolicy::class,
+            Pages\ViewPolicy::class,
             Pages\EditPolicyContact::class,
             // Pages\EditPolicyApplicants::class,
             // Pages\EditPolicyApplicantsData::class,
@@ -115,7 +115,7 @@ class PolicyResource extends Resource
         $pages[] = Pages\ManagePolicyDocument::class;
         $pages[] = Pages\ManagePolicyIssues::class;
 
-        if ($record->areRequiredPagesCompleted() === false) {
+        if ($record->areRequiredPagesCompleted() === true && $record->isDraft() === true) {
             $pages[] = Pages\EditCompletePolicyCreation::class;
         }
 
@@ -320,23 +320,6 @@ class PolicyResource extends Resource
                                     ->disabled(fn (Forms\Get $get): bool => $get('status') != PolicyStatus::Draft ||
                                         $get('policy_us_state') != UsState::KENTUCKY->value
                                     ),
-                                Forms\Components\Toggle::make('is_initial_verification_complete')
-                                    ->inline(false)
-                                    ->disabled()
-                                    ->live()
-                                    ->columnSpan(2)
-                                    ->label('Verificacion Inicial'),
-                                Forms\Components\Select::make('initial_verification_performed_by')
-                                    ->relationship('initialVerificationPerformedBy', 'name')
-                                    ->disabled()
-                                    ->label('Verificado Por')
-                                    ->disabled(fn (Get $get) => $get('is_initial_verification_complete') != true)
-                                    ->columnSpan(3),
-                                Forms\Components\DatePicker::make('initial_verification_date')
-                                    ->label('Fecha Verificacion')
-                                    ->disabled(fn (Get $get) => $get('is_initial_verification_complete') != true)
-                                    ->disabled()
-                                    ->columnSpan(3),
                                 Forms\Components\Textarea::make('notes')
                                     ->label('Observaciones')
                                     ->rows(6)
@@ -363,7 +346,9 @@ class PolicyResource extends Resource
                                             // Refresh the notes field with the updated value
                                             $set('notes', $record->notes);
                                         }),
-                                ]),
+                                ])
+                                    ->alignEnd()
+                                    ->columnSpanFull(),
                             ])
                             ->columns(['md' => 8, 'lg' => 8])
                             ->columnSpanFull(),
@@ -413,7 +398,8 @@ class PolicyResource extends Resource
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query
                             ->whereHas('contact', function (Builder $query) use ($search) {
-                                $query->where('full_name', 'like', "%{$search}%");
+                                $query->where('full_name', 'like', "%{$search}%")
+                                    ->orWhere('phone', 'like', "%{$search}%");
                             })
                             ->orWhereHas('applicants', function (Builder $query) use ($search) {
                                 $query->where('full_name', 'like', "%{$search}%");
@@ -434,6 +420,30 @@ class PolicyResource extends Resource
                     })
                     ->formatStateUsing(function (string $state, Policy $record): string {
                         $customers = $state;
+
+                        // Add contact phone numbers
+                        $phone1 = $record->contact->phone ?? '';
+                        $phone2 = $record->contact->phone2 ?? '';
+
+                        if (! empty($phone1) || ! empty($phone2)) {
+                            $phoneDisplay = '<div style="display: flex; align-items: center; margin-top: 2px;">
+                                <span style="color: #4b5563; font-size: 0.75rem;">';
+
+                            if (! empty($phone1)) {
+                                $phoneDisplay .= '<i class="fas fa-phone-alt mr-1"></i> '.$phone1;
+                            }
+
+                            if (! empty($phone2)) {
+                                if (! empty($phone1)) {
+                                    $phoneDisplay .= ' / ';
+                                }
+                                $phoneDisplay .= '<i class="fas fa-mobile-alt mx-1"></i> '.$phone2;
+                            }
+
+                            $phoneDisplay .= '</span></div>';
+                            $customers .= $phoneDisplay;
+                        }
+
                         foreach ($record->additionalApplicants() as $applicant) {
                             $medicaidBadge = '';
                             if ($applicant->pivot->medicaid_client) {
@@ -504,7 +514,7 @@ class PolicyResource extends Resource
                         }
 
                         $badgeStyle = $meetsFPL ? $successBadgeStyle : $dangerBadgeStyle;
-                        $customers .= '<span style="'.$badgeStyle.'">Ingresos</span>';
+                        $customers .= '<span style="'.$badgeStyle.'">FPL</span>';
 
                         $customers .= '</div>';
 

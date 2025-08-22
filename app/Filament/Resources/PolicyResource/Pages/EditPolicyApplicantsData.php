@@ -90,8 +90,12 @@ class EditPolicyApplicantsData extends EditRecord
         $policy->markPageCompleted('edit_policy_applicants_data');
 
         // If all required pages are completed, redirect to the completion page
-        if ($policy->areRequiredPagesCompleted()) {
+        if ($policy->areRequiredPagesCompleted() && $policy->isDraft()) {
             $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+
+            return;
+        } elseif ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('view', ['record' => $policy]));
 
             return;
         }

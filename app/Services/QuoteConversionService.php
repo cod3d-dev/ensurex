@@ -11,7 +11,6 @@ use App\Models\Contact;
 use App\Models\Policy;
 use App\Models\Quote;
 use Carbon\Carbon;
-use Faker\Factory as FakerFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -111,7 +110,7 @@ class QuoteConversionService
             $policyData['created_at'] = $dateOptions['date'];
             $policyData['updated_at'] = $dateOptions['date'];
         }
-        
+
         // Create the policy
         $policy = Policy::create($policyData);
 
@@ -147,9 +146,9 @@ class QuoteConversionService
 
     /**
      * Calculate the effective date for the policy
-     * 
-     * @param Quote $quote The quote being converted
-     * @param array|null $dateOptions Optional date options
+     *
+     * @param  Quote  $quote  The quote being converted
+     * @param  array|null  $dateOptions  Optional date options
      * @return string The effective date in Y-m-d format
      */
     private function calculateEffectiveDate(Quote $quote, ?array $dateOptions = null): string
@@ -158,7 +157,7 @@ class QuoteConversionService
         if ($dateOptions && isset($dateOptions['date'])) {
             return $dateOptions['date']->format('Y-m-d');
         }
-        
+
         $currentYear = (int) date('Y');
         $quoteYear = (int) $quote->year;
 
@@ -178,47 +177,42 @@ class QuoteConversionService
     {
         if (is_array($quote->applicants) && count($quote->applicants) > 0) {
             $sortOrder = 1;
-            $faker = FakerFactory::create('es_VE');
 
             foreach ($quote->applicants as $applicant) {
                 // For the first applicant, use the contact_id from the quote
                 $contactId = null;
-                
+
                 if ($sortOrder === 1) {
                     $contactId = $quote->contact_id;
                 } else {
-                    // Create a new contact for this applicant if they don't have a contact_id
-                    // Determine gender for name generation
+                    // Only create a contact if we have enough valid data
+                    $fullName = $applicant['full_name'] ?? null;
                     $gender = isset($applicant['gender']) ? $applicant['gender'] : null;
                     $genderEnum = null;
-                    
+
                     if ($gender) {
                         try {
                             $genderEnum = Gender::from($gender);
                         } catch (\ValueError $e) {
-                            $genderEnum = $faker->randomElement(Gender::cases());
+                            // Don't use random values in production
+                            $genderEnum = null;
                         }
-                    } else {
-                        $genderEnum = $faker->randomElement(Gender::cases());
                     }
-                    
-                    // Generate a name based on gender if not provided
-                    $fullName = $applicant['full_name'] ?? null;
-                    if (empty($fullName)) {
-                        $fakerGender = $genderEnum === Gender::Male ? 'male' : 'female';
-                        $fullName = $faker->name($fakerGender);
+
+                    // Only create a contact if we have a name
+                    if (! empty($fullName)) {
+                        // Create a new contact for this applicant
+                        $contact = Contact::create([
+                            'full_name' => $fullName,
+                            'gender' => $genderEnum,
+                            'date_of_birth' => $applicant['date_of_birth'] ?? null,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $contactId = $contact->id;
                     }
-                    
-                    // Create a new contact for this applicant
-                    $contact = Contact::create([
-                        'full_name' => $fullName,
-                        'gender' => $genderEnum,
-                        'date_of_birth' => $applicant['date_of_birth'] ?? null,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                    
-                    $contactId = $contact->id;
+                    // If no name is provided, contactId remains null
                 }
 
                 // Create the policy applicant record

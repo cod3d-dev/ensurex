@@ -20,7 +20,6 @@ class LatestPolicies extends BaseWidget
             ->query(
                 fn () => Policy::query()->whereIn('status', [
                     \App\Enums\PolicyStatus::Draft->value,
-                    \App\Enums\PolicyStatus::Pending->value,
                 ]),
             )
             ->columns([

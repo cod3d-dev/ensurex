@@ -37,6 +37,8 @@ class ManagePolicyIssues extends ManageRelatedRecords
     {
         return $form
             ->schema([
+                Forms\Components\Hidden::make('created_by')
+                    ->default(auth()->user()->id),
                 Forms\Components\TextInput::make('description')
                     ->label('Descripción')
                     ->required()

@@ -18,7 +18,7 @@ class ViewPolicy extends ViewRecord
 {
     protected static string $resource = PolicyResource::class;
 
-    protected static ?string $navigationLabel = 'Miembros';
+    protected static ?string $navigationLabel = 'Poliza';
 
     protected static ?string $navigationIcon = 'carbon-pedestrian-family';
 
@@ -159,9 +159,19 @@ class ViewPolicy extends ViewRecord
                                             ->date('m-d-Y'),
                                         Infolists\Components\TextEntry::make('gender')
                                             ->label('Género'),
-                                        Infolists\Components\TextEntry::make('pivot.yearly_income')
+                                        Infolists\Components\TextEntry::make('pivot.contact_id')
                                             ->label('Ingresos')
-                                            ->money('USD', locale: 'es_VE'),
+                                            ->formatStateUsing(function ($record): string {
+                                                $yearlyIncome = $record->pivot->yearly_income ?? 0;
+                                                $selfEmployedIncome = $record->pivot->self_employed_yearly_income ?? 0;
+                                                $totalIncome = $yearlyIncome + $selfEmployedIncome;
+
+                                                if ($totalIncome <= 0) {
+                                                    return '';
+                                                }
+
+                                                return '$'.number_format($totalIncome, 2, '.', ',');
+                                            }),
                                         Infolists\Components\View::make('ssn')
                                             ->label('Inmigración')
                                             ->view('filament.infolists.inmigration-document'),

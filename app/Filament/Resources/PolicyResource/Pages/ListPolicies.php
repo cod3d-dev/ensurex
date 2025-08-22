@@ -4,7 +4,6 @@ namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\PolicyStatus;
 use App\Filament\Resources\PolicyResource;
-use Filament\Actions;
 use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Resources\Pages\ListRecords\Tab;
@@ -22,13 +21,6 @@ class ListPolicies extends ListRecords
         return PolicyResource::getWidgets();
     }
 
-    protected function getHeaderActions(): array
-    {
-        return [
-            Actions\CreateAction::make(),
-        ];
-    }
-
     protected function paginateTableQuery(Builder $query): Paginator
     {
         return $query->simplePaginate(($this->getTableRecordsPerPage() === 'all') ? $query->count() : $this->getTableRecordsPerPage());
@@ -44,9 +36,6 @@ class ListPolicies extends ListRecords
             'active' => Tab::make('Activa')
                 ->query(fn ($query) => $query->where('status', PolicyStatus::Active->value))
                 ->badge(fn () => static::getModel()::where('status', PolicyStatus::Active->value)->count()),
-            'rejected' => Tab::make('Rechazada')
-                ->query(fn ($query) => $query->where('status', PolicyStatus::Rejected->value))
-                ->badge(fn () => static::getModel()::where('status', PolicyStatus::Rejected->value)->count()),
             'inactive' => Tab::make('Inactiva')
                 ->query(fn ($query) => $query->where('status', PolicyStatus::Inactive->value))
                 ->badge(fn () => static::getModel()::where('status', PolicyStatus::Inactive->value)->count()),

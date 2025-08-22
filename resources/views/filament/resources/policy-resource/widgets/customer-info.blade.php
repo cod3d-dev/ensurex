@@ -38,7 +38,7 @@
                 <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Aplicantes</h3>
                 <ul class="mt-2 space-y-2 text-sm text-gray-900 dark:text-white">
                     @foreach($record->policyApplicants as $applicant)
-                        <li>{{ $applicant->contact->full_name }} @if($applicant->medicaid_client)
+                        <li>{{ $applicant->contact?->full_name }} @if($applicant->medicaid_client)
                         <span class="text-xs text-gray-500 dark:text-gray-400">(Medicaid)</span> @endif
                         </li>
                     @endforeach

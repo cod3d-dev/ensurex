@@ -6,13 +6,12 @@ use App\Enums\FamilyRelationship;
 use App\Enums\PolicyStatus;
 use App\Enums\PolicyType;
 use App\Filament\Resources\PolicyResource;
+use App\Models\Policy;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class EditCompletePolicyCreation extends EditRecord
 {
@@ -88,7 +87,7 @@ class EditCompletePolicyCreation extends EditRecord
                         Forms\Components\Actions::make([
                             Forms\Components\Actions\Action::make('Crear Polizas')
                                 ->color('success')
-                                ->action(function ($record) {
+                                ->action(function ($record, Forms\Get $get) {
                                     // Check if all required pages have been completed
                                     if (! $record->areRequiredPagesCompleted()) {
                                         // Get incomplete pages
@@ -124,37 +123,47 @@ class EditCompletePolicyCreation extends EditRecord
                                     \DB::beginTransaction();
 
                                     try {
-                                        // 1. First, update the existing policy to 'Created' status
-                                        $currentPolicy = $record;
-                                        $currentPolicy->status = \App\Enums\PolicyStatus::Created;
-                                        $currentPolicy->save();
-
-                                        // 2. Get the policy types selected for creation
-                                        $selectedPolicyTypes = $currentPolicy->quote_policy_types ?? [];
+                                        // Get the selected policy types from the CheckBoxList
+                                        $selectedPolicyTypes = $get('quote_policy_types') ?? [];
 
                                         // Check if there are policy types selected
                                         if (empty($selectedPolicyTypes)) {
                                             throw new \Exception('No se han seleccionado tipos de póliza para crear.');
                                         }
 
-                                        $createdPolicies = 1; // Count the current policy that was updated
+                                        $currentPolicy = $record;
+                                        $createdPolicies = 0;
 
-                                        // 3. Create new policies for each selected type (except the current one)
+                                        // Check if the current policy type is in the selected types
+                                        $currentPolicyTypeSelected = in_array($currentPolicy->policy_type->value, $selectedPolicyTypes);
+
+                                        // If current policy type is selected, update its status to Created
+                                        if ($currentPolicyTypeSelected) {
+                                            $currentPolicy->status = PolicyStatus::Created;
+                                            $currentPolicy->save();
+                                            $createdPolicies++;
+                                        }
+
+                                        // Create new policies for each selected type (except the current one if it's already selected)
                                         foreach ($selectedPolicyTypes as $policyTypeValue) {
-                                            // Skip if this is the current policy's type
-                                            $policyType = \App\Enums\PolicyType::from($policyTypeValue);
-                                            if ($policyType === $currentPolicy->policy_type) {
+                                            // Skip if this is the current policy's type that was already updated
+                                            $policyType = PolicyType::from($policyTypeValue);
+                                            if ($policyType === $currentPolicy->policy_type && $currentPolicyTypeSelected) {
                                                 continue;
                                             }
 
                                             // Create a new policy with the same data but different type
                                             $newPolicy = $currentPolicy->replicate(['id']);
                                             $newPolicy->policy_type = $policyType;
-                                            $newPolicy->status = \App\Enums\PolicyStatus::Created;
+                                            $newPolicy->status = PolicyStatus::Created;
                                             $newPolicy->policy_number = null; // Generate a new policy number if needed
 
+                                            // Make sure to associate the same contact with the new policy
+                                            // This is important because the contact is a belongsTo relationship
+                                            $newPolicy->contact_id = $currentPolicy->contact_id;
+
                                             // Set specific fields for Life policies
-                                            if ($policyType === \App\Enums\PolicyType::Life) {
+                                            if ($policyType === PolicyType::Life) {
                                                 $newPolicy->total_family_members = 1;
                                                 $newPolicy->total_applicants = 1;
                                                 $newPolicy->total_applicants_with_medicaid = 0;
@@ -166,77 +175,65 @@ class EditCompletePolicyCreation extends EditRecord
                                             $newPolicy->code = null; // Force the model to generate a new code
                                             $newPolicy->save();
 
-                                            // Handle policy applicants based on policy type
-                                            if ($policyType === \App\Enums\PolicyType::Life) {
-                                                // For Life policies, only copy the first applicant (policy owner)
-                                                $firstApplicant = $currentPolicy->policyApplicants->first();
-                                                if ($firstApplicant) {
-                                                    $newApplicant = $firstApplicant->replicate(['id']);
-                                                    $newApplicant->policy_id = $newPolicy->id;
-                                                    $newApplicant->save();
+                                            // For Life policies, only include the main applicant with 'self' relationship
+                                            if ($policyType === PolicyType::Life) {
+                                                // Find the main applicant (with 'self' relationship)
+                                                $mainApplicant = $currentPolicy->applicants->first(function ($applicant) {
+                                                    return $applicant->pivot->relationship_with_policy_owner === FamilyRelationship::Self->value;
+                                                });
+
+                                                // If found, attach only the main applicant
+                                                if ($mainApplicant) {
+                                                    $pivotData = $mainApplicant->pivot->toArray();
+                                                    unset($pivotData['id'], $pivotData['policy_id'], $pivotData['created_at'], $pivotData['updated_at']);
+                                                    $newPolicy->applicants()->attach($mainApplicant->id, $pivotData);
                                                 }
                                             } else {
                                                 // For other policy types, copy all applicants
-                                                foreach ($currentPolicy->policyApplicants as $applicant) {
-                                                    $newApplicant = $applicant->replicate(['id']);
-                                                    $newApplicant->policy_id = $newPolicy->id;
-                                                    $newApplicant->save();
-                                                }
-                                            }
+                                                foreach ($currentPolicy->applicants as $applicant) {
+                                                    // Get the pivot data
+                                                    $pivotData = $applicant->pivot->toArray();
+                                                    // Remove keys that shouldn't be copied
+                                                    unset($pivotData['id'], $pivotData['policy_id'], $pivotData['created_at'], $pivotData['updated_at']);
 
-                                            // 2. Copy contact information if it exists separately from the main contact
-                                            if (method_exists($currentPolicy, 'policyContacts') && $currentPolicy->policyContacts()->exists()) {
-                                                foreach ($currentPolicy->policyContacts as $contact) {
-                                                    $newContact = $contact->replicate(['id']);
-                                                    $newContact->policy_id = $newPolicy->id;
-                                                    $newContact->save();
-                                                }
-                                            }
-
-                                            // 3. Copy policy documents (if appropriate)
-                                            // Only copy documents that should be shared across all policy types
-                                            if (method_exists($currentPolicy, 'documents') && $currentPolicy->documents()->exists()) {
-                                                foreach ($currentPolicy->documents as $document) {
-                                                    // You may want to selectively copy documents
-                                                    // For example, only copy documents that are marked as "shared"
-                                                    $newDocument = $document->replicate(['id']);
-                                                    $newDocument->policy_id = $newPolicy->id;
-                                                    $newDocument->save();
+                                                    // Attach the applicant to the new policy with the same pivot data
+                                                    $newPolicy->applicants()->attach($applicant->id, $pivotData);
                                                 }
                                             }
 
                                             $createdPolicies++;
                                         }
 
+                                        // If no policies were created or updated, show a warning
+                                        if ($createdPolicies === 0) {
+                                            throw new \Exception('No se ha creado ni actualizado ninguna póliza.');
+                                        }
+
                                         // Commit the transaction
                                         \DB::commit();
 
-                                        // Show success notification
+                                        // Show success notification with appropriate message
+                                        $message = $createdPolicies === 1
+                                            ? 'Se ha creado/actualizado 1 póliza correctamente.'
+                                            : "Se han creado/actualizado {$createdPolicies} pólizas correctamente.";
+
                                         Notification::make()
                                             ->success()
-                                            ->title('Pólizas creadas')
-                                            ->body("Se han creado {$createdPolicies} póliza(s) exitosamente")
+                                            ->title('Pólizas procesadas')
+                                            ->body($message)
                                             ->send();
 
-                                        // Redirect to policies list after successful creation
+                                        // Redirect to the policies index page
                                         $this->redirect(PolicyResource::getUrl('index'));
-
                                     } catch (\Exception $e) {
-                                        // Roll back in case of error
-                                        DB::rollBack();
-
-                                        // Log the error for debugging
-                                        Log::error('Error creating policies: '.$e->getMessage(), [
-                                            'exception' => $e,
-                                            'policy_id' => $record->id,
-                                            'selected_types' => $record->quote_policy_types ?? [],
-                                        ]);
+                                        // Rollback the transaction in case of error
+                                        \DB::rollBack();
 
                                         // Show error notification
                                         Notification::make()
                                             ->danger()
-                                            ->title('Error al crear pólizas')
-                                            ->body('Ha ocurrido un error: '.$e->getMessage())
+                                            ->title('Error al procesar pólizas')
+                                            ->body($e->getMessage())
                                             ->persistent()
                                             ->send();
                                     }

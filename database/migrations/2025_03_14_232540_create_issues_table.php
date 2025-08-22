@@ -21,7 +21,7 @@ return new class extends Migration
             $table->text('proposed_solution')->nullable();
             $table->text('email_message')->nullable();
             $table->date('verification_date')->nullable();
-            $table->foreignId('updated_by')->constrained('users')->nullable();
+            $table->foreignId('updated_by')->nullable()->constrained('users');
             $table->text('response')->nullable();
             $table->json('notes')->nullable();
             $table->timestamps();

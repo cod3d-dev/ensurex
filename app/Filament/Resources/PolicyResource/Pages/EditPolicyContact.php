@@ -3,18 +3,17 @@
 namespace App\Filament\Resources\PolicyResource\Pages;
 
 use App\Enums\Gender;
-use App\Enums\ImmigrationStatus;
 use App\Enums\MaritialStatus;
 use App\Enums\UsState;
 use App\Filament\Resources\PolicyResource;
 use App\Models\Contact;
+use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Carbon\Carbon;
 
 class EditPolicyContact extends EditRecord
 {
@@ -23,9 +22,9 @@ class EditPolicyContact extends EditRecord
     protected static ?string $navigationLabel = 'Titular';
 
     protected static ?string $navigationIcon = 'eos-perm-contact-calendar-o';
-    
+
     public static string|\Filament\Support\Enums\Alignment $formActionsAlignment = 'end';
-    
+
     protected function getSaveFormAction(): Actions\Action
     {
         return parent::getSaveFormAction()
@@ -33,17 +32,18 @@ class EditPolicyContact extends EditRecord
                 // Check if all pages have been completed
                 $record = $this->getRecord();
                 $isCompleted = $record->areRequiredPagesCompleted();
-                
+
                 // Return 'Siguiente' if not completed, otherwise 'Guardar'
                 return $isCompleted ? 'Guardar' : 'Siguiente';
             })
             ->icon(fn () => $this->getRecord()->areRequiredPagesCompleted() ? '' : 'heroicon-o-arrow-right')
             ->color(function () {
                 $record = $this->getRecord();
+
                 return $record->areRequiredPagesCompleted() ? 'primary' : 'success';
             });
     }
-    
+
     public function form(Form $form): Form
     {
         return $form
@@ -228,7 +228,7 @@ class EditPolicyContact extends EditRecord
                                     ->label('Edad')
                                     ->extraAttributes([
                                         'class' => 'block w-full py-1 px-3 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-700',
-                                        'style' => 'min-height: 38px; display: flex; align-items: center;'
+                                        'style' => 'min-height: 38px; display: flex; align-items: center;',
                                     ])
                                     ->content(fn (Contact $record): string => $record->age ?? '-'),
                                 Forms\Components\Select::make('gender')
@@ -380,21 +380,26 @@ class EditPolicyContact extends EditRecord
     protected function afterSave(): void
     {
         $policy = $this->record;
-        
+
         // Mark this page as completed
         $policy->markPageCompleted('edit_policy_contact');
-        
+
         // If all required pages are completed, redirect to the completion page
-        if ($policy->areRequiredPagesCompleted()) {
+        if ($policy->areRequiredPagesCompleted() && $policy->isDraft()) {
             $this->redirect(PolicyResource::getUrl('edit-complete', ['record' => $policy]));
+
+            return;
+        } elseif ($policy->areRequiredPagesCompleted()) {
+            $this->redirect(PolicyResource::getUrl('view', ['record' => $policy]));
+
             return;
         }
-        
+
         // Get the next uncompleted page and redirect to it
         $incompletePages = $policy->getIncompletePages();
-        if (!empty($incompletePages)) {
+        if (! empty($incompletePages)) {
             $nextPage = reset($incompletePages); // Get the first incomplete page
-            
+
             // Map page names to their respective routes
             $pageRoutes = [
                 'edit_policy' => 'edit',
@@ -404,7 +409,7 @@ class EditPolicyContact extends EditRecord
                 'edit_policy_income' => 'edit-income',
                 'edit_policy_payments' => 'payments',
             ];
-            
+
             if (isset($pageRoutes[$nextPage])) {
                 $this->redirect(PolicyResource::getUrl($pageRoutes[$nextPage], ['record' => $policy]));
             }

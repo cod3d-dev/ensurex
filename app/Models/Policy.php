@@ -385,4 +385,9 @@ class Policy extends Model
     {
         return $this->total_family_members;
     }
+
+    public function isDraft(): bool
+    {
+        return $this->status === PolicyStatus::Draft;
+    }
 }
