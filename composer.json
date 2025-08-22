@@ -15,7 +15,7 @@
         "codeat3/blade-teeny-icons": "^1.11",
         "davidhsianturi/blade-bootstrap-icons": "^2.0",
         "filament/filament": "^3.3",
-        "koenhendriks/laravel-str-acronym": "@dev",
+        "koenhendriks/laravel-str-acronym": "^1.1",
         "lara-zeus/inline-chart": "^1.1",
         "laravel/framework": "^11.31",
         "laravel/slack-notification-channel": "^3.6",
@@ -85,11 +85,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../../laravel-str-acronym"
-        }
-    ]
+    "prefer-stable": true
 }

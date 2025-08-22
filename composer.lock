@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "49ac0c329f28427c8978f9b204b4af23",
+    "content-hash": "f711905fcaafed6e33bd0eeeaf055c7b",
     "packages": [
         {
             "name": "andreiio/blade-iconoir",
@@ -2505,17 +2505,23 @@
         },
         {
             "name": "koenhendriks/laravel-str-acronym",
-            "version": "dev-main",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/koenhendriks/laravel-str-acronym.git",
+                "reference": "c2acef7aeaeec081f0488e87c8c08a961634ecd5"
+            },
             "dist": {
-                "type": "path",
-                "url": "../../laravel-str-acronym",
-                "reference": "54c4b0a488b2f1e55fb8a6be4c396c5eb1c75756"
+                "type": "zip",
+                "url": "https://api.github.com/repos/koenhendriks/laravel-str-acronym/zipball/c2acef7aeaeec081f0488e87c8c08a961634ecd5",
+                "reference": "c2acef7aeaeec081f0488e87c8c08a961634ecd5",
+                "shasum": ""
             },
             "require": {
-                "illuminate/support": "^10.5|^11.0|^12.0"
+                "illuminate/support": "^11.0|^12.0"
             },
             "require-dev": {
-                "orchestra/testbench": "^8.1",
+                "orchestra/testbench": "^9.0",
                 "phpunit/phpunit": "^11.5.3"
             },
             "type": "library",
@@ -2531,11 +2537,7 @@
                     "KoenHendriks\\StrAcronym\\": "src/"
                 }
             },
-            "scripts": {
-                "test": [
-                    "./vendor/bin/phpunit"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -2555,9 +2557,11 @@
                 "laravel-str-acronym",
                 "str-acronym"
             ],
-            "transport-options": {
-                "relative": true
-            }
+            "support": {
+                "issues": "https://github.com/koenhendriks/laravel-str-acronym/issues",
+                "source": "https://github.com/koenhendriks/laravel-str-acronym/tree/1.1.0"
+            },
+            "time": "2025-05-16T14:38:07+00:00"
         },
         {
             "name": "lara-zeus/inline-chart",
@@ -11266,9 +11270,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "koenhendriks/laravel-str-acronym": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
